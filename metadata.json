@@ -1,0 +1,7 @@
+{
+  "name": "appweb_dy auto parts",
+  "description": "Sistema operacional interno para gestão de estoque, pedidos e logística.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
