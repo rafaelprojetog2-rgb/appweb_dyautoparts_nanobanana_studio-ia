@@ -3,7 +3,7 @@ const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/app.js',
-  '/src/index.css',
+  '/src/index.css?v=1.0.2',
   '/imagens/icon-192-black.png',
   '/imagens/icon-512-black.png',
   'https://unpkg.com/html5-qrcode',

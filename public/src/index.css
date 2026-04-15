@@ -736,6 +736,13 @@
             z-index: 2001;
         }
 
-        .image-modal-close:hover {
-            background: rgba(255,255,255,0.2);
+        /* MODO TELA LIMPA (ESTILOS PERMANENTES) */
+        body.fullscreen-mode .top-bar { display: none !important; }
+        body.fullscreen-mode .dashboard-screen { padding-top: 20px !important; }
+        body.fullscreen-mode #exit-fullscreen-float { display: flex !important; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
         }
