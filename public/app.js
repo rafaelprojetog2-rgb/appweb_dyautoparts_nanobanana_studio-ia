@@ -18,6 +18,118 @@
         const app = document.getElementById('app');
         const toast = document.getElementById('toast');
 
+        // ==== MODO TELA LIMPA (FULLSCREEN MODO OPERACIONAL) ====
+        document.head.insertAdjacentHTML("beforeend", `
+            <style>
+                body.fullscreen-mode .top-bar { display: none !important; }
+                body.fullscreen-mode .dashboard-screen { padding-top: 20px !important; }
+                body.fullscreen-mode #exit-fullscreen-float { display: flex !important; }
+                /* Oculta botão historico e cabeçalhos redundantes nas telas operacionais se quiser max espaço */
+                /* body.fullscreen-mode .sub-menu-header { display: none !important; } */
+            </style>
+        `);
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            document.body.insertAdjacentHTML('beforeend', `
+                <button id="exit-fullscreen-float" onclick="toggleFullscreen()" style="display: none; position: fixed; top: 12px; right: 12px; z-index: 2147483647; background: rgba(239, 68, 68, 1); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); align-items: center; gap: 8px;">
+                    <span class="material-symbols-rounded" style="font-size: 20px;">fullscreen_exit</span> Sair Modo Tela Limpa
+                </button>
+            `);
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (document.body.classList.contains('fullscreen-mode')) {
+                        toggleFullscreen();
+                    }
+                }
+            });
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Erro ao entrar em fullscreen: ${err.message}`);
+                });
+                document.body.classList.add('fullscreen-mode');
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+                document.body.classList.remove('fullscreen-mode');
+            }
+        }
+
+        // Listener para sincronizar classe CSS se sair pelo ESC nativo
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.classList.remove('fullscreen-mode');
+            }
+        });
+
+        // Registro de Service Worker para PWA com Limpeza de Emergência
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Detectar se o app falhou em carregar anteriormente (pode ser cache quebrado)
+                if (localStorage.getItem('app_load_error')) {
+                    console.log('Detectada falha de carregamento prévia. Limpando Service Workers...');
+                    navigator.serviceWorker.getRegistrations().then(registrations => {
+                        for(let registration of registrations) {
+                            registration.unregister();
+                        }
+                    });
+                    localStorage.removeItem('app_load_error');
+                }
+
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    console.log('SW registrado com sucesso:', reg.scope);
+                }).catch(err => {
+                    console.log('Falha ao registrar SW:', err);
+                });
+            });
+        }
+        // ========================================================
+
+        // ERP Blindagem Constants
+        let isFinalizing = false;
+        let isSyncing = false;
+
+        function generateUniqueId(prefix) {
+            const now = new Date();
+            const ddmm = now.getDate().toString().padStart(2, '0') + (now.getMonth() + 1).toString().padStart(2, '0');
+            const random = Math.random().toString(36).substr(2, 4).toUpperCase();
+            return `${prefix}-${ddmm}-${random}`;
+        }
+        
+        // Auxiliar para gerar ID de execução técnica (idempotência)
+        function generateExecutionId() {
+            return 'exec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6).toUpperCase();
+        }
+
+        async function revertStockMovement(sessionId, row, operatorId) {
+            try {
+                showToast(`Iniciando estorno para ${row.descricao}...`);
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'movimento',
+                        tipo: 'ESTORNO',
+                        id_interno: row.id_interno,
+                        local: '1_ANDAR',
+                        quantidade: row.qtd_conferida || row.qtd_separada || 0,
+                        usuario: operatorId,
+                        origem: `REVERSAO-${sessionId}`,
+                        observacao: `Correção de erro operacional da sessao ${sessionId}`
+                    })
+                });
+                showToast(`Estorno concluído (visualização apenas, sincronização em background).`);
+            } catch (err) {
+                console.error("Estorno Falhou:", err);
+                showToast("Erro ao processar estorno!");
+            }
+        }
+
 function criarStatusConexao(){
 
   const status = document.createElement("div")
@@ -77,12 +189,143 @@ function criarStatusConexao(){
             separacao: [],
             conferencia: [],
             estoque: [],
+            movimentacoes: [],
             entradas_nf: [],
             inventario: [],
             isLoading: true,
             lastSyncTime: null,
             currentInventory: null
         };
+
+        let operacoesPendentes = 0;
+
+        function atualizarPendentes() {
+            const el = document.getElementById("pendentesSync");
+            if (!el) return;
+            el.innerHTML = `📦 ${operacoesPendentes}`;
+        }
+
+        function adicionarPendencia() {
+            operacoesPendentes++;
+            atualizarPendentes();
+        }
+
+        function atualizarStatusConexao() {
+            const status = document.getElementById("statusConexao");
+            if (!status) return;
+
+            if (navigator.onLine) {
+                status.innerHTML = "🟢 Online";
+                status.style.color = "#4ade80";
+            } else {
+                status.innerHTML = "🔴 Offline";
+                status.style.color = "#ef4444";
+            }
+        }
+
+        window.addEventListener("online", atualizarStatusConexao);
+        window.addEventListener("offline", atualizarStatusConexao);
+        document.addEventListener("DOMContentLoaded", atualizarStatusConexao);
+
+        async function processSyncQueue() {
+            if (!navigator.onLine || isSyncing) return;
+            
+            let queue = JSON.parse(localStorage.getItem('pending_sync_queue') || '[]');
+            if (queue.length === 0) {
+                operacoesPendentes = 0;
+                atualizarPendentes();
+                return;
+            }
+
+            isSyncing = true;
+            console.log(`Operando Sincronização Atômica: ${queue.length} pendentes`);
+
+            // Processamento Individual para garantir que sucesso seja removido IMEDIATAMENTE
+            // Evita duplicação se o app fechar durante o processo
+            while (queue.length > 0) {
+                const item = queue[0];
+                operacoesPendentes = queue.length;
+                atualizarPendentes();
+
+                try {
+                    // Garantir que o payload tenha um executionId se não tiver
+                    if (!item.payload.executionId) {
+                        item.payload.executionId = item.id;
+                    }
+
+                    await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item.payload)
+                    });
+                    
+                    // SUCESSO REAL: Remove do topo e persiste IMEDIATAMENTE (FIFO Estrito)
+                    queue.shift();
+                    localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
+                    console.log(`Sincronizado: ${item.id}`);
+                } catch (error) {
+                    console.error(`Pausa na sincronização (Rede):`, error);
+                    break; 
+                }
+            }
+
+            operacoesPendentes = queue.length;
+            atualizarPendentes();
+            isSyncing = false;
+            
+            if (queue.length === 0) {
+            if (queue.length === 0) {
+                showToast("Sincronização concluída com sucesso!");
+                isSyncing = false; // Reset lock
+                loadAllData();
+            } else {
+                isSyncing = false; // Reset lock mesmo se houver remanescentes
+            }
+        }
+        }
+
+        async function safePost(payload) {
+            const executionId = generateExecutionId();
+            const syncItem = {
+                id: executionId,
+                timestamp: new Date().toISOString(),
+                payload: { ...payload, executionId }
+            };
+
+            if (!navigator.onLine) {
+                const queue = JSON.parse(localStorage.getItem('pending_sync_queue') || '[]');
+                queue.push(syncItem);
+                localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
+                operacoesPendentes = queue.length;
+                atualizarPendentes();
+                showToast("Offline: Salvo para sincronizar.");
+                return false;
+            }
+
+            try {
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(syncItem.payload)
+                });
+                return true;
+            } catch (error) {
+                const queue = JSON.parse(localStorage.getItem('pending_sync_queue') || '[]');
+                queue.push(syncItem);
+                localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
+                operacoesPendentes = queue.length;
+                atualizarPendentes();
+                showToast("Erro de rede: Salvo em fila.");
+                return false;
+            }
+        }
+
+        function sincronizarSistema() {
+            processSyncQueue();
+            loadAllData();
+        }
 
         async function fetchSheetData(sheetName) {
             // Added headers=1 to explicitly skip the first row as header and tq=select * to ignore filters
@@ -168,6 +411,9 @@ function criarStatusConexao(){
 
                     <div style="display: flex; align-items: center; gap: 16px;">
                         <span class="top-bar-info" style="font-weight: 700; color: white;">${currentUser}</span>
+                        <button class="btn-logout" onclick="toggleFullscreen()" title="Modo Tela Limpa" style="color: var(--primary);">
+                            <span class="material-symbols-rounded" style="font-size: 22px;">fullscreen</span>
+                        </button>
                         <button class="btn-logout" onclick="logout()" title="Sair">
                             <span class="material-symbols-rounded" style="font-size: 22px;">power_settings_new</span>
                         </button>
@@ -328,64 +574,7 @@ function criarStatusConexao(){
             renderLogin();
             }
 
-            // ===== SINCRONIZAÇÃO =====
-
-            function sincronizarSistema(){
-
-            operacoesPendentes = 0;
-            atualizarPendentes();
-
-            loadAllData();
-
-            }
-            renderLogin();
-
-            // ===== CONTADOR DE OPERAÇÕES PENDENTES =====
-
-            let operacoesPendentes = 0;
-
-            function atualizarPendentes(){
-
-            const el = document.getElementById("pendentesSync");
-            if(!el) return;
-
-            el.innerHTML = `📦 ${operacoesPendentes}`;
-            }
-
-            function adicionarPendencia(){
-
-            operacoesPendentes++;
-            atualizarPendentes();
-
-            }
-
-            setTimeout(atualizarPendentes,500);
-
-// ===== Status de conexão =====
-
-function atualizarStatusConexao(){
-        }
-        // ===== Status de conexão =====
-
-        function atualizarStatusConexao(){
-
-           const status = document.getElementById("statusConexao")
-           if(!status) return
-
-           if(navigator.onLine){
-            status.innerHTML = "🟢 Online"
-            status.style.color = "#4ade80"
-           }else{
-            status.innerHTML = "🔴 Offline"
-            status.style.color = "#ef4444"
-        }
-
-        }
-
-        window.addEventListener("online", atualizarStatusConexao)
-        window.addEventListener("offline", atualizarStatusConexao)
-
-        document.addEventListener("DOMContentLoaded", atualizarStatusConexao)
+        // Status Handlers moved to global section early in file
 
 
         function renderLogin() {
@@ -477,14 +666,16 @@ function atualizarStatusConexao(){
                 return;
             }
 
+            const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
+
             const menuItems = [
                 { id: 'produtos', label: 'PRODUTOS', icon: 'inventory_2' },
                 { id: 'pick', label: 'SEPARAÇÃO (PICK)', icon: 'conveyor_belt' },
-                { id: 'pack', label: 'CONFERÊNCIA (PACK)', icon: 'package_2' },
-                { id: 'nf', label: 'ENTRADA DE NF', icon: 'description' },
-                { id: 'compras', label: 'COMPRAS', icon: 'shopping_bag' },
+                { id: 'pack', label: 'CONFERÊNCIA (PACK)', icon: 'package_2', disabled: modoRapidoAtivo, badge: modoRapidoAtivo ? 'Desativado' : null },
+                { id: 'nf', label: 'ENTRADA DE NF', icon: 'description', disabled: true, badge: 'Em breve' },
+                { id: 'compras', label: 'COMPRAS', icon: 'shopping_bag', disabled: true, badge: 'Em breve' },
                 { id: 'movimentacoes', label: 'MOVIMENTAÇÕES', icon: 'swap_horiz' },
-                { id: 'financeiro', label: 'FINANCEIRO', icon: 'payments' },
+                { id: 'financeiro', label: 'FINANCEIRO', icon: 'payments', disabled: true, badge: 'Em breve' },
                 { id: 'inventario', label: 'INVENTÁRIO', icon: 'list_alt' },
                 { id: 'configuracoes', label: 'CONFIGURAÇÕES', icon: 'settings' },
                 { id: 'dashboard', label: 'DASHBOARD', icon: 'dashboard' },
@@ -1178,6 +1369,9 @@ function atualizarStatusConexao(){
         }
 
         async function saveMovimentacao(tipo) {
+            if (isFinalizing) return;
+            isFinalizing = true;
+            
             const qty = parseFloat(document.getElementById('mov-qty').value);
             const obs = document.getElementById('mov-obs').value.trim();
             const localOrigem = document.getElementById('mov-origem').value;
@@ -1205,16 +1399,11 @@ function atualizarStatusConexao(){
             
             if (SCRIPT_URL) {
                 try {
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(movData)
-                    });
-
-                    // Como é no-cors, não conseguimos ler o JSON de resposta, 
-                    // mas assumimos sucesso se não houver erro de rede.
-                    showToast("Movimento registrado!");
+                    const success = await safePost(movData);
+                    
+                    if (success) {
+                        showToast("Movimento registrado!");
+                    }
                     
                     // Atualização local otimista para o histórico
                     if (!appData.movimentacoes) appData.movimentacoes = [];
@@ -1227,7 +1416,9 @@ function atualizarStatusConexao(){
                     setTimeout(() => renderMovimentacoesSubMenu(), 1500);
                 } catch (e) {
                     console.error(e);
-                    showToast("Erro ao salvar no servidor.");
+                    showToast("Erro ao processar movimento.");
+                } finally {
+                    isFinalizing = false;
                 }
             } else {
                 showToast("Modo offline: SCRIPT_URL não configurado.");
@@ -1741,8 +1932,12 @@ function atualizarStatusConexao(){
         }
 
         window.finishInventorySession = async function() {
+            if (isFinalizing) return;
+            isFinalizing = true;
+
             if (appData.currentInventory.items.length === 0) {
                 showToast("Não é possível fechar um inventário sem itens!", "error");
+                isFinalizing = false;
                 return;
             }
 
@@ -1825,48 +2020,23 @@ function atualizarStatusConexao(){
                     };
 
                     // 3. Gerar movimentos de AJUSTE_INVENTARIO para divergências
-                    let lastId = 0;
-                    if (appData.movimentacoes && appData.movimentacoes.length > 0) {
-                        appData.movimentacoes.forEach(m => {
-                            const idStr = String(m.movimento_id || '');
-                            const match = idStr.match(/MOV[_-](\d+)/i);
-                            if (match) {
-                                const val = parseInt(match[1]);
-                                if (val > lastId) lastId = val;
-                            }
-                        });
-                    }
-                    let nextSeqId = lastId + 1;
-
-                    const batchSize = 10;
-                    for (let i = 0; i < itemsWithDiff.length; i += batchSize) {
-                        const batch = itemsWithDiff.slice(i, i + batchSize);
-                        await Promise.all(batch.map(async (item) => {
-                            try {
-                                const currentId = nextSeqId++;
-                                const movId = `MOV-${String(currentId).padStart(3, '0')}`;
-                                
-                                await fetch(SCRIPT_URL, {
-                                    method: 'POST',
-                                    mode: 'no-cors',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        action: 'movimento',
-                                        movimento_id: movId,
-                                        tipo: 'AJUSTE_INVENTARIO',
-                                        id_interno: item.id_interno,
-                                        local: local,
-                                        quantidade: item.diferenca,
-                                        usuario: user,
-                                        origem: 'APP_INVENTARIO',
-                                        observacao: `Ajuste via Inventário ${type} ${sessionId}`
-                                    })
-                                });
-                            } catch (e) {
-                                console.error("Erro ao gerar movimento:", e);
-                            }
-                            updateProgress();
-                        }));
+                    // Usando safePost para garantir sincronização mesmo com queda de rede no meio do loop
+                    for (const item of itemsWithDiff) {
+                        try {
+                            await safePost({
+                                action: 'movimento',
+                                tipo: 'AJUSTE_INVENTARIO',
+                                id_interno: item.id_interno,
+                                local: local,
+                                quantidade: item.diferenca,
+                                usuario: user,
+                                origem: 'APP_INVENTARIO',
+                                observacao: `Ajuste via Inventário ${type} ${sessionId}`
+                            });
+                        } catch (e) {
+                            console.error("Erro ao enfileirar movimento:", e);
+                        }
+                        updateProgress();
                     }
                     
                     showToast("Inventário finalizado com sucesso!");
@@ -1883,6 +2053,8 @@ function atualizarStatusConexao(){
                     btn.style.opacity = '1';
                     btn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> FINALIZAR E SALVAR AGORA';
                 }
+            } finally {
+                isFinalizing = false;
             }
         }
 
@@ -4002,9 +4174,43 @@ function atualizarStatusConexao(){
                                 </div>
                             `).join('')}
                         </div>
+
+                        <div style="margin-top: 30px; padding: 20px; background: var(--surface); border-radius: 24px; border: 1px solid rgba(255,255,255,0.05);">
+                            <h3 style="font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 20px; letter-spacing: 0.05em;">Operação do Sistema</h3>
+                            
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 16px;">
+                                    <div>
+                                        <div style="font-weight: 700; color: white;">Modo Rápido</div>
+                                        <div style="font-size: 0.7rem; color: var(--muted);">Desativa fluxo de separação. Apenas Conferência.</div>
+                                    </div>
+                                    <button class="btn-action ${localStorage.getItem('config_modo_rapido') === 'true' ? 'btn-danger' : 'btn-secondary'}" style="min-width: 80px;" onclick="toggleConfig('config_modo_rapido', this)">
+                                        ${localStorage.getItem('config_modo_rapido') === 'true' ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <div style="font-weight: 700; color: white;">Permitir estoque negativo na separação</div>
+                                        <div style="font-size: 0.7rem; color: var(--muted);">Separa mesmo sem saldo (apenas exibe alerta visual).</div>
+                                    </div>
+                                    <button class="btn-action ${localStorage.getItem('config_estoque_negativo') === 'true' ? 'btn-danger' : 'btn-secondary'}" style="min-width: 80px;" onclick="toggleConfig('config_estoque_negativo', this)">
+                                        ${localStorage.getItem('config_estoque_negativo') === 'true' ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </main>
                 </div>
             `;
+        }
+
+        function toggleConfig(key, btnElement) {
+            const current = localStorage.getItem(key) === 'true';
+            localStorage.setItem(key, !current);
+            btnElement.innerText = !current ? 'ON' : 'OFF';
+            btnElement.className = `btn-action ${!current ? 'btn-danger' : 'btn-secondary'}`;
+            showToast(`Configuração '${key}' ${!current ? 'ativada' : 'desativada'}.`);
         }
 
         function renderFinanceiroSubMenu() {
@@ -4168,18 +4374,35 @@ function atualizarStatusConexao(){
         }
 
         function startPickingSession(channelLabel, channelColor) {
+            const currentUser = localStorage.getItem('currentUser');
+            const draftStr = localStorage.getItem('draft_pick_session');
+            if (draftStr) {
+                const draft = JSON.parse(draftStr);
+                if (draft.channelColor === channelColor) {
+                    currentSessionItems = draft.items || [];
+                    renderPickingScreen(draft.sessionId, draft.channelLabel, draft.channelColor);
+                    updatePickItemsList();
+                    return;
+                } else {
+                    if (!confirm(`Sessão ativa detectada em ${draft.channelLabel}. Para manter a integridade, você deve concluí-la ou limpar o rascunho atual. Deseja RETOMAR essa sessão agora?`)) {
+                        return;
+                    }
+                    currentSessionItems = draft.items || [];
+                    renderPickingScreen(draft.sessionId, draft.channelLabel, draft.channelColor);
+                    updatePickItemsList();
+                    return;
+                }
+            }
+
             const now = new Date();
             const ddmm = now.getDate().toString().padStart(2, '0') + (now.getMonth() + 1).toString().padStart(2, '0');
             const todayStr = now.toLocaleDateString('pt-BR');
             
             const cleanChannel = channelLabel.split(' ')[0].toUpperCase();
             
-            // 1. Count from spreadsheet data (appData.separacao)
             let countInSheet = 0;
             if (appData.separacao && Array.isArray(appData.separacao)) {
                 countInSheet = appData.separacao.filter(row => {
-                    // Check if the row belongs to today and this channel
-                    // Using both possible column names (from fetchSheetData)
                     const rowDate = row.data_separacao || row.col_d || row.col_D;
                     const rowChannel = row.canal_nome || row.col_c || row.col_C;
                     return rowDate === todayStr && rowChannel === channelLabel;
@@ -4188,6 +4411,13 @@ function atualizarStatusConexao(){
 
             const seq = countInSheet + 1;
             const sessionId = `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
+            
+            currentSessionItems = [];
+            localStorage.setItem('draft_pick_session', JSON.stringify({
+                sessionId, channelLabel, channelColor, items: [],
+                operatorId: currentUser, status: 'in_progress', timestamp: now.toISOString()
+            }));
+            
             renderPickingScreen(sessionId, channelLabel, channelColor);
         }
 
@@ -4195,7 +4425,6 @@ function atualizarStatusConexao(){
 
         function renderPickingScreen(sessionId, channelLabel, channelColor) {
             const currentUser = localStorage.getItem('currentUser');
-            currentSessionItems = [];
 
             app.innerHTML = `
                 <div class="dashboard-screen fade-in">
@@ -4260,9 +4489,26 @@ function atualizarStatusConexao(){
             );
             
             if (product) {
+                const allowNegative = localStorage.getItem('config_estoque_negativo') === 'true';
+                const itemEstoque = (appData.estoque || []).find(e => (e.id_interno || e.col_a) == (product.id_interno || product.col_a));
+                const stock = itemEstoque ? parseFloat((itemEstoque.saldo_disponivel || itemEstoque.col_c || 0).toString().replace(',', '.')) : 0;
+                const existingItemForQty = currentSessionItems.find(item => item.ean == product.ean || item.id_interno == product.id_interno);
+                const currentDraftQty = existingItemForQty ? existingItemForQty.qty : 0;
+
+                if (stock < (currentDraftQty + 1)) {
+                    if (!allowNegative) {
+                        playBeep('error');
+                        showToast(`ESTOQUE INSUFICIENTE para ${product.descricao_base || 'este item'}`);
+                        input.value = '';
+                        input.focus();
+                        return;
+                    } else {
+                        showToast(`⚠️ AVISO: Estoque negativo para ${product.descricao_base || 'este item'}`);
+                    }
+                }
+
                 playBeep('success');
                 
-                // Group items by EAN
                 const existingItem = currentSessionItems.find(item => item.ean == product.ean || item.id_interno == product.id_interno);
                 if (existingItem) {
                     existingItem.qty = (existingItem.qty || 1) + 1;
@@ -4274,7 +4520,17 @@ function atualizarStatusConexao(){
                         scanTime: new Date().toLocaleTimeString()
                     });
                 }
+                
+                const draft = JSON.parse(localStorage.getItem('draft_pick_session') || '{}');
+                draft.items = currentSessionItems;
+                draft.timestamp = new Date().toISOString();
+                localStorage.setItem('draft_pick_session', JSON.stringify(draft));
+                
                 showToast(`Item adicionado: ${product.descricao_base || product.col_aa || 'Produto'}`);
+            if (currentPackSession) {
+                currentPackSession.items = currentSessionItems;
+                localStorage.setItem('draft_pack_session', JSON.stringify(currentPackSession));
+            }
             } else {
                 playBeep('error');
                 showToast(`PRODUTO NÃO CADASTRADO: ${ean}`);
@@ -4321,114 +4577,131 @@ function atualizarStatusConexao(){
                 currentSessionItems.splice(index, 1);
             }
             updatePickItemsList();
+            const draft = JSON.parse(localStorage.getItem('draft_pick_session') || '{}');
+            draft.items = currentSessionItems;
+            draft.timestamp = new Date().toISOString();
+            localStorage.setItem('draft_pick_session', JSON.stringify(draft));
         }
+
 
         async function finishPickingSession(sessionId, channelLabel, channelColor) {
-            if (currentSessionItems.length === 0) {
-                showToast("Adicione pelo menos um item para finalizar.");
-                return;
-            }
+            if (isFinalizing) return;
+            isFinalizing = true;
 
-            const currentUser = localStorage.getItem('currentUser');
-            const now = new Date().toISOString();
-            
-            // 1. Prepare data for 'separacao' sheet
-            const pickingData = {
-                rom_id: sessionId,
-                canal_id: channelColor,
-                canal_nome: channelLabel,
-                data_separacao: new Date().toLocaleDateString('pt-BR'),
-                status: 'SEPARADO',
-                criado_por: currentUser,
-                criado_em: now,
-                finalizado_em: now,
-                observacao: ''
-            };
+            const submitBtn = document.querySelector(`button[onclick^="finishPickingSession"]`);
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = 'Salvando...'; }
 
-            // 2. Prepare data for 'CONFERENCIA' sheet (one row per unique product)
-            // Group items by EAN to get quantities
-            const groupedItems = currentSessionItems.reduce((acc, item) => {
-                if (!acc[item.ean]) {
-                    acc[item.ean] = { ...item, qty: 0 };
+            try {
+                if (currentSessionItems.length === 0) {
+                    showToast("Adicione pelo menos um item para finalizar.");
+                    return;
                 }
-                acc[item.ean].qty++;
-                return acc;
-            }, {});
 
-            const conferenceRows = Object.values(groupedItems).map(item => ({
-                rom_id: sessionId,
-                id_interno: item.id_interno || '',
-                ean: item.ean,
-                descricao: item.descricao_base,
-                qtd_separada: item.qty,
-                qtd_conferida: 0,
-                divergencia: 'FALTA', // Initially FALTA until conferida
-                conferido_por: '',
-                conferido_em: ''
-            }));
+                const currentUser = localStorage.getItem('currentUser');
+                const now = new Date().toISOString();
+                const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
+                
+                const pickingData = {
+                    rom_id: sessionId,
+                    canal_id: channelColor,
+                    canal_nome: channelLabel,
+                    data_separacao: new Date().toLocaleDateString('pt-BR'),
+                    status: modoRapidoAtivo ? 'CONCLUÍDO' : 'SEPARADO',
+                    criado_por: currentUser,
+                    criado_em: now,
+                    finalizado_em: now,
+                    observacao: modoRapidoAtivo ? 'SAIDA_RAPIDA AUTOMATICA' : ''
+                };
 
-            const session = {
-                id: sessionId,
-                channel: channelLabel,
-                channelColor: channelColor,
-                items: currentSessionItems,
-                user: currentUser,
-                time: now,
-                pickingData,
-                conferenceRows
-            };
+                const groupedItems = currentSessionItems.reduce((acc, item) => {
+                    if (!acc[item.ean]) acc[item.ean] = { ...item, qty: 0 };
+                    acc[item.ean].qty++;
+                    return acc;
+                }, {});
 
-            // Save to active sessions for PACK menu
-            let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
-            activeSessions.push(session);
-            localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+                const conferenceRows = Object.values(groupedItems).map(item => ({
+                    rom_id: sessionId,
+                    id_interno: item.id_interno || '',
+                    ean: item.ean,
+                    descricao: item.descricao_base,
+                    qtd_separada: item.qty,
+                    qtd_conferida: modoRapidoAtivo ? item.qty : 0,
+                    divergencia: modoRapidoAtivo ? 'OK' : 'FALTA',
+                    conferido_por: modoRapidoAtivo ? currentUser : '',
+                    conferido_em: modoRapidoAtivo ? now : '',
+                    processed: false
+                }));
 
-            // Attempt to save to Google Sheets if SCRIPT_URL is provided
-            if (SCRIPT_URL) {
-                try {
+                const session = {
+                    id: sessionId,
+                    channel: channelLabel,
+                    channelColor: channelColor,
+                    items: currentSessionItems,
+                    user: currentUser,
+                    time: now,
+                    pickingData,
+                    conferenceRows
+                };
+
+                if (SCRIPT_URL) {
                     showToast("Salvando na planilha...");
-                    // 1. Save to 'separacao' sheet
-                    const separacaoPromise = fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'append',
-                            sheet: 'separacao',
-                            data: pickingData
-                        })
+                    const separacaoPromise = safePost({
+                        action: 'append',
+                        sheet: 'separacao',
+                        data: pickingData
                     });
+                    
+                    let movementPromises = [];
+                    if (modoRapidoAtivo) {
+                        movementPromises = conferenceRows.map(row => {
+                            if (row.processed) return Promise.resolve(true);
+                            row.processed = true;
+                            
+                            return safePost({
+                                action: 'movimento',
+                                tipo: 'SAIDA_RAPIDA',
+                                id_interno: row.id_interno,
+                                local: '1_ANDAR',
+                                quantidade: row.qtd_separada,
+                                usuario: currentUser,
+                                origem: `RAPIDO-${sessionId}`,
+                                observacao: `Baixa automática (Modo Rápido) da separação ${sessionId}`,
+                                itens_afetados: JSON.stringify([{ id: row.id_interno, qtd: row.qtd_separada }])
+                            });
+                        });
+                    }
 
-                    // 2. Save movements of type RESERVA (Parallel for speed)
-                    const movementPromises = conferenceRows.map(row => fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'movimento',
-                            tipo: 'RESERVA',
-                            id_interno: row.id_interno,
-                            local: '1_ANDAR', // Picking from main stock
-                            quantidade: row.qtd_separada,
-                            usuario: currentUser,
-                            origem: `PICK-${sessionId}`,
-                            observacao: `Reserva para separação ${sessionId}`
-                        })
-                    }));
-
-                    // Execute all in parallel
                     await Promise.all([separacaoPromise, ...movementPromises]);
-                } catch (error) {
-                    console.error("Error saving to sheet:", error);
                 }
+
+                if (!modoRapidoAtivo) {
+                    let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
+                    activeSessions.push(session);
+                    localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+                }
+
+                localStorage.removeItem('draft_pick_session');
+                showToast(`Separação ${sessionId} finalizada!`);
+                renderMenu();
+
+            } catch (error) {
+                console.error("Error saving to sheet:", error);
+                showToast("Erro ao finalizar separação!");
+            } finally {
+                isFinalizing = false;
+                const submitBtn = document.querySelector(`button[onclick^="finishPickingSession"]`);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> Finalizar Separação'; }
             }
-
-            showToast(`Separação ${sessionId} finalizada e salva!`);
-            renderMenu();
         }
-
         function renderPackMenu() {
             const currentUser = localStorage.getItem('currentUser');
+            const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
+
+            if (modoRapidoAtivo) {
+                showToast("Acesso negado: Conferência desativada no Modo Rápido.");
+                renderMenu();
+                return;
+            }
             const activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
             
             // Group sessions by channel
@@ -4554,7 +4827,7 @@ function atualizarStatusConexao(){
                                         <button class="btn-action" style="padding: 8px; min-width: auto; background: var(--primary); border-radius: 12px;" onclick="renderPackSessionDetails('${session.id}')" title="Conferir">
                                             <span class="material-symbols-rounded" style="font-size: 20px;">fact_check</span>
                                         </button>
-                                        <button class="btn-action" style="padding: 8px; min-width: auto; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px;" onclick="event.stopPropagation(); deletePickingSession('${session.id}', '${channelName.replace(/'/g, "\\'")}')" title="Excluir">
+                                        <button class="btn-action" style="padding: 8px; min-width: auto; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px;" onclick="event.stopPropagation(); deletePickingSession('${session.id}', '${channelName.replace(/'/g, "'")}')" title="Excluir">
                                             <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
                                         </button>
                                     </div>
@@ -4623,7 +4896,7 @@ function atualizarStatusConexao(){
 
             app.innerHTML = `
                 <div class="dashboard-screen fade-in">
-                    ${getTopBarHTML(currentUser, `renderPackSessionsList('${currentPackSession.channel}')`)}
+                    ${getTopBarHTML(currentUser, "renderPackSessionsList('" + currentPackSession.channel + "')")}
 
                     <main class="container">
                         <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -4763,7 +5036,7 @@ function atualizarStatusConexao(){
             
             app.innerHTML = `
                 <div class="dashboard-screen fade-in">
-                    ${getTopBarHTML(currentUser, `renderPackSessionDetails('${currentPackSession.id}')`)}
+                    ${getTopBarHTML(currentUser, "renderPackSessionDetails('" + currentPackSession.id + "')")}
 
                     <main class="container">
                         <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -4863,33 +5136,77 @@ function atualizarStatusConexao(){
             renderConferenceResult();
         }
 
-        async function confirmFinishConference() {
+        function startFastPackSession(channelLabel, channelColor) {
             const currentUser = localStorage.getItem('currentUser');
-            const now = new Date().toISOString();
+            const now = new Date();
+            const ddmm = now.getDate().toString().padStart(2, '0') + (now.getMonth() + 1).toString().padStart(2, '0');
+            const todayStr = now.toLocaleDateString('pt-BR');
+            const cleanChannel = channelLabel.split(' ')[0].toUpperCase();
+            
+            let countInSheet = 0;
+            if (appData.conferencia && Array.isArray(appData.conferencia)) {
+                // Approximate by looking at unique rom_ids in conferencia today
+                const todayConf = appData.conferencia.filter(row => row.rom_id && row.rom_id.includes(`SEP-${cleanChannel}-${ddmm}`));
+                const uniques = new Set(todayConf.map(r => r.rom_id));
+                countInSheet = uniques.size;
+            }
+            const seq = countInSheet + 1;
+            const sessionId = `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
 
-            // Update conference rows with final info
-            currentPackSession.conferenceRows.forEach(row => {
-                row.conferido_por = currentUser;
-                row.conferido_em = now;
-            });
+            currentPackSession = {
+                id: sessionId,
+                channel: channelLabel,
+                channelColor: channelColor || 'var(--primary)',
+                items: [],
+                pickingData: {
+                    rom_id: sessionId,
+                    canal_id: channelColor || '',
+                    canal_nome: channelLabel,
+                    data_separacao: todayStr,
+                    status: 'SEPARADO',
+                    criado_por: currentUser,
+                    criado_em: now.toISOString(),
+                    finalizado_em: now.toISOString(),
+                    observacao: 'MODO CONFERÊNCIA DIRETA'
+                },
+                conferenceRows: [],
+                isFastMode: true
+            };
 
-            // Update picking status
-            currentPackSession.pickingData.status = 'SEPARADO';
-            currentPackSession.pickingData.finalizado_em = now;
+            renderPackSessionDetails(sessionId);
+        }
 
-            // Attempt to save to Google Sheets if SCRIPT_URL is provided
-            if (SCRIPT_URL) {
-                try {
+        async function confirmFinishConference() {
+            if (isFinalizing) return;
+            isFinalizing = true;
+
+            const submitBtn = document.querySelector(`button[onclick^="confirmFinishConference"]`);
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = 'Salvando...'; }
+
+            try {
+                const currentUser = localStorage.getItem('currentUser');
+                const now = new Date().toISOString();
+
+                // Update conference rows with final info
+                currentPackSession.conferenceRows.forEach(row => {
+                    row.conferido_por = currentUser;
+                    row.conferido_em = now;
+                });
+
+                // Update picking status
+                currentPackSession.pickingData.status = 'SEPARADO';
+                currentPackSession.pickingData.finalizado_em = now;
+
+                // Attempt to save to Google Sheets if SCRIPT_URL is provided
+                if (SCRIPT_URL) {
                     showToast("Salvando conferência...");
                     
                     // 1. Save movements of type CONFIRMACAO_SAIDA (Parallel for speed)
                     const movementPromises = currentPackSession.conferenceRows
-                        .filter(row => row.qtd_conferida > 0)
-                        .map(row => fetch(SCRIPT_URL, {
-                            method: 'POST',
-                            mode: 'no-cors',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
+                        .filter(row => row.qtd_conferida > 0 && !row.processed)
+                        .map(row => {
+                            row.processed = true;
+                            return safePost({
                                 action: 'movimento',
                                 tipo: 'CONFIRMACAO_SAIDA',
                                 id_interno: row.id_interno,
@@ -4897,71 +5214,109 @@ function atualizarStatusConexao(){
                                 quantidade: row.qtd_conferida,
                                 usuario: currentUser,
                                 origem: `PACK-${currentPackSession.id}`,
-                                observacao: `Baixa definitiva via conferência ${currentPackSession.id}`
-                            })
-                        }));
+                                observacao: `Baixa definitiva via conferência ${currentPackSession.id}`,
+                                itens_afetados: JSON.stringify([{ id: row.id_interno, qtd: row.qtd_conferida }]) // Auditoria
+                            });
+                        });
 
                     // 2. Save to CONFERENCIA sheet for history (Parallel for speed)
-                    const historyPromises = currentPackSession.conferenceRows.map(row => fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'append',
-                            sheet: 'CONFERENCIA',
-                            data: row
-                        })
+                    const historyPromises = currentPackSession.conferenceRows.map(row => safePost({
+                        action: 'append',
+                        sheet: 'CONFERENCIA',
+                        data: row
                     }));
 
-                    // 3. Update picking status in 'separacao' sheet
-                    const statusPromise = fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
+                    // 3. Update or Append picking status in 'separacao' sheet
+                    let statusPromise;
+                    if (currentPackSession.isFastMode) {
+                        currentPackSession.pickingData.status = 'CONCLUÍDO';
+                        currentPackSession.pickingData.finalizado_em = now;
+                        statusPromise = safePost({
+                            action: 'append',
+                            sheet: 'separacao',
+                            data: currentPackSession.pickingData
+                        });
+                    } else {
+                        statusPromise = safePost({
                             action: 'update',
                             sheet: 'separacao',
                             keyField: 'rom_id',
                             keyValue: currentPackSession.id,
                             data: { status: 'CONCLUÍDO', finalizado_em: now }
-                        })
-                    });
+                        });
+                    }
 
                     // Execute all in parallel
                     await Promise.all([...movementPromises, ...historyPromises, statusPromise]);
-
-                } catch (error) {
-                    console.error("Error saving conference:", error);
                 }
+
+                // Remove from active sessions
+                let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
+                activeSessions = activeSessions.filter(s => s.id !== currentPackSession.id);
+                localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+
+                showToast(`Conferência ${currentPackSession.id} finalizada!`);
+                renderPackMenu();
+            } catch (error) {
+                console.error("Error saving conference:", error);
+                showToast("Erro ao salvar conferência na planilha.");
+            } finally {
+                isFinalizing = false;
+                const submitBtn = document.querySelector(`button[onclick^="confirmFinishConference"]`);
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> Confirmar e Salvar'; }
             }
-
-            // Remove from active sessions
-            let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
-            activeSessions = activeSessions.filter(s => s.id !== currentPackSession.id);
-            localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
-
-            showToast(`Conferência ${currentPackSession.id} finalizada!`);
-            renderPackMenu();
         }
 
         function handleMenuClick(label) {
             showToast(`${label} em breve!`);
         }
 
-        // Initial Route
+        // Initial Route - Bootstrap Seguro para evitar Tela Branca
         window.onload = async () => {
-            // Always clear current user on fresh load to force user selection screen
-            localStorage.removeItem('currentUser');
-            
-            // Show immediate login screen with fallback users
-            renderLogin();
-            
             try {
-                // Load only the users list in the background
-                await loadUsersOnly();
-                // Re-render login with fresh users if any
+                const appContainer = document.getElementById('app');
+                if (!appContainer) throw new Error("Elemento #app não encontrado no DOM.");
+
+                // Sincronizar qualquer pendência offline se houver rede no carregamento
+                if (navigator.onLine) {
+                    processSyncQueue();
+                }
+
+                // Ouvinte global para processar fila assim que voltar online
+                window.addEventListener('online', processSyncQueue);
+
+                // Always clear current user on fresh load to force user selection screen
+                localStorage.removeItem('currentUser');
+                
+                // Show immediate login screen with fallback users
                 renderLogin();
-            } catch (err) {
-                console.error("Erro ao carregar usuários:", err);
+                
+                // Load users list in the background
+                try {
+                    await loadUsersOnly();
+                    renderLogin(); // Refresh if users loaded
+                } catch (userErr) {
+                    console.error("Aviso: Falha ao carregar usuários dinâmicos, usando fallbacks.", userErr);
+                    renderLogin();
+                }
+
+                console.log('Bootstrap da aplicação concluído com sucesso.');
+            } catch (fatalErr) {
+                console.error("ERRO CRÍTICO NO BOOTSTRAP:", fatalErr);
+                localStorage.setItem('app_load_error', 'true'); // Sinalizar falha para limpeza de SW no próximo boot
+                
+                const appContainer = document.getElementById('app');
+                if (appContainer) {
+                    appContainer.innerHTML = `
+                        <div style="padding: 40px; text-align: center; color: white; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                            <span class="material-symbols-rounded" style="font-size: 64px; color: var(--primary); margin-bottom: 24px; animation: pulse 2s infinite;">sync_problem</span>
+                            <h2 style="margin-bottom: 12px; font-weight: 800;">Recuperando Sistema...</h2>
+                            <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 32px; max-width: 300px; line-height: 1.6;">
+                                Detectamos um problema na inicialização. O Service Worker será resetado para garantir integridade.
+                            </p>
+                            <button onclick="location.reload()" class="btn-action" style="background: var(--primary); padding: 16px 32px; border-radius: 12px; font-weight: 700;">TENTAR NOVAMENTE</button>
+                        </div>
+                    `;
+                }
             }
         };
