@@ -21,13 +21,18 @@ const toast = document.getElementById('toast');
 // Global App State
 let currentScreen = 'loading';
 let initialized = false;
+let currentPackSession = null;
+let currentPickSession = null;
+let currentSessionItems = [];
 
 // ==== MODO TELA LIMPA (L??GICA OPERACIONAL) ====
 window.addEventListener('DOMContentLoaded', () => {
     document.body.insertAdjacentHTML('beforeend', `
-                <button id="exit-fullscreen-float" onclick="toggleFullscreen()" style="display: none; position: fixed; top: 12px; right: 12px; z-index: 2147483647; background: rgba(239, 68, 68, 1); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); align-items: center; gap: 8px;">
-                    <span class="material-symbols-rounded" style="font-size: 20px;">fullscreen_exit</span> Sair Modo Tela Limpa
-                </button>
+                <div id="fullscreen-controls" style="display: none; position: fixed; top: 12px; left: 12px; z-index: 2147483647; align-items: center; gap: 12px;">
+                    <button class="btn-back-top" onclick="goBack()" title="Voltar" style="background: rgba(36, 36, 36, 0.4); backdrop-filter: blur(5px); width: 36px; height: 36px; border-radius: 50%; opacity: 0.6;">
+                        <span class="material-symbols-rounded" style="font-size: 18px; color: white;">arrow_back_ios_new</span>
+                    </button>
+                </div>
             `);
 
     document.addEventListener('keydown', (e) => {
@@ -38,6 +43,28 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+function goBack() {
+    // Tenta encontrar o botão de voltar padrão e clica nele, EXCUINDO o botão flutuante de topo (btn-back-top)
+    // para evitar loop infinito
+    const backBtn = document.querySelector('header .btn-back-minimal') || 
+                    document.querySelector('.container .btn-back') || 
+                    document.querySelector('.container .btn-back-minimal') ||
+                    document.querySelector('.sub-menu-header .btn-back-minimal');
+    
+    if (backBtn && backBtn.offsetParent !== null) { // Verifica se o botão está visível
+        backBtn.click();
+    } else {
+        // Se não encontrar botão visível, tenta voltar para o menu ou tela anterior lógica
+        if (currentScreen === 'config_submenu' || currentScreen === 'config') {
+            renderMenu();
+        } else if (currentScreen !== 'menu' && currentScreen !== 'login') {
+            renderMenu();
+        } else if (currentScreen === 'menu') {
+            renderLogin();
+        }
+    }
+}
 
 function toggleFullscreen() {
     if (!document.fullscreenElement) {
@@ -55,8 +82,13 @@ function toggleFullscreen() {
 
 // Listener para sincronizar classe CSS se sair pelo ESC nativo
 document.addEventListener('fullscreenchange', () => {
+    const controls = document.getElementById('fullscreen-controls');
     if (!document.fullscreenElement) {
         document.body.classList.remove('fullscreen-mode');
+        if (controls) controls.style.display = 'none';
+    } else {
+        document.body.classList.add('fullscreen-mode');
+        if (controls) controls.style.display = 'flex';
     }
 });
 
@@ -83,9 +115,9 @@ if ('serviceWorker' in navigator) {
 }
 // ========================================================
 
-// ERP Blindagem Constants
 let isFinalizing = false;
 let isSyncing = false;
+let isAppLoading = false;
 
 function generateUniqueId(prefix) {
     const now = new Date();
@@ -94,30 +126,285 @@ function generateUniqueId(prefix) {
     return `${prefix}-${ddmm}-${random}`;
 }
 
+async function copyToClipboard(text, elementId = null) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast("Copiado: " + text);
+        
+        if (elementId) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                const originalContent = el.innerHTML;
+                el.innerHTML = '<span class="material-symbols-rounded" style="font-size: 14px;">check</span>';
+                el.style.color = "#4ade80";
+                setTimeout(() => {
+                    el.innerHTML = originalContent;
+                    el.style.color = "";
+                }, 2000);
+            }
+        }
+    } catch (err) {
+        console.error("Erro ao copiar:", err);
+        showToast("Erro ao copiar para a área de transferência.");
+    }
+}
+
+function toggleAllStock() {
+    const grid = document.querySelector('.location-distribution-grid');
+    const btn = document.getElementById('btn-toggle-stock');
+    if (grid && btn) {
+        const isShowingAll = grid.classList.toggle('show-all');
+        btn.innerHTML = isShowingAll ? 
+            '<span class="material-symbols-rounded">expand_less</span> VER MENOS' : 
+            '<span class="material-symbols-rounded">expand_more</span> VER TODOS';
+    }
+}
+
+// ==== API & CONNECTION UTILS ====
+
+/**
+ * Debounce function to limit API calls
+ */
+function debounce(func, delay) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+/**
+ * Realce de texto para busca
+ */
+function highlightText(text, term) {
+    if (!term) return text;
+    const cleanTerm = normalizar(term);
+    if (!cleanTerm) return text;
+    
+    // Regex para encontrar o termo ignorando acentos e caixa
+    // Nota: Para manter o texto original mas com tags, usamos uma abordagem mais simplificada
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<b>$1</b>');
+}
+
+/**
+ * Realiza uma requisição GET para a API_BASE com parâmetros
+ */
+async function dyGet(params = {}) {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+            query.append(key, value);
+        }
+    });
+
+    try {
+        const response = await fetch(`${API_BASE}?${query.toString()}`);
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        return await response.json();
+    } catch (err) {
+        console.error("dyGet Error:", err);
+        return { ok: false, error: err.message };
+    }
+}
+
+// Alias for backwards compatibility or specific usage
+async function safeGet(queryString) {
+    let params;
+    if (typeof queryString === 'string') {
+        // Parse query string properly
+        params = Object.fromEntries(new URLSearchParams(queryString));
+    } else {
+        params = queryString;
+    }
+    console.log("[safeGet] params:", params);
+    return dyGet(params);
+}
+
+/**
+ * Verifica a conexão com a planilha
+ */
+async function verificarConexao() {
+    try {
+        const res = await dyGet({ action: "ping" });
+        if (res.ok) {
+            console.log("Planilha conectada");
+            return true;
+        } else {
+            console.error("Erro ao conectar com a planilha:", res.error);
+            return false;
+        }
+    } catch (err) {
+        console.error("Erro fatal ao verificar conexão:", err);
+        return false;
+    }
+}
+
+/**
+ * Normaliza textos para busca (minúsculas, sem acentos, sem espaços extras)
+ */
+function normalizar(texto) {
+    return (texto || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+}
+
+/**
+ * Busca Kit Lâmpada na API com os parâmetros informados
+ */
+async function buscarKitLampada(termo, ano, montadora) {
+    return dyGet({
+        action: "kit_lampada",
+        termo: normalizar(termo),
+        ano: normalizar(ano),
+        montadora: normalizar(montadora)
+    });
+}
+
 // Auxiliar para gerar ID de execução técnica (idempotência)
 function generateExecutionId() {
     return 'exec_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6).toUpperCase();
 }
 
+/**
+ * Camada de Normalização Contextual: Garante que valores respeitem as validações da ABA específica
+ */
+function normalizeSheetValue(sheet, field, value) {
+    if (value === null || value === undefined) return '';
+    const str = String(value).trim();
+    const lower = str.toLowerCase();
+
+    // Regras por ABA e CAMPO (Explícitas)
+    
+    // ABA: Produtos
+    if (sheet === 'produtos' && field === 'status') {
+        return (lower === 'inativo') ? 'inativo' : 'ativo';
+    }
+
+    // ABA: Usuarios / Canais
+    if ((sheet === 'usuarios' || sheet === 'canais_envio') && field === 'ativo') {
+        return (lower === 'sim' || lower === 's' || lower === 'true') ? 'sim' : 'nao';
+    }
+
+    // ABA: Estoque Atual (Locais)
+    if (sheet === 'estoque_atual' && field === 'local') {
+        if (lower.includes('terr') || lower === 'trreo') return 'terreo';
+        if (lower.includes('mostru') || lower === 'mostrurio') return 'mostruario';
+        if (lower.includes('1') && lower.includes('andar')) return '1andar';
+        if (lower === 'defeito') return 'defeito';
+        return lower;
+    }
+
+    // ABA: Movimentos
+    if (sheet === 'movimentos') {
+        if (field === 'tipo') {
+            const valid = ['entrada', 'saida', 'transferencia', 'reserva', 'confirmacao_saida', 'ajuste_inventario'];
+            return valid.includes(lower) ? lower : 'saida'; // fallback seguro
+        }
+        if (field === 'local_origem' || field === 'local_destino' || field === 'local') {
+            if (lower.includes('terr') || lower === 'trreo') return 'terreo';
+            if (lower.includes('mostru') || lower === 'mostrurio') return 'mostruario';
+            if (lower.includes('1') && lower.includes('andar')) return '1andar';
+            return lower;
+        }
+    }
+
+    // ABA: Separacao
+    if (sheet === 'separacao' && field === 'status') {
+        const valid = ['rascunho', 'aberta', 'em_separacao', 'separado', 'finalizada', 'cancelada'];
+        if (lower === 'aberto') return 'aberta';
+        return valid.includes(lower) ? lower : 'rascunho';
+    }
+
+    // ABA: Conferencia
+    if (sheet === 'conferencia' && field === 'status') {
+        const valid = ['rascunho', 'em_conferencia', 'conferido', 'finalizada', 'cancelada'];
+        return valid.includes(lower) ? lower : 'rascunho';
+    }
+
+    // ABA: Inventarios
+    if (sheet === 'inventarios') {
+        if (field === 'tipo') {
+            const valid = ['inicial', 'geral', 'parcial', 'ajuste'];
+            return valid.includes(lower) ? lower : 'geral';
+        }
+        if (field === 'status') {
+            return (lower === 'finalizada' || lower === 'concluido') ? 'finalizada' : 'aberta';
+        }
+    }
+
+    return str;
+}
+
+function normalizePayloadForSheet(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+    const normalized = { ...payload };
+
+    // Determinar o contexto da aba
+    let sheetContext = payload.sheet || payload.action || '';
+    if (sheetContext === 'movimento') sheetContext = 'movimentos';
+
+    // Lista de campos que PODEM precisar de normalização
+    const fieldsToCheck = [
+        'status', 'tipo', 'local', 'local_origem', 'local_destino', 
+        'ativo', 'perfil'
+    ];
+
+    Object.keys(normalized).forEach(key => {
+        if (fieldsToCheck.includes(key)) {
+            normalized[key] = normalizeSheetValue(sheetContext, key, normalized[key]);
+        }
+    });
+
+    // Normalizar também campos aninhados em 'data'
+    if (normalized.data && typeof normalized.data === 'object') {
+        const dataNormalized = { ...normalized.data };
+        Object.keys(dataNormalized).forEach(key => {
+            if (fieldsToCheck.includes(key)) {
+                dataNormalized[key] = normalizeSheetValue(sheetContext, key, dataNormalized[key]);
+            }
+        });
+        normalized.data = dataNormalized;
+    }
+
+    // Tratamento especial para KIT_LAMPADA (apenas 10 campos permitidos)
+    if (sheetContext === 'kit_lampada') {
+        const allowed = [
+            'kit_lampada_id', 'montadora', 'modelo', 'ano_inicio', 'ano_fim',
+            'lampada_baixo', 'lampada_alto', 'lampada_neblina', 'url', 'observacao',
+            'action', 'sheet', 'executionId'
+        ];
+        Object.keys(normalized).forEach(key => {
+            if (!allowed.includes(key)) delete normalized[key];
+        });
+    }
+
+    return normalized;
+}
+
 async function revertStockMovement(sessionId, row, operatorId) {
     try {
         showToast(`Iniciando estorno para ${row.descricao}...`);
+        const now = new Date().toISOString();
         await fetch(SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            body: JSON.stringify(normalizePayloadForSheet({
                 action: 'movimento',
-                tipo: 'ESTORNO',
+                tipo: 'saida', // Normalizado para 'saida' (estorno é uma saída de correção)
                 id_interno: row.id_interno,
-                local: '1_ANDAR',
-                quantidade: row.qtd_conferida || row.qtd_separada || 0,
+                local: '1andar', // Canonical 1andar
+                quantidade: row.qtd_conferida, 
+                data_hora: now,
                 usuario: operatorId,
                 origem: `REVERSAO-${sessionId}`,
                 observacao: `Correção de erro operacional da sessao ${sessionId}`
-            })
+            }))
         });
-        showToast(`Estorno concluído (visualização apenas, sincronização em background).`);
+        showToast(`Estorno concluído (sincronizado).`);
     } catch (err) {
         console.error("Estorno Falhou:", err);
         showToast("Erro ao processar estorno!");
@@ -161,7 +448,10 @@ const LOGO_SMALL_URL = '/imagens/icon-192-black.png';
 function formatImageUrl(url) {
     if (!url) return '';
     if (url.includes('drive.google.com')) {
-        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+        // Handle various Drive link formats (preview, file, view, id=, etc)
+        const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
+                      url.match(/id=([a-zA-Z0-9_-]+)/) ||
+                      url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
         if (match && match[1]) {
             return `https://drive.google.com/uc?id=${match[1]}`;
         }
@@ -169,14 +459,27 @@ function formatImageUrl(url) {
     return url;
 }
 
+function handleImageError(img, fallbackIcon = 'directions_car') {
+    img.onerror = null; // Prevent infinite loops
+    img.src = '/imagens/icon-192-black.png'; // Use small logo as immediate fallback
+    // Or if you want to replace with an icon:
+    const parent = img.parentElement;
+    if (parent) {
+        parent.innerHTML = `<span class="material-symbols-rounded" style="color: var(--muted)">${fallbackIcon}</span>`;
+    }
+}
+
 let toastTimeout;
 let hasCriticalStock = false;
 let cameraStream = null;
 
 const SPREADSHEET_ID = '1NK_rmdEfZYQPnFEil5pDWF1rIt9adajd1GpkcObSkv0';
+const CACHE_NAME = 'dy-autoparts-v9';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznHLTXr_--3PrR8GAz4-TrtX4jttC5cg7CH8cPa7KzoRQPQMZrmtEPBAMWE5KqMTUXwA/exec'; // URL do Google Apps Script para salvar dados
+const API_BASE = "https://script.google.com/macros/s/AKfycbznHLTXr_--3PrR8GAz4-TrtX4jttC5cg7CH8cPa7KzoRQPQMZrmtEPBAMWE5KqMTUXwA/exec";
 
-let appData = {
+// Load from Cache Immediately (Performance)
+let appData = JSON.parse(localStorage.getItem('appData')) || {
     users: [],
     products: [],
     channels: [],
@@ -184,12 +487,57 @@ let appData = {
     conferencia: [],
     estoque: [],
     movimentacoes: [],
-    entradas_nf: [],
     inventario: [],
-    isLoading: true,
+    isLoading: false,
     lastSyncTime: null,
+    lastSyncTimestamp: 0, // Novo controle de validade
     currentInventory: null
 };
+
+const DATA_MAX_AGE_MS = 5 * 60 * 1000; // 5 Minutos de validade para processos críticos
+
+function isDataFresh() {
+    if (!appData.lastSyncTimestamp) return false;
+    const age = Date.now() - appData.lastSyncTimestamp;
+    return age < DATA_MAX_AGE_MS;
+}
+
+/**
+ * Interceptor para garantir dados novos em processos críticos
+ */
+async function ensureFreshData(callback) {
+    if (isDataFresh()) {
+        addTechnicalLog('SYNC_CHECK', 'FRESH', 'Dados dentro da janela de 5min');
+        return callback();
+    }
+
+    addTechnicalLog('SYNC_CHECK', 'STALE', 'Dados antigos. Disparando sync obrigatória...');
+    
+    // Mostra loader somente nos casos críticos
+    const success = await loadAllData(false); 
+    
+    if (success) {
+        callback();
+    } else {
+        showToast("⚠️ Falha na sincronização. Verifique sua conexão.");
+    }
+}
+
+/**
+ * Log Técnico Interno (Background)
+ */
+function addTechnicalLog(action, status, details = "") {
+    const logs = JSON.parse(localStorage.getItem('tech_logs') || '[]');
+    logs.unshift({
+        timestamp: new Date().toISOString(),
+        action,
+        status,
+        details
+    });
+    // Manter apenas os últimos 100 logs
+    localStorage.setItem('tech_logs', JSON.stringify(logs.slice(0, 100)));
+    console.log(`[TECH-LOG] ${action}: ${status} ${details}`);
+}
 
 let operacoesPendentes = 0;
 
@@ -220,27 +568,42 @@ function atualizarStatusConexao() {
 window.addEventListener("online", atualizarStatusConexao);
 window.addEventListener("offline", atualizarStatusConexao);
 
-function initApp() {
+async function initApp() {
     if (initialized) return;
-    
-    atualizarStatusConexao();
-    processSyncQueue();
-    loadUsersOnly().then(() => {
-        if (currentScreen === 'login') renderLogin();
-    });
-    
-    // Configurar sincronização periódica silenciosa (a cada 5 minutos)
-    setInterval(() => {
-        if (navigator.onLine) {
-            loadAllData(true);
-        }
-    }, 5 * 60 * 1000);
-
     initialized = true;
-    console.log('App Initialized');
+
+    try {
+        console.log("Iniciando Bootstrap do Sistema...");
+        atualizarStatusConexao();
+
+        // Esconder splash imediatamente (se existir)
+        const splash = document.querySelector('.splash-preloader');
+        if (splash) splash.style.display = 'none';
+
+        // Background Sync Silent
+        addTechnicalLog('APP_START', 'INIT', 'Iniciando sincronização silenciosa...');
+        loadAllData(true); 
+
+        // Sincronização automática
+        processSyncQueue();
+
+        // Render login immediately
+        await loadUsersOnly();
+        renderLogin();
+        
+        console.log('App Initialized successfully.');
+    } catch (err) {
+        console.error("Erro na inicialização:", err);
+        renderLogin(); // Tenta renderizar mesmo com erro de rede
+    }
 }
 
-document.addEventListener("DOMContentLoaded", initApp);
+// Inicialização segura baseada no estado do documento
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+} else {
+    initApp();
+}
 
 async function processSyncQueue() {
     if (!navigator.onLine || isSyncing) return;
@@ -253,60 +616,59 @@ async function processSyncQueue() {
     }
 
     isSyncing = true;
-    console.log(`Operando Sincronização Atômica: ${queue.length} pendentes`);
+    console.log(`Processando fila de sincronia: ${queue.length} itens`);
 
-    // Processamento Individual para garantir que sucesso seja removido IMEDIATAMENTE
-    // Evita duplicação se o app fechar durante o processo
-    while (queue.length > 0) {
-        const item = queue[0];
+    try {
+        while (queue.length > 0) {
+            const item = queue[0];
+            operacoesPendentes = queue.length;
+            atualizarPendentes();
+
+            try {
+                if (!item.payload.executionId) {
+                    item.payload.executionId = item.id;
+                }
+
+                await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item.payload)
+                });
+
+                queue.shift();
+                localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
+            } catch (error) {
+                console.warn(`Pausa na sincronia (Rede/GAS):`, error);
+                break; // Para e tenta na próxima janela/comando
+            }
+        }
+    } finally {
+        isSyncing = false;
         operacoesPendentes = queue.length;
         atualizarPendentes();
 
-        try {
-            // Garantir que o payload tenha um executionId se não tiver
-            if (!item.payload.executionId) {
-                item.payload.executionId = item.id;
-            }
-
-            await fetch(SCRIPT_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(item.payload)
-            });
-
-            // SUCESSO REAL: Remove do topo e persiste IMEDIATAMENTE (FIFO Estrito)
-            queue.shift();
-            localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
-            console.log(`Sincronizado: ${item.id}`);
-        } catch (error) {
-            console.error(`Pausa na sincronização (Rede):`, error);
-            break;
-        }
-    }
-
-    operacoesPendentes = queue.length;
-    atualizarPendentes();
-    isSyncing = false;
-
-    if (queue.length === 0) {
         if (queue.length === 0) {
-            showToast("Sincronização concluída com sucesso!");
-            isSyncing = false; // Reset lock
-            loadAllData(true); // Sincronização de fundo após fila limpa deve ser silenciosa
-        } else {
-            isSyncing = false; // Reset lock mesmo se houver remanescentes
+            showToast("Sincronizado com sucesso!");
+            loadAllData(true);
         }
     }
 }
 
 async function safePost(payload) {
     const executionId = generateExecutionId();
+    // Aplicar a Camada de Normalização imediatamente
+    const normalizedPayload = normalizePayloadForSheet({ ...payload, executionId });
+
     const syncItem = {
         id: executionId,
         timestamp: new Date().toISOString(),
-        payload: { ...payload, executionId }
+        payload: normalizedPayload
     };
+
+    // Log para debug - útil para identificar problemas de comunicação
+    console.log("[safePost] Enviando para SCRIPT_URL:", SCRIPT_URL);
+    console.log("[safePost] Payload:", JSON.stringify(syncItem.payload, null, 2));
 
     if (!navigator.onLine) {
         const queue = JSON.parse(localStorage.getItem('pending_sync_queue') || '[]');
@@ -319,40 +681,68 @@ async function safePost(payload) {
     }
 
     try {
-        await fetch(SCRIPT_URL, {
+        const response = await fetch(SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(syncItem.payload)
         });
+        
+        // Com no-cors, não podemos ver a resposta, mas se não threw erro, considera-se sucesso
+        console.log("[safePost] Envio concluído com sucesso (mode: no-cors)");
         return true;
     } catch (error) {
+        console.error("[safePost] Erro na requisição:", error);
+        
+        // Adicionar à fila mesmo em caso de erro
         const queue = JSON.parse(localStorage.getItem('pending_sync_queue') || '[]');
         queue.push(syncItem);
         localStorage.setItem('pending_sync_queue', JSON.stringify(queue));
         operacoesPendentes = queue.length;
         atualizarPendentes();
-        showToast("Erro de rede: Salvo em fila.");
+        
+        // Mostrar erro mais específico
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            showToast("Erro de conexão: Salvando em fila local.");
+        } else if (error.name === 'AbortError') {
+            showToast("Timeout: Operação cancelada. Salvando em fila.");
+        } else {
+            showToast("Erro ao salvar: " + error.message);
+        }
         return false;
     }
 }
 
 function sincronizarSistema() {
+    if (isSyncing) return;
     processSyncQueue();
-    loadAllData(true); // Sincronização manual do cabeçalho também deve ser silenciosa para não resetar tela
+    loadAllData(true);
 }
 
-async function fetchSheetData(sheetName) {
+async function fetchSheetData(sheetName, timeoutMs = 20000) {
     const url = `${SCRIPT_URL}?action=list&sheet=${encodeURIComponent(sheetName)}`;
+
+    // Controlador de timeout para evitar travamento infinito
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-        const response = await fetch(url);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(id);
+
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
         const result = await response.json();
         if (!result.ok) {
-            console.error(`Apps Script Error (${sheetName}):`, result.error);
+            console.error(`[BACKEND] Erro na aba '${sheetName}':`, result.error);
+            showToast(`Erro na aba '${sheetName}': ${result.error}`, "error");
             return null;
         }
+
+        console.log(`[BACKEND] Dados recebidos de '${sheetName}':`, {
+            count: (result.data || []).length,
+            firstRow: (result.data || [])[0]
+        });
 
         const data = result.data || [];
 
@@ -377,7 +767,15 @@ async function fetchSheetData(sheetName) {
             return String(firstColValue).trim() !== "";
         });
     } catch (error) {
-        console.error(`Error fetching sheet ${sheetName} via GAS:`, error);
+        console.error(`Error fetching sheet ${sheetName}:`, error);
+        
+        if (error.name === 'AbortError') {
+            showToast(`Timeout ao buscar dados de '${sheetName}'`, "error");
+        } else if (error.message.includes('Failed to fetch')) {
+            showToast(`Erro de conexão ao buscar '${sheetName}'`, "error");
+        } else {
+            showToast(`Erro ao buscar '${sheetName}': ${error.message}`, "error");
+        }
         return null;
     }
 }
@@ -392,47 +790,79 @@ function getColumnLetter(index) {
 }
 
 function getTopBarHTML(currentUser, backAction = null) {
+    const isFullscreen = document.body.classList.contains('fullscreen-mode');
+
+    if (isFullscreen) {
+        // MODO TELA CHEIA: Navegação Minimalista
+        return `
+            <header class="top-bar-minimal">
+                <div class="top-bar-minimal-left">
+                    ${(backAction && !isFullscreen) ? `
+                        <button class="btn-back-minimal" onclick="${backAction}" title="Voltar">
+                            <span class="material-symbols-rounded">arrow_back</span>
+                        </button>
+                    ` : `
+                        <div style="width: 20px;"></div>
+                    `}
+                </div>
+                
+                <div class="top-bar-minimal-right">
+                    ${!backAction ? `
+                        <button onclick="logout()" class="btn-exit-minimal" title="Sair do Sistema">
+                            <span class="material-symbols-rounded">logout</span>
+                        </button>
+                    ` : ''}
+                </div>
+            </header>
+            <div id="exit-fullscreen-float" onclick="toggleFullscreen()" title="Sair da Tela Cheia">
+                <span class="material-symbols-rounded">fullscreen_exit</span>
+            </div>
+        `;
+    }
+
+    // MODO PADRÃO: Header Completo
     return `
                 <header class="top-bar">
                     <div class="top-bar-left">
                         ${backAction ? `
-                            <button class="btn-back-top" onclick="${backAction}">
+                            <button class="btn-back-top" onclick="${backAction}" title="Voltar">
                                 <span class="material-symbols-rounded">arrow_back</span>
                             </button>
-                        ` : ''}
+                        ` : `
+                            <div style="width: 44px;"></div> 
+                        `}
                         <img src="${LOGO_SMALL_URL}" alt="DY AutoParts" class="top-bar-logo-img" onerror="this.onerror=null; this.src='/imagens/icon-192-black.png';">
                     </div>
                     
                     <div style="display: flex; align-items: center; gap: 8px;">
-
-                    <span id="statusConexao" style="font-size:13px;font-weight:600;">
-                    🟢 Online
-                    </span>
-
-                    <span style="opacity:0.5;">|</span>
-
-                    <button onclick="sincronizarSistema()" class="btn-sync-header" title="Sincronizar agora" style="background: transparent; border: none; color: var(--primary); cursor:pointer;">
-                    <span class="material-symbols-rounded" style="font-size:20px;">sync</span>
-                    </button>
-
-                    <span style="opacity:0.5;">|</span>
-
-                    <span id="pendentesSync" style="font-size:13px;font-weight:600;">
-                    <span class="material-symbols-rounded" style="font-size:16px;">inventory_2</span> 0
-                    </span>
-
+                        <span id="statusConexao" style="font-size:13px;font-weight:600;">
+                            🟢 Online
+                        </span>
+                        <span style="opacity:0.3;">|</span>
+                        <button onclick="sincronizarSistema()" class="btn-sync-header" title="Sincronizar agora" style="background: transparent; border: none; color: var(--primary); cursor:pointer;">
+                            <span class="material-symbols-rounded" style="font-size:20px;">sync</span>
+                        </button>
+                        <span style="opacity:0.3;">|</span>
+                        <span id="pendentesSync" style="font-size:13px;font-weight:600;">
+                            <span class="material-symbols-rounded" style="font-size:16px;">inventory_2</span> 0
+                        </span>
                     </div>
 
-                    <div style="display: flex; align-items: center; gap: 16px;">
-                        <span class="top-bar-info" style="font-weight: 700; color: white;">${currentUser}</span>
-                        <button class="btn-logout" onclick="toggleFullscreen()" title="Modo Tela Limpa" style="color: var(--primary);">
-                            <span class="material-symbols-rounded" style="font-size: 22px;">fullscreen</span>
-                        </button>
-                        <button class="btn-logout" onclick="logout()" title="Sair">
-                            <span class="material-symbols-rounded" style="font-size: 22px;">power_settings_new</span>
-                        </button>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <div class="user-profile-badge" style="gap: 8px; padding-right: 8px;">
+                            <div class="user-avatar">
+                                ${currentUser ? currentUser.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <span class="user-name">${currentUser}</span>
+                            <button onclick="logout()" title="Sair do Sistema" style="background: transparent; border: none; color: var(--danger); cursor: pointer; display: flex; align-items: center; margin-left: 4px; padding: 4px; border-radius: 50%; transition: background 0.2s;">
+                                <span class="material-symbols-rounded" style="font-size: 20px;">logout</span>
+                            </button>
+                        </div>
                     </div>
                 </header>
+                <div id="exit-fullscreen-float" onclick="toggleFullscreen()" title="Sair da Tela Cheia">
+                    <span class="material-symbols-rounded">fullscreen_exit</span>
+                </div>
             `;
 }
 
@@ -441,68 +871,120 @@ function startClock() {
 }
 
 async function loadUsersOnly() {
-    const data = await fetchSheetData('USUARIOS');
-    if (data) appData.users = data;
+    const data = await fetchSheetData('usuarios');
+    if (data) {
+        // Regra: Apenas usuários ativos
+        appData.users = data
+            .filter(u => String(u.ativo).toLowerCase() === 'sim')
+            .map(u => ({
+                ...u,
+                avatar_url: (u.avatar_url && !['sim', 'nao', 'não'].includes(String(u.avatar_url).toLowerCase()) && (String(u.avatar_url).startsWith('http') || String(u.avatar_url).startsWith('data:'))) ? u.avatar_url : ''
+            }));
+    }
 }
 
 async function loadAllData(silent = false) {
-    if (!silent) {
-        appData.isLoading = true;
-        renderLoading(0);
+    try {
+        if (isAppLoading) return false;
+        isAppLoading = true;
+
+        if (!silent) {
+            renderLoading(0, "Carregando dados essenciais...");
+        }
+
+        addTechnicalLog('SYNC', 'START', silent ? 'Silent Mode' : 'UI Mode');
+
+        // Carregar apenas dados mínimos para o app funcionar (login + menu)
+        // Cada módulo carregará seus próprios dados sob demanda via DataClient
+        const essentialTables = [
+            'usuarios', 'separacao', 'separacao_itens'
+        ];
+
+        let completed = 0;
+        const total = essentialTables.length;
+
+        const promises = essentialTables.map(async (table) => {
+            try {
+                const data = await fetchSheetData(table);
+                if (data) {
+                    appData[table] = data;
+                }
+            } catch (e) {
+                console.warn(`Error loading table ${table}:`, e);
+            } finally {
+                completed++;
+                if (!silent) {
+                    updateLoadingProgress(Math.round((completed / total) * 100));
+                }
+            }
+        });
+
+        await Promise.allSettled(promises);
+
+        // Não salvar todo o appData no localStorage para evitar dados desatualizados
+        // Cada módulo gerencia seu próprio cache via DataClient
+        appData.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        appData.lastSyncTimestamp = Date.now();
+        
+        addTechnicalLog('SYNC', 'SUCCESS');
+
+        // Estoque crítico será verificado quando o módulo de produtos for carregado
+        // via DataClient para não impactar inicialização
+        hasCriticalStock = false;
+        return true;
+    } catch (error) {
+        addTechnicalLog('SYNC', 'ERROR', error.toString());
+        console.error('Error loading data:', error);
+        if (!silent) showToast("Erro ao sincronizar dados.");
+        return false;
+    } finally {
+        isAppLoading = false;
+        appData.isLoading = false;
+        
+        // Anti-Blink: Não atualiza a UI se for silêncioso ou se estiver no login
+        if (!silent && currentScreen === 'menu') {
+            renderMenu();
+        }
+    }
+}
+
+/**
+ * Função crítica para garantir que os produtos foram carregados via DataClient
+ * se ainda não estiverem no appData.
+ */
+async function ensureProdutosLoaded() {
+    // Se já temos produtos, não faz nada
+    if (appData.products && appData.products.length > 0) {
+        return true;
     }
 
-    const sheets = [
-        { name: 'PRODUTOS', key: 'products' },
-        { name: 'CANAIS_ENVIO', key: 'channels' },
-        { name: 'separacao', key: 'separacao' },
-        { name: 'CONFERENCIA', key: 'conferencia' },
-        { name: 'ESTOQUE_ATUAL', key: 'estoque' },
-        { name: 'MOVIMENTOS', key: 'movimentacoes' },
-        { name: 'ENTRADAS_NF', key: 'entradas_nf' },
-        { name: 'INVENTARIOS', key: 'inventario' },
-        { name: 'INVENTARIO_ITENS', key: 'inventario_itens' },
-        { name: 'CATEGORIAS', key: 'categorias' }
-    ];
+    console.log("[DataClient] Produtos não carregados. Iniciando carga sob demanda...");
+    
+    // Podemos mostrar o splash screen como indicador de progresso
+    renderLoading(50, "Carregando catálogo...");
 
     try {
-        let completed = 0;
-        const total = sheets.length;
-
-        // Fetch all sheets in parallel for maximum speed
-        await Promise.all(sheets.map(async (sheet) => {
-            const data = await fetchSheetData(sheet.name);
-            if (data) appData[sheet.key] = data;
-            completed++;
-            if (!silent) {
-                const progress = Math.round((completed / total) * 100);
-                updateLoadingProgress(progress);
-            }
-        }));
-
-        // Check for critical stock
-        if (appData.products && appData.products.length > 0) {
-            hasCriticalStock = appData.products.some(p => {
-                const stock = parseFloat((p.estoque_atual || p.estoque_minimo || 0).toString().replace(',', '.'));
-                const min = parseFloat((p.estoque_minimo || 0).toString().replace(',', '.'));
-                return stock <= min && min > 0;
-            });
+        // Chamar o loadModule do DataClient
+        const data = await DataClient.loadModule('produtos');
+        
+        if (data && data.products) {
+            console.log("[DataClient] Produtos carregados com sucesso. Populando appData...");
+            appData.products = data.products;
+            appData.estoque = data.estoque;
+            
+            // Persistir opcionalmente no localStorage para evitar recargas constantes na mesma sessão
+            localStorage.setItem('appData', JSON.stringify(appData));
+            
+            return true;
+        } else {
+            console.warn("[DataClient] O retorno do módulo de produtos está vazio ou incompleto.");
         }
-
-        appData.lastSyncTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } catch (error) {
-        console.error('Error loading data:', error);
-        if (!silent) showToast("Erro ao carregar dados da planilha.");
-    } finally {
-        if (!silent) {
-            setTimeout(() => {
-                appData.isLoading = false;
-                // Só renderiza o menu se estivermos na tela de loading, login ou ja no menu
-                if (currentScreen === 'login' || currentScreen === 'loading' || currentScreen === 'menu') {
-                    renderMenu();
-                }
-            }, 400);
-        }
+    } catch (err) {
+        console.error("[DataClient] Falha crítica ao carregar módulo de produtos:", err);
+        showToast("Erro ao carregar catálogo de produtos.");
     }
+    
+    return false;
 }
 
 function renderSplash() {
@@ -582,14 +1064,82 @@ function playBeep(type) {
     }
 }
 
-async function setUser(userName) {
+let isSyncingFlowActive = false;
+
+function showSyncLoader() {
+    // Silent mode - UI screen removed per User request
+}
+
+function hideSyncLoader() {
+    // Silent mode - UI screen removed per User request
+}
+
+async function setUser(userName, userId, userProfile) {
+    if (isSyncingFlowActive) return;
+    isSyncingFlowActive = true;
+
     localStorage.setItem('currentUser', userName);
-    // Full synchronization only happens after user selection
-    await loadAllData();
+    localStorage.setItem('currentUserId', userId || '');
+    localStorage.setItem('currentUserProfile', userProfile || 'Operador');
+
+    // Entrada INSTANTÂNEA no menu
+    renderMenu();
+
+    // Sincronização silenciosa em background
+    if (navigator.onLine) {
+        addTechnicalLog('LOGIN', 'SILENT_SYNC_START', userName);
+        processSyncQueue();
+        loadAllData(true);
+    }
+
+    isSyncingFlowActive = false;
 }
 function logout() {
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUserId');
+    localStorage.removeItem('currentUserProfile');
+    localStorage.removeItem('draft_pick_session');
+    
+    // Limpar estados de memória
+    currentPackSession = null;
+    currentSessionItems = [];
+    
     renderLogin();
+}
+
+/**
+ * Alterna visibilidade do custo nos detalhes do produto
+ */
+function toggleCostVisibility() {
+    const isVisible = localStorage.getItem('cost_visible') === 'true';
+    localStorage.setItem('cost_visible', !isVisible);
+    
+    // Se o elemento existir na tela atual, atualiza na hora sem re-renderizar tudo
+    const costField = document.getElementById('product-cost-field');
+    const toggleIcon = document.getElementById('cost-toggle-icon');
+    
+    if (costField && toggleIcon) {
+        if (!isVisible) {
+            // Estava oculto, vai mostrar
+            costField.classList.remove('cost-masked');
+            toggleIcon.innerText = 'visibility';
+            // Precisamos do dado do produto, mas como não temos aqui, o fallback é re-render
+            const activeEan = document.querySelector('[data-ean]')?.dataset.ean;
+            if (activeEan) {
+                const p = appData.products.find(x => x.ean === activeEan || x.id_interno === activeEan);
+                if (p) {
+                   costField.innerText = ((p.preco_custo || '0,00').toString().includes('R$') ? '' : 'R$ ') + (p.preco_custo || '0,00');
+                }
+            } else {
+                console.warn("Contexto do produto perdido para exibição do custo.");
+            }
+        } else {
+            // Estava visível, vai ocultar
+            costField.classList.add('cost-masked');
+            toggleIcon.innerText = 'visibility_off';
+            costField.innerText = 'R$ ••••••';
+        }
+    }
 }
 
 // Status Handlers moved to global section early in file
@@ -598,54 +1148,107 @@ function logout() {
 function renderLogin() {
     currentScreen = 'login';
     const fallbackUsers = [
-        "Alexandre Kawai",
-        "Daniel Yanagihara",
-        "Fabio Kanashiro",
-        "Rafael Costa"
+        { id: 'f1', nome: "Alexandre Kawai", perfil: 'Operador' },
+        { id: 'f2', nome: "Daniel Yanagihara", perfil: 'Operador' },
+        { id: 'f3', nome: "Fabio Kanashiro", perfil: 'Operador' },
+        { id: 'f4', nome: "Rafael Costa", perfil: 'Operador' }
     ];
 
-    // Strictly look for Column B (col_B) as requested, starting from row 2 (handled by headers=1)
     let usersToRender = [];
+
     if (appData.users && appData.users.length > 0) {
         usersToRender = appData.users
-            .map(u => u.col_B || u.col_b || u.nome || u.NOME)
-            .filter(name => name !== null && name !== undefined && String(name).trim() !== '');
+            .map(u => ({
+                id: u.usuario_id || u.col_A || '',
+                nome: u.nome || u.col_B || '',
+                perfil: u.perfil || u.col_C || '',
+                avatar_url: u.avatar_url || ''
+            }))
+            .filter(u => u.nome.trim() !== '');
     }
 
     if (usersToRender.length === 0) {
         usersToRender = fallbackUsers;
     }
 
-    // Se já estiver na tela de login, apenas atualiza a grid para evitar a piscada
-    const existingLogin = document.querySelector('.login-screen');
-    const userGridHTML = `
-                <div class="user-grid">
-                    ${usersToRender.map(name => `
-                        <div class="user-card" onclick="setUser('${name}')">
-                            <span class="name">${name}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+    // Função para extrair iniciais (Primeira letra Nome + Primeira letra Último Sobrenome)
+    const getUserInitials = (name) => {
+        if (!name) return '?';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 0) return '?';
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        const first = parts[0].charAt(0);
+        const last = parts[parts.length - 1].charAt(0);
+        return (first + last).toUpperCase();
+    };
 
-    if (existingLogin && !appData.isLoading) {
-        const gridContainer = existingLogin.querySelector('.user-grid');
+    // Stable color function (Deterministic based on ID or Name)
+    const getUserColorClass = (id, name) => {
+        const seed = id || name || 'default';
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return `avatar-color-${Math.abs(hash + seed.length) % 6}`;
+    };
+
+    const userGridHTML = `
+        <div class="user-grid">
+            ${usersToRender.map((u) => {
+        const initials = getUserInitials(u.nome);
+        const colorClass = getUserColorClass(u.id, u.nome);
+        
+        // Use initials as fallback if image fails
+        const avatarDisplay = u.avatar_url 
+            ? `<img src="${formatImageUrl(u.avatar_url)}" alt="${u.nome}" onerror="this.style.display='none'; this.parentElement.classList.add('${colorClass}'); this.parentElement.innerHTML='${initials}';">` 
+            : initials;
+
+        return `
+                <div class="user-card" onclick="setUser('${u.nome}', '${u.id}', '${u.perfil}')">
+                    <div class="user-avatar-box ${u.avatar_url ? '' : colorClass}">
+                        ${avatarDisplay}
+                    </div>
+                    <span class="name">${u.nome}</span>
+                </div>
+            `}).join('')}
+        </div>
+    `;
+
+    const loginHTML = `
+        <div class="login-screen fade-in">
+                <div class="login-header-actions" style="position: absolute; top: 20px; right: 20px; z-index: 100;">
+                    <button id="btn-fullscreen-login" onclick="toggleFullscreen()" class="btn-fullscreen-toggle" title="Tela Cheia" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white;">
+                        <span class="material-symbols-rounded">fullscreen</span>
+                    </button>
+                </div>
+                <img src="${LOGO_SMALL_URL}" alt="DY AutoParts" class="login-logo" style="width: 320px; margin-bottom: 40px;">
+                
+                ${userGridHTML}
+
+                <div class="login-footer" style="margin-top: 60px;">
+                    <!-- Footer Info if needed -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    const appContainer = document.getElementById('app');
+    if (!appContainer) return;
+
+    // Se já estiver na tela de login, apenas atualiza a grid se houver mudanças reais para evitar flicker
+    const existingScreen = appContainer.querySelector('.login-screen');
+    if (existingScreen) {
+        const gridContainer = existingScreen.querySelector('.user-grid');
         if (gridContainer) {
-            gridContainer.outerHTML = userGridHTML;
+            const newContent = userGridHTML;
+            if (gridContainer.innerHTML.trim().length !== newContent.trim().length) {
+                gridContainer.innerHTML = newContent;
+            }
             return;
         }
     }
 
-    app.innerHTML = `
-                <div class="login-screen fade-in">
-                    <div class="login-logo-container">
-                        <img src="${LOGO_URL}" alt="DY AutoParts" class="login-logo-img" onerror="this.onerror=null; this.src='/imagens/icon-512-black.png';">
-                    </div>
-                    <div class="container" style="padding-top: 60px;">
-                        ${userGridHTML}
-                    </div>
-                </div>
-            `;
+    appContainer.innerHTML = loginHTML;
 }
 
 function getNextInternalId() {
@@ -691,6 +1294,7 @@ function renderMenu() {
 
     const menuItems = [
         { id: 'produtos', label: 'PRODUTOS', icon: 'inventory_2' },
+        { id: 'kit_lampada', label: 'KIT_LÂMPADAS', icon: 'lightbulb' },
         { id: 'pick', label: 'SEPARAÇÃO (PICK)', icon: 'conveyor_belt' },
         { id: 'pack', label: 'CONFERÊNCIA (PACK)', icon: 'package_2', disabled: modoRapidoAtivo, badge: modoRapidoAtivo ? 'Desativado' : null },
         { id: 'nf', label: 'ENTRADA DE NF', icon: 'description', disabled: true, badge: 'Em breve' },
@@ -703,6 +1307,23 @@ function renderMenu() {
         { id: 'pedido', label: 'PEDIDO', icon: 'shopping_cart', disabled: true, badge: 'Em breve' }
     ];
 
+    menuItems.sort((a, b) => {
+        // Regra OBRIGATÓRIA: Configurações SEMPRE por último
+        if (a.id === 'configuracoes') return 1;
+        if (b.id === 'configuracoes') return -1;
+
+        // Ativos primeiro
+        const scoreA = (a.disabled || a.badge) ? 1 : 0;
+        const scoreB = (b.disabled || b.badge) ? 1 : 0;
+
+        if (scoreA !== scoreB) {
+            return scoreA - scoreB;
+        }
+
+        // Se ambos forem do mesmo tipo (ativos ou inativos), preserva ordem original
+        return 0;
+    });
+
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
                     ${getTopBarHTML(currentUser)}
@@ -710,19 +1331,20 @@ function renderMenu() {
                     <main class="container">
                         <div class="menu-grid">
                             ${menuItems.map(item => `
-                                <div class="menu-card ${item.disabled ? 'disabled' : ''}" 
+                                <div class="menu-card ${item.disabled ? 'disabled' : ''} ${item.id === 'configuracoes' ? 'card-settings' : ''}" 
                                      onclick="${item.disabled ? '' : (
             item.id === 'dashboard' ? 'renderDashboard()' :
                 item.id === 'produtos' ? 'renderProductSubMenu()' :
-                    item.id === 'pick' ? 'renderPickMenu()' :
-                        item.id === 'pack' ? 'renderPackMenu()' :
+                    item.id === 'pick' ? 'ensureFreshData(() => renderPickMenu())' :
+                        item.id === 'pack' ? 'ensureFreshData(() => renderPackMenu())' :
                             item.id === 'compras' ? 'renderComprasSubMenu()' :
                                 item.id === 'movimentacoes' ? 'renderMovimentacoesSubMenu()' :
-                                    item.id === 'inventario' ? 'renderInventarioSubMenu()' :
+                                    item.id === 'inventario' ? 'ensureFreshData(() => renderInventarioSubMenu())' :
                                         item.id === 'nf' ? 'renderNFSubMenu()' :
                                             item.id === 'financeiro' ? 'renderFinanceiroSubMenu()' :
                                                 item.id === 'configuracoes' ? 'renderConfigSubMenu()' :
-                                                    `handleMenuClick('${item.label}')`
+                                                    item.id === 'kit_lampada' ? 'renderGuiaLampada()' :
+                                                        `handleMenuClick('${item.label}')`
         )}">
                                     ${item.badge ? `<span class="badge">${item.badge}</span>` : ''}
                                     <span class="material-symbols-rounded icon">${item.icon}</span>
@@ -735,7 +1357,15 @@ function renderMenu() {
             `;
 }
 
-function renderDashboard() {
+async function renderDashboard() {
+    // Garantir que temos os produtos carregados para os cálculos
+    const loaded = await ensureProdutosLoaded();
+    if (!loaded) {
+        // Se falhou carregar, volta para o menu ou mostra erro
+        renderMenu();
+        return;
+    }
+
     const currentUser = localStorage.getItem('currentUser');
 
     // 1. Cálculos de Produtos e Estoque
@@ -770,18 +1400,9 @@ function renderDashboard() {
 
     const totalShipmentsToday = shipmentsToday.length;
 
-    // 3. Cálculos de Notas Fiscais (Últimos 7 dias)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const recentNFs = (appData.entradas_nf || []).filter(nf => {
-        if (!nf.data) return false;
-        const [day, month, year] = nf.data.split('/');
-        const nfDate = new Date(year, month - 1, day);
-        return nfDate >= sevenDaysAgo;
-    });
-
-    const totalNFQtyRecent = recentNFs.reduce((sum, nf) => sum + parseFloat((nf.qtd || 0).toString().replace(',', '.')), 0);
+    // 3. Cálculos de Notas Fiscais - ABA REMOVIDA, mostrar como indisponível
+    const recentNFs = []; // entradas_nf removida
+    const totalNFQtyRecent = 0;
 
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
@@ -939,10 +1560,7 @@ function renderProductSubMenu() {
     const subItems = [
         { id: 'buscar', label: 'BUSCAR PRODUTO', icon: 'search' },
         { id: 'cadastrar', label: 'CADASTRAR PRODUTO', icon: 'add_box' },
-        { id: 'editar', label: 'EDITAR PRODUTO', icon: 'edit_note' },
-        { id: 'guia_lampada', label: 'GUIA DE LÂMPADAS', icon: 'lightbulb' },
-        { id: 'estoque_atual', label: 'ESTOQUE ATUAL', icon: 'database' },
-        { id: 'estoque_min', label: hasCriticalStock ? 'ESTOQUE CRÍTICO' : 'ESTOQUE MÍNIMO', icon: hasCriticalStock ? 'report' : 'low_priority', critical: hasCriticalStock }
+        { id: 'editar', label: 'EDITAR PRODUTO', icon: 'edit_note' }
     ];
 
     app.innerHTML = `
@@ -958,10 +1576,9 @@ function renderProductSubMenu() {
                                 <div class="menu-card ${item.critical ? 'critical' : ''}" onclick="${item.id === 'buscar' ? 'renderSearchProduct()' :
             item.id === 'cadastrar' ? 'renderAddProduct()' :
                 item.id === 'editar' ? 'renderEditProductSearch()' :
-                    item.id === 'guia_lampada' ? 'renderGuiaLampada()' :
-                        item.id === 'estoque_atual' ? 'renderEstoqueAtual()' :
-                            item.id === 'estoque_min' ? 'renderStockCritical()' :
-                                `handleMenuClick('${item.label}')`
+                    item.id === 'estoque_atual' ? 'renderEstoqueAtual()' :
+                        item.id === 'estoque_min' ? 'renderStockCritical()' :
+                            `handleMenuClick('${item.label}')`
         }">
                                     <span class="material-symbols-rounded icon">${item.icon}</span>
                                     <span class="label">${item.label}</span>
@@ -973,7 +1590,8 @@ function renderProductSubMenu() {
             `;
 }
 
-function renderEstoqueAtual() {
+async function renderEstoqueAtual() {
+    await ensureProdutosLoaded();
     const currentUser = localStorage.getItem('currentUser');
 
     // Consolidate stock by id_interno
@@ -1094,9 +1712,12 @@ function renderModuleScreen(config) {
                 <div class="dashboard-screen fade-in">
                     ${getTopBarHTML(currentUser, config.backFunc)}
                     <main class="container">
-                        <div class="sub-menu-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <div class="sub-menu-header" style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                            <button class="btn-back" onclick="${config.backFunc}" title="Voltar">
+                                <span class="material-symbols-rounded">arrow_back</span>
+                            </button>
                             <h2 style="font-size: 1.2rem; font-weight: 700;">${config.title}</h2>
-                            ${config.headerAction ? `<button class="btn-action" style="min-width: auto; padding: 8px 16px;" onclick="${config.headerAction.onclick}">${config.headerAction.label}</button>` : ''}
+                            ${config.headerAction ? `<button class="btn-action" style="min-width: auto; padding: 8px 16px; margin-left: auto;" onclick="${config.headerAction.onclick}">${config.headerAction.label}</button>` : ''}
                         </div>
                         <div class="module-content">
                             ${config.content}
@@ -1196,8 +1817,8 @@ function renderComprasSubMenu() {
         },
         {
             id: 'fornecedores', label: 'FORNECEDORES', icon: 'domain', type: 'list', items: [
-                { name: 'Distribuidora A', city: 'São Paulo - SP', contact: '(11) 9999-9999', rating: '⭐⭐⭐⭐⭐' },
-                { name: 'Importadora B', city: 'Curitiba - PR', contact: '(41) 8888-8888', rating: '⭐⭐⭐⭐' }
+                { name: 'Distribuidora A', city: 'São Paulo - SP', contact: '(11) 9999-9999', rating: '⭐⭐⭐⭐⭐' },
+                { name: 'Importadora B', city: 'Curitiba - PR', contact: '(41) 8888-8888', rating: '⭐⭐⭐⭐' }
             ], cols: ['name', 'city', 'contact', 'rating']
         },
         { id: 'historico_compras', label: 'HISTÓRICO DE COMPRAS', icon: 'history', type: 'list', items: [], cols: [] }
@@ -1373,13 +1994,13 @@ let selectedProductForMov = null;
 function searchProductForMov() {
     const searchInput = document.getElementById('mov-search');
     const resultsDiv = document.getElementById('mov-search-results');
-    
+
     if (!searchInput || !resultsDiv) return;
-    
+
     const query = searchInput.value.trim().toLowerCase();
-    if (query.length < 2) { 
-        resultsDiv.innerHTML = ''; 
-        return; 
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
     }
 
     const results = appData.products.filter(p =>
@@ -1399,7 +2020,7 @@ function searchProductForMov() {
 function selectProductForMov(id) {
     selectedProductForMov = appData.products.find(p => p.ean == id || p.id_interno == id);
     if (!selectedProductForMov) return;
-    
+
     const infoDiv = document.getElementById('mov-selected-info');
     const resultsDiv = document.getElementById('mov-search-results');
     const searchInput = document.getElementById('mov-search');
@@ -1411,7 +2032,7 @@ function selectProductForMov(id) {
                     <div style="font-size: 0.65rem; color: var(--muted);">ID: ${selectedProductForMov.id_interno || selectedProductForMov.col_a}</div>
                 `;
     }
-    
+
     if (resultsDiv) resultsDiv.innerHTML = '';
     if (searchInput) searchInput.value = selectedProductForMov.descricao_base || selectedProductForMov.nome || selectedProductForMov.col_b;
 }
@@ -1520,7 +2141,7 @@ async function startInventarioInicial() {
 
     // Verificar se já existe inventário ABERTO no mesmo local (padrão TERREO)
     const localPadrao = 'TERREO';
-    const aberto = (appData.inventario || []).find(inv => inv.status === 'ABERTO' && (inv.local === localPadrao || inv.col_c === localPadrao));
+    const aberto = (appData.inventario || []).find(inv => inv.status === 'aberta' && (inv.local === localPadrao || inv.col_c === localPadrao));
     if (aberto) {
         showToast(`Já existe um inventário ABERTO no local ${localPadrao}!`, 'error');
         viewInventoryDetails(aberto.inventario_id || aberto.col_a);
@@ -1544,15 +2165,15 @@ async function startInventarioInicial() {
             date: new Date().toISOString(),
             items: [],
             local: localPadrao,
-            type: 'INICIAL',
+            type: 'inicial',
             filter: 'TOTAL',
-            status: 'ABERTO'
+            status: 'aberta'
         };
 
         appData.currentInventory = sessionData;
 
         // Create session on server
-        await saveInventorySessionSummary(sessionId, 'ABERTO');
+        await saveInventorySessionSummary(sessionId, 'aberta');
 
         renderInventarioInicialScreen(sessionId);
     } finally {
@@ -1565,7 +2186,7 @@ async function startInventarioGeral() {
 
     // Verificar se já existe inventário ABERTO no mesmo local (padrão TERREO)
     const localPadrao = 'TERREO';
-    const aberto = (appData.inventario || []).find(inv => inv.status === 'ABERTO' && (inv.local === localPadrao || inv.col_c === localPadrao));
+    const aberto = (appData.inventario || []).find(inv => inv.status === 'aberta' && (inv.local === localPadrao || inv.col_c === localPadrao));
     if (aberto) {
         showToast(`Já existe um inventário ABERTO no local ${localPadrao}!`, 'error');
         viewInventoryDetails(aberto.inventario_id || aberto.col_a);
@@ -1589,15 +2210,15 @@ async function startInventarioGeral() {
             date: new Date().toISOString(),
             items: [],
             local: localPadrao,
-            type: 'GERAL',
+            type: 'geral',
             filter: 'TOTAL',
-            status: 'ABERTO'
+            status: 'aberta'
         };
 
         appData.currentInventory = sessionData;
 
         // Create session on server
-        await saveInventorySessionSummary(sessionId, 'ABERTO');
+        await saveInventorySessionSummary(sessionId, 'aberta');
 
         renderInventarioInicialScreen(sessionId);
     } finally {
@@ -1609,7 +2230,7 @@ async function startInventarioParcial(category, brand, location, inventoryLocal)
     if (isStartingInventory) return;
 
     // Verificar se já existe inventário ABERTO no mesmo local
-    const aberto = (appData.inventario || []).find(inv => inv.status === 'ABERTO' && (inv.local === inventoryLocal || inv.col_c === inventoryLocal));
+    const aberto = (appData.inventario || []).find(inv => inv.status === 'aberta' && (inv.local === inventoryLocal || inv.col_c === inventoryLocal));
     if (aberto) {
         showToast(`Já existe um inventário ABERTO no local ${inventoryLocal}!`, 'error');
         viewInventoryDetails(aberto.inventario_id || aberto.col_a);
@@ -1640,15 +2261,15 @@ async function startInventarioParcial(category, brand, location, inventoryLocal)
             date: new Date().toISOString(),
             items: [],
             local: inventoryLocal,
-            type: 'PARCIAL',
+            type: 'parcial',
             filter: filterDesc,
-            status: 'ABERTO'
+            status: 'aberta'
         };
 
         appData.currentInventory = sessionData;
 
         // Create session on server
-        await saveInventorySessionSummary(sessionId, 'ABERTO');
+        await saveInventorySessionSummary(sessionId, 'aberta');
 
         renderInventarioInicialScreen(sessionId);
     } finally {
@@ -1665,7 +2286,7 @@ function renderInventarioInicialScreen(sessionId) {
             date: new Date().toISOString(),
             local: 'TÉRREO',
             items: [],
-            type: 'GERAL',
+            type: 'geral',
             filter: '-'
         };
     }
@@ -1676,9 +2297,6 @@ function renderInventarioInicialScreen(sessionId) {
 
                     <main class="container">
                         <div class="sub-menu-header">
-                            <button class="btn-back" onclick="renderInventarioSubMenu()">
-                                <span class="material-symbols-rounded">arrow_back</span>
-                            </button>
                             <h2 style="font-size: 1.2rem; font-weight: 700;">INVENTÁRIO INICIAL</h2>
                         </div>
 
@@ -1849,7 +2467,7 @@ async function saveInventoryItemToServer(item) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: 'append',
-                sheet: 'INVENTARIO_ITENS',
+                sheet: 'inventarios_itens',
                 data: data
             })
         });
@@ -1858,7 +2476,7 @@ async function saveInventoryItemToServer(item) {
     }
 }
 
-async function saveInventorySessionSummary(sessionId, status = 'ABERTO') {
+async function saveInventorySessionSummary(sessionId, status = 'aberta') {
     if (!SCRIPT_URL) return false;
 
     const inv = appData.currentInventory;
@@ -1896,7 +2514,7 @@ async function saveInventorySessionSummary(sessionId, status = 'ABERTO') {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 action: action,
-                sheet: 'INVENTARIOS',
+                sheet: 'inventarios',
                 keyField: action === 'update' ? 'inventario_id' : undefined,
                 keyValue: action === 'update' ? sessionId : undefined,
                 data: data
@@ -2077,16 +2695,15 @@ window.finishInventorySession = async function () {
                 }
             };
 
-            // 3. Gerar movimentos de AJUSTE_INVENTARIO para divergências
-            // Usando safePost para garantir sincronização mesmo com queda de rede no meio do loop
+            // 3. Gerar movimentos de INVENTÁRIO para divergências (Valor Absoluto)
             for (const item of itemsWithDiff) {
                 try {
                     await safePost({
                         action: 'movimento',
-                        tipo: 'AJUSTE_INVENTARIO',
+                        tipo: 'INVENTARIO',
                         id_interno: item.id_interno,
                         local: local,
-                        quantidade: item.diferenca,
+                        quantidade: item.saldo_fisico, // Valor absoluto conforme solicitado
                         usuario: user,
                         origem: 'APP_INVENTARIO',
                         observacao: `Ajuste via Inventário ${type} ${sessionId}`
@@ -2104,7 +2721,7 @@ window.finishInventorySession = async function () {
             window.alert('ERRO: URL do servidor não configurada.');
         }
     } catch (err) {
-        console.error("Erro crítico no salvamento:", err);
+        console.error("ERRO CRÍTICO no salvamento:", err);
         window.alert('ERRO AO SALVAR: ' + err.message);
         if (btn) {
             btn.disabled = false;
@@ -2384,7 +3001,7 @@ function viewInventoryDetails(sessionId) {
                             </div>
                         </div>
 
-                        ${status === 'ABERTO' ? `
+                        ${status === 'aberta' ? `
                             <button class="btn-action" style="width: 100%; justify-content: center; padding: 16px; margin-bottom: 20px; background: var(--primary);" onclick="continueInventory('${sessionId}')">
                                 <span class="material-symbols-rounded">play_arrow</span>
                                 CONTINUAR CONTAGEM
@@ -2443,9 +3060,9 @@ function continueInventory(sessionId) {
         user: session.criado_por || session.user || session.col_b,
         date: session.data_inicio || session.date || new Date().toISOString(),
         local: session.local || session.col_c || 'TERREO',
-        type: session.tipo || 'GERAL',
+        type: session.tipo || 'geral',
         filter: session.filtro || '-',
-        status: 'ABERTO',
+        status: 'aberta',
         items: items.map(i => ({
             ean: i.ean || i.col_e,
             name: i.descricao_completa || i.produto || i.col_f,
@@ -2458,7 +3075,8 @@ function continueInventory(sessionId) {
     renderInventarioInicialScreen(sessionId);
 }
 
-function renderStockCritical() {
+async function renderStockCritical() {
+    await ensureProdutosLoaded();
     const currentUser = localStorage.getItem('currentUser');
     const criticalProducts = appData.products.filter(p => {
         const stock = parseFloat((p.estoque_atual || p.estoque_minimo || 0).toString().replace(',', '.'));
@@ -2492,10 +3110,7 @@ function renderStockCritical() {
                                             <div style="flex: 1;">
                                                 <div style="font-weight: 700; color: white; font-size: 0.9rem; margin-bottom: 4px;">${p.descricao_base || 'Sem Descrição'}</div>
                                                 <div style="font-size: 0.75rem; color: var(--muted);">SKU: ${p.sku_fornecedor || '-'} | EAN: ${p.ean || '-'}</div>
-                                                <div style="display: flex; gap: 10px; margin-top: 8px;">
-                                                    <span style="background: var(--danger); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">EST: ${p.estoque_atual || p.estoque_minimo || '0'}</span>
-                                                    <span style="background: rgba(255,255,255,0.1); color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700;">MIN: ${p.estoque_minimo || '0'}</span>
-                                                </div>
+                                                
                                             </div>
                                             <span class="material-symbols-rounded" style="color: var(--muted)">chevron_right</span>
                                         </div>
@@ -2508,7 +3123,10 @@ function renderStockCritical() {
             `;
 }
 
-function renderSearchProduct() {
+async function renderSearchProduct() {
+    // Garantir que o catálogo está carregado antes de mostrar a tela de busca
+    await ensureProdutosLoaded();
+
     currentScreen = 'search';
     const currentUser = localStorage.getItem('currentUser');
     app.innerHTML = `
@@ -2638,7 +3256,7 @@ async function startScanner(isPicking = false, isConference = false, isInventory
                 if (now - lastScanTime < 1500) return; // Increased debounce to 1.5s
                 lastScanTime = now;
 
-                console.log(`Code matched = ${decodedText}`);
+
 
                 // Check if product exists
                 const product = appData.products.find(p =>
@@ -2772,7 +3390,7 @@ async function stopScanner() {
 function showProductDetailsByCode(code) {
     if (!code) return;
     const searchCode = code.toString().trim().toLowerCase();
-    
+
     const product = appData.products.find(p =>
         (p.ean && p.ean.toString().toLowerCase() === searchCode) ||
         (p.sku_fornecedor && p.sku_fornecedor.toString().toLowerCase() === searchCode) ||
@@ -2796,12 +3414,12 @@ function showProductDetailsByCode(code) {
 
 function performSearch() {
     if (currentScreen !== 'search') return;
-    
+
     const input = document.getElementById('search-input');
     const resultsContainer = document.getElementById('search-results');
-    
+
     if (!input) return;
-    
+
     const query = input.value.trim().toLowerCase();
 
     if (!query || query.length < 2) {
@@ -2827,11 +3445,23 @@ function performSearch() {
         const brand = (p.marca || '').toString().toLowerCase();
         const id = (p.id_interno || p.col_a || p.col_A || '').toString().toLowerCase();
 
-        return ean.includes(query) || 
-               desc.includes(query) || 
-               sku.includes(query) || 
-               brand.includes(query) || 
-               id.includes(query);
+        return ean.includes(query) ||
+            desc.includes(query) ||
+            sku.includes(query) ||
+            brand.includes(query) ||
+            id.includes(query);
+    });
+
+    // Ordenação: Ativos primeiro
+    results.sort((a, b) => {
+        const statusA = String(a.status || "ativo").toLowerCase();
+        const statusB = String(b.status || "ativo").toLowerCase();
+        const isAtivoA = statusA === 'ativo' || statusA === 'sim' || statusA === '1';
+        const isAtivoB = statusB === 'ativo' || statusB === 'sim' || statusB === '1';
+
+        if (isAtivoA && !isAtivoB) return -1;
+        if (!isAtivoA && isAtivoB) return 1;
+        return 0;
     });
 
     renderSearchResults(results);
@@ -2841,7 +3471,7 @@ function handleSearchEnter(event) {
     if (event.key === 'Enter') {
         const query = event.target.value.trim().toLowerCase();
         const resultsContainer = document.getElementById('search-results');
-        
+
         if (!query) return;
 
         // Find exact match first
@@ -2861,9 +3491,9 @@ function handleSearchEnter(event) {
         // Se não houver correspondência exata, performSearch já filtrou a lista.
         // Se houver apenas um resultado, podemos abrir.
         const results = appData.products.filter(p => {
-             const ean = (p.ean || '').toString().toLowerCase();
-             const desc = (p.descricao_base || p.descricao_completa || '').toString().toLowerCase();
-             return ean.includes(query) || desc.includes(query);
+            const ean = (p.ean || '').toString().toLowerCase();
+            const desc = (p.descricao_base || p.descricao_completa || '').toString().toLowerCase();
+            return ean.includes(query) || desc.includes(query);
         });
 
         if (results.length === 1) {
@@ -2918,26 +3548,60 @@ function showProductDetails(id) {
 }
 
 function openImageModal(url) {
+    if (!url) return;
     const modal = document.createElement('div');
     modal.id = 'image-modal';
     modal.className = 'image-modal';
-    modal.onclick = (e) => { if (e.target.id === 'image-modal') closeImageModal(); };
+    
+    // Closer on background click
+    modal.onclick = (e) => {
+        if (e.target.id === 'image-modal' || e.target.className === 'image-modal-content') {
+            closeImageModal();
+        }
+    };
+
     modal.innerHTML = `
                 <div class="image-modal-content">
                     <button class="image-modal-close" onclick="closeImageModal()">
                         <span class="material-symbols-rounded">close</span>
                     </button>
-                    <img src="${url}" style="max-width: 100%; max-height: 80vh; border-radius: 12px; display: block; margin: 0 auto;">
+                    <img src="${url}" alt="Zoom" id="modal-image-zoom">
                 </div>
             `;
     document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
+
+    // Premium Interaction: Click to Zoom
+    const img = modal.querySelector('img');
+    let isZoomed = false;
+    img.onclick = (e) => {
+        e.stopPropagation();
+        isZoomed = !isZoomed;
+        if (isZoomed) {
+            img.style.transform = 'scale(1.5)';
+            img.style.cursor = 'zoom-out';
+            modal.style.overflow = 'auto';
+            img.style.maxHeight = 'none';
+        } else {
+            img.style.transform = 'scale(1)';
+            img.style.cursor = 'zoom-in';
+            modal.style.overflow = 'hidden';
+            img.style.maxHeight = '90vh';
+        }
+    };
+    img.style.cursor = 'zoom-in';
+    img.style.transition = 'transform 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
 }
 
 function closeImageModal() {
     const modal = document.getElementById('image-modal');
     if (modal) {
-        modal.remove();
-        document.body.style.overflow = '';
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.2s ease';
+        setTimeout(() => {
+            modal.remove();
+            document.body.style.overflow = '';
+        }, 200);
     }
 }
 
@@ -2945,90 +3609,153 @@ function renderProductDetails(p) {
     const currentUser = localStorage.getItem('currentUser');
 
     // Get stock data from the new ESTOQUE sheet
-    const productStockEntries = (appData.estoque || []).filter(s =>
-        (s.id_interno && s.id_interno.toString() === (p.id_interno || p.col_A || '').toString())
-    );
+    // FILTER: Show all locations where total saldo > 0 to avoid hiding stock
+    let productStockEntries = (appData.estoque || []).filter(s => {
+        const hasId = s.id_interno && s.id_interno.toString() === (p.id_interno || p.col_A || '').toString();
+        if (!hasId) return false;
+        
+        const total = parseFloat((s.saldo_total || s.saldo || '0').toString().replace(',', '.'));
+        return total > 0;
+    });
 
-    // Calculate total stock from ESTOQUE sheet
+    // Sort stock entries by total saldo descending
+    productStockEntries.sort((a, b) => {
+        const saldoA = parseFloat((a.saldo_total || a.saldo || '0').toString().replace(',', '.'));
+        const saldoB = parseFloat((b.saldo_total || b.saldo || '0').toString().replace(',', '.'));
+        return saldoB - saldoA;
+    });
+
+    // Calculate total stock from all entries
     const totalStock = productStockEntries.reduce((acc, curr) => {
-        const saldo = parseFloat((curr.saldo || '0').toString().replace(',', '.'));
+        const saldo = parseFloat((curr.saldo_total || curr.saldo || '0').toString().replace(',', '.'));
         return acc + (isNaN(saldo) ? 0 : saldo);
     }, 0);
 
-    // Get related products (same description/category but different brands/EANs)
+    // Get related products
     const relatedProducts = getRelatedProducts(p);
     const hasVariations = relatedProducts.length > 0;
 
-    const pdfUrl = p.url_pdf || p.col_z || p.col_Z || p.col_ab || p.col_AB;
+    // Strict validation for PDF Manual URL
+    const rawPdf = p.url_pdf_manual || p.url_pdf || p.col_z || p.col_Z;
+    let pdfUrl = null;
+    if (rawPdf && typeof rawPdf === 'string' && rawPdf.trim() !== '' && 
+        rawPdf.toLowerCase() !== 'null' && rawPdf.toLowerCase() !== 'undefined') {
+        pdfUrl = rawPdf.trim();
+    }
 
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
                     ${getTopBarHTML(currentUser, 'renderSearchProduct()')}
 
                     <main class="container">
-                        <div class="sub-menu-header" style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="sub-menu-header">
                             <h2 style="font-size: 1.2rem; font-weight: 700;">DETALHES DO PRODUTO</h2>
-                            ${pdfUrl ? `
-                                <button class="btn-action" style="background: #ef4444; padding: 8px 16px; min-width: auto; font-size: 0.7rem;" onclick="window.open('${pdfUrl}', '_blank')">
-                                    <span class="material-symbols-rounded" style="font-size: 18px;">picture_as_pdf</span>
-                                    PDF PRODUTO
-                                </button>
-                            ` : ''}
                         </div>
 
                         <div style="background: var(--surface); border-radius: 24px; padding: 24px; border: 1px solid rgba(255,255,255,0.05);">
                             <div style="display: flex; flex-direction: column; gap: 20px;">
-                                <!-- Cabeçalho com Imagem e Título -->
+                                <!-- Cabeçalho com Imagem, Título e Ícone PDF -->
                                 <div style="display: flex; gap: 16px; align-items: flex-start;">
                                     <div class="product-img-container" style="width: 80px; height: 80px; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; flex-shrink: 0; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%; overflow: hidden;" onclick="${p.url_imagem ? `openImageModal(formatImageUrl('${p.url_imagem}'))` : ''}">
                                         ${p.url_imagem ? `<img src="${formatImageUrl(p.url_imagem)}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">` : `<span class="material-symbols-rounded" style="font-size: 24px; color: var(--muted)">image</span>`}
                                     </div>
                                     <div style="flex: 1; min-width: 0;">
-                                        <h3 style="font-size: 1rem; font-weight: 800; color: white; margin-bottom: 4px; line-height: 1.2; word-break: break-word;">${p.descricao_completa || p.col_aa || p.descricao_base || 'Sem Descrição'}</h3>
+                                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                                            <h3 style="font-size: 1rem; font-weight: 800; color: white; margin-bottom: 4px; line-height: 1.2; word-break: break-word;">${p.descricao_completa || p.col_aa || p.descricao_base || 'Sem Descrição'}</h3>
+                                            ${pdfUrl ? `
+                                                <a href="${pdfUrl}" target="_blank" class="btn-pdf-manual" title="Abrir manual do produto">
+                                                    <span class="material-symbols-rounded">picture_as_pdf</span>
+                                                </a>
+                                            ` : ''}
+                                        </div>
                                         <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-bottom: 4px;">
-                                            <span style="background: #fef08a; color: #000000; font-size: 0.6rem; padding: 1px 6px; border-radius: 4px; font-weight: 800;">ID: ${p.id_interno || p.col_a || p.col_A || '-'}</span>
-                                            <span style="color: var(--muted); font-size: 0.65rem;">| <span style="color: #fca5a5;">SKU:</span> ${p.sku_fornecedor || '-'} | <span style="color: #fca5a5;">EAN:</span> ${p.ean || '-'}</span>
+                                            <div style="display: flex; align-items: center; gap: 4px; background: #fef08a; padding: 1px 6px; border-radius: 4px;">
+                                                <span style="color: #000000; font-size: 0.6rem; font-weight: 800;">ID: ${p.id_interno || p.col_a || p.col_A || '-'}</span>
+                                                <button onclick="copyToClipboard('${p.id_interno || p.col_a || p.col_A}', 'copy-id-btn')" id="copy-id-btn" style="background: transparent; border: none; color: rgba(0,0,0,0.5); cursor: pointer; padding: 0; display: flex;" title="Copiar ID">
+                                                    <span class="material-symbols-rounded" style="font-size: 14px;">content_copy</span>
+                                                </button>
+                                            </div>
+                                            <span style="color: var(--muted); font-size: 0.65rem; display: flex; align-items: center; gap: 4px;">
+                                                | <span style="color: #fca5a5;">SKU:</span> ${p.sku_fornecedor || '-'} 
+                                                <button onclick="copyToClipboard('${p.sku_fornecedor}', 'copy-sku-btn')" id="copy-sku-btn" style="background: transparent; border: none; color: var(--muted); cursor: pointer; padding: 0; display: flex;" title="Copiar SKU">
+                                                    <span class="material-symbols-rounded" style="font-size: 12px;">content_copy</span>
+                                                </button>
+                                                | <span style="color: #fca5a5;">EAN:</span> ${p.ean || '-'}
+                                            </span>
                                         </div>
                                         <p style="color: var(--muted); font-size: 0.65rem; margin-top: 2px;"><span style="color: #fca5a5;">MARCA:</span> ${p.marca || '-'} | <span style="color: #fca5a5;">COR:</span> ${p.cor || '-'}</p>
                                     </div>
                                 </div>
 
-                                <!-- 1. Preço Varejo (Topo) -->
+                                <!-- 1. Preço Varejo (Topo) - MAIOR PRIORIDADE -->
                                 <div style="background: linear-gradient(135deg, var(--primary), #991b1b); padding: 16px; border-radius: 16px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);">
-                                    <div style="font-size: 0.65rem; color: rgba(255,255,255,0.8); text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 2px;">Preço Varejo</div>
-                                    <div style="font-size: 1.5rem; font-weight: 900; color: white;">${(p.preco_varejo || '0,00').toString().includes('R$') ? '' : 'R$ '}${p.preco_varejo || '0,00'}</div>
+                                    <div style="font-size: 0.65rem; color: rgba(255,255,255,0.8); text-transform: uppercase; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 2px;">Preço Varejo</div>
+                                    <div style="font-size: 1.8rem; font-weight: 900; color: white;">${(p.preco_varejo || '0,00').toString().includes('R$') ? '' : 'R$ '}${p.preco_varejo || '0,00'}</div>
                                 </div>
 
-                                <!-- 2. Estoque Geral (Azul) -->
+                                <!-- 2. Estoque Geral (Azul) - SEGUNDA PRIORIDADE -->
                                 <div style="background: #2563eb; padding: 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
                                     <div>
                                         <div style="font-size: 0.7rem; color: rgba(255,255,255,0.9); text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em;">Estoque Geral (Total)</div>
                                         <div style="font-size: 1.6rem; font-weight: 900; color: white;">${totalStock} <span style="font-size: 0.9rem;">${p.unidade || 'UN'}</span></div>
                                     </div>
-                                    <div style="background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                                        <span class="material-symbols-rounded" style="color: white;">inventory_2</span>
+                                    <div style="background: rgba(255,255,255,0.2); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-rounded" style="color: white; font-size: 24px;">inventory_2</span>
                                     </div>
                                 </div>
 
-                                <!-- 3. Detalhamento por Localização (Aba ESTOQUE) -->
-                                <div style="background: rgba(255,255,255,0.03); padding: 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05);">
-                                    <div style="font-size: 0.7rem; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 16px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 8px;">
-                                        <span class="material-symbols-rounded" style="font-size: 16px; color: #FACC15;">location_on</span>
-                                        Distribuição por Localização:
+                                <!-- 3. Distribuição por Localização - SECUNDÁRIO -->
+                                <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div style="font-size: 0.75rem; color: var(--muted); text-transform: uppercase; font-weight: 800; margin-bottom: 20px; letter-spacing: 0.05em; display: flex; align-items: center; justify-content: space-between;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span class="material-symbols-rounded" style="font-size: 18px; color: #FACC15;">location_on</span>
+                                            Distribuição por Localização
+                                        </div>
+                                        ${productStockEntries.length > 4 ? `
+                                            <button id="btn-toggle-stock" onclick="toggleAllStock()" class="btn-action btn-secondary" style="padding: 4px 12px; font-size: 0.6rem; min-width: auto; height: 28px; border-radius: 8px;">
+                                                <span class="material-symbols-rounded" style="font-size: 14px;">expand_more</span> VER TODOS
+                                            </button>
+                                        ` : ''}
                                     </div>
-                                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                                        ${productStockEntries.length > 0 ? productStockEntries.map(entry => `
-                                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                                                <div style="display: flex; flex-direction: column;">
-                                                    <span style="color: white; font-weight: 800; font-size: 0.85rem;">${entry.local || 'S/L'}</span>
+                                    <div class="location-distribution-grid">
+                                        ${productStockEntries.length > 0 ? productStockEntries.map((entry, index) => {
+                                            const disp = parseFloat((entry.saldo_disponivel || '0').toString().replace(',', '.'));
+                                            const res = parseFloat((entry.saldo_reservado || '0').toString().replace(',', '.'));
+                                            const trans = parseFloat((entry.saldo_em_transito || '0').toString().replace(',', '.'));
+                                            const total = parseFloat((entry.saldo_total || entry.saldo || '0').toString().replace(',', '.'));
+
+                                            return `
+                                                <div class="location-stock-card ${index >= 4 ? 'extra-stock' : ''}">
+                                                    <div class="location-header">
+                                                        <span class="location-name">${entry.local || 'S/L'}</span>
+                                                        <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                                                            <span style="font-size: 0.55rem; color: var(--muted); text-transform: uppercase; font-weight: 700;">Total</span>
+                                                            <span class="location-total-badge" style="background: rgba(255,255,255,0.05); color: var(--muted); font-size: 0.8rem; padding: 2px 8px;">${total}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="location-main-info">
+                                                        <div class="stock-detail-item">
+                                                            <span class="stock-detail-label" style="color: #FACC15;">Disponível</span>
+                                                            <span class="stock-detail-value ${disp === 0 ? 'zero' : ''}" style="font-size: 1.4rem; color: #FACC15;">${disp}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="location-details-grid" style="border-top: 1px solid rgba(255,255,255,0.03); padding-top: 8px; margin-top: 4px;">
+                                                        <div class="stock-detail-item">
+                                                            <span class="stock-detail-label">Reservado</span>
+                                                            <span class="stock-detail-value ${res === 0 ? 'zero' : ''}">${res}</span>
+                                                        </div>
+                                                        <div class="stock-detail-item">
+                                                            <span class="stock-detail-label">Trânsito</span>
+                                                            <span class="stock-detail-value ${trans === 0 ? 'zero' : ''}">${trans}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div style="text-align: right;">
-                                                    <div style="font-weight: 900; color: #FACC15; font-size: 1.1rem;">${entry.saldo || '0'}</div>
-                                                    <div style="font-size: 0.6rem; color: var(--muted); font-weight: 800;">${p.unidade || 'UN'}</div>
-                                                </div>
+                                            `;
+                                        }).join('') : `
+                                            <div style="grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: 0.75rem; padding: 24px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+                                                <span class="material-symbols-rounded" style="font-size: 24px; display: block; margin-bottom: 8px; opacity: 0.5;">inventory</span>
+                                                Nenhum estoque registrado para este produto.
                                             </div>
-                                        `).join('') : `
-                                            <div style="text-align: center; color: var(--muted); font-size: 0.75rem; padding: 10px;">Nenhum estoque registrado nesta aba.</div>
                                         `}
                                     </div>
                                 </div>
@@ -3086,8 +3813,17 @@ function renderProductDetails(p) {
                                     <div class="input-field" style="background: transparent; border-color: rgba(255,255,255,0.05);">${(p.preco_atacado || '0,00').toString().includes('R$') ? '' : 'R$ '}${p.preco_atacado || '0,00'} (Mín. ${p.qtd_minima_atacado || '1'})</div>
                                 </div>
                                 <div class="input-group">
-                                    <label>Custo</label>
-                                    <div class="input-field" style="background: transparent; border-color: rgba(255,255,255,0.05);">${(p.preco_custo || '0,00').toString().includes('R$') ? '' : 'R$ '}${p.preco_custo || '0,00'}</div>
+                                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                                        Custo
+                                        <button onclick="toggleCostVisibility()" style="background: transparent; border: none; color: var(--primary); cursor: pointer; display: flex; align-items: center; padding: 0;">
+                                            <span class="material-symbols-rounded" id="cost-toggle-icon" style="font-size: 18px;">${localStorage.getItem('cost_visible') === 'true' ? 'visibility' : 'visibility_off'}</span>
+                                        </button>
+                                    </label>
+                                    <div class="input-field ${localStorage.getItem('cost_visible') === 'true' ? '' : 'cost-masked'}" id="product-cost-field" style="background: transparent; border-color: rgba(255,255,255,0.05); transition: all 0.3s ease;">
+                                        ${localStorage.getItem('cost_visible') === 'true' ? 
+                                            ((p.preco_custo || '0,00').toString().includes('R$') ? '' : 'R$ ') + (p.preco_custo || '0,00') : 
+                                            'R$ ••••••'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3289,7 +4025,7 @@ async function saveNewProduct() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'append',
-                    sheet: 'PRODUTOS',
+                    sheet: 'produtos',
                     data: product
                 })
             });
@@ -3339,7 +4075,7 @@ async function saveEditProduct(originalId) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'update',
-                    sheet: 'PRODUTOS',
+                    sheet: 'produtos',
                     keyField: 'id_interno',
                     keyValue: originalId,
                     data: product
@@ -3782,20 +4518,7 @@ async function processXMLImport(nNF) {
         }
     }
 
-    // Update History locally
-    if (!appData.entradas_nf) appData.entradas_nf = [];
-    matchedItems.forEach(item => {
-        appData.entradas_nf.unshift({
-            data: new Date().toLocaleDateString('pt-BR'),
-            hora: new Date().toLocaleTimeString('pt-BR'),
-            nf: nNF,
-            id_interno: item.matchedProduct.id_interno || item.matchedProduct.col_A,
-            descricao: item.matchedProduct.descricao_base,
-            qtd: item.qty,
-            local: 'TÉRREO',
-            usuario: localStorage.getItem('currentUser')
-        });
-    });
+    // Entradas NF removida - não salvar mais no histórico local
 
     playBeep('success');
     alert(`ENTRADA CONCLUÍDA!\nNF: ${nNF}\n${matchedItems.length} produtos atualizados no estoque.`);
@@ -4000,8 +4723,7 @@ async function saveManualNFEntry() {
         local: loc,
         usuario: localStorage.getItem('currentUser')
     };
-    if (!appData.entradas_nf) appData.entradas_nf = [];
-    appData.entradas_nf.unshift(historyEntry);
+    // Entradas NF removida - não salvar mais no histórico local
 
     if (SCRIPT_URL) {
         try {
@@ -4011,7 +4733,7 @@ async function saveManualNFEntry() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'movimento',
-                    tipo: 'CHEGADA_COMPRA',
+                    tipo: 'ENTRADA',
                     id_interno: update.id_interno,
                     local: loc,
                     quantidade: qty,
@@ -4032,8 +4754,8 @@ async function saveManualNFEntry() {
 
 function renderNFHistory() {
     const currentUser = localStorage.getItem('currentUser');
-    // Filter out empty or invalid entries
-    const history = (appData.entradas_nf || []).filter(item => item && (item.nf || item.NF || item.descricao || item.DESCRICAO));
+    // A aba entradas_nf foi removida - mostrar mensagem informativa
+    const history = [];
 
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
@@ -4043,41 +4765,19 @@ function renderNFHistory() {
                         <div class="sub-menu-header">
                             <h2 style="font-size: 1.2rem; font-weight: 700;">HISTÓRICO DE ENTRADAS</h2>
                         </div>
-
-                        ${history.length === 0 ? `
-                            <div style="text-align: center; padding: 60px 20px; background: var(--surface); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1);">
-                                <span class="material-symbols-rounded" style="font-size: 48px; color: var(--muted); margin-bottom: 16px;">history</span>
-                                <p style="color: var(--muted);">Nenhuma entrada registrada recentemente.</p>
-                            </div>
-                        ` : `
-                            <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px;">
-                                ${history.map(item => {
-        const nf = item.nf || item.NF || '-';
-        const data = item.data || item.DATA || '-';
-        const hora = item.hora || item.HORA || '';
-        const qtd = item.qtd || item.QTD || '0';
-        const desc = item.descricao || item.DESCRICAO || '-';
-        const local = item.local || item.LOCAL || '-';
-        const usuario = item.usuario || item.USUARIO || '-';
-
-        return `
-                                        <div style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
-                                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-                                                <div>
-                                                    <div style="font-weight: 800; color: white; font-size: 0.9rem;">NF: ${nf}</div>
-                                                    <div style="font-size: 0.65rem; color: var(--muted);">${data} ${hora ? `às ${hora}` : ''}</div>
-                                                </div>
-                                                <div style="background: rgba(34, 197, 94, 0.1); color: #22c55e; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: 800;">
-                                                    +${qtd}
-                                                </div>
-                                            </div>
-                                            <div style="font-size: 0.8rem; color: white; font-weight: 600;">${desc}</div>
-                                            <div style="font-size: 0.65rem; color: var(--muted); margin-top: 4px;">Local: ${local} | Por: ${usuario}</div>
-                                        </div>
-                                    `;
-    }).join('')}
-                            </div>
-                        `}
+                        
+                        <div style="text-align: center; padding: 40px; background: var(--surface); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1); margin-bottom: 20px;">
+                            <span class="material-symbols-rounded" style="font-size: 48px; color: var(--muted); margin-bottom: 16px;">info</span>
+                            <h3 style="color: white; margin-bottom: 8px;">Histórico de Entradas</h3>
+                            <p style="color: var(--muted); font-size: 0.9rem;">
+                                A aba de entradas de notas fiscais foi removida do sistema.<br>
+                                Utilize o histórico de movimentos para consultar entradas.
+                            </p>
+                            <button onclick="renderMovimentosMenu()" class="btn-action" style="margin-top: 20px; background: var(--primary);">
+                                <span class="material-symbols-rounded">history</span>
+                                Ver Movimentos
+                            </button>
+                        </div>
                     </main>
                 </div>
             `;
@@ -4245,7 +4945,10 @@ function renderConfigSubMenu() {
                     ${getTopBarHTML(currentUser, 'renderMenu()')}
 
                     <main class="container">
-                        <div class="sub-menu-header">
+                        <div class="sub-menu-header" style="display: flex; align-items: center; gap: 16px;">
+                            <button class="btn-back" onclick="renderMenu()" title="Voltar">
+                                <span class="material-symbols-rounded">arrow_back</span>
+                            </button>
                             <h2 style="font-size: 1.2rem; font-weight: 700;">CONFIGURAÇÕES</h2>
                         </div>
                         <div class="menu-grid">
@@ -4372,27 +5075,24 @@ function renderPickMenu() {
         { id: 'ml', label: 'MERCADO LIVRE COLETA', icon: 'local_shipping', color: 'ml' },
         { id: 'magalu', label: 'MAGALU', icon: 'inventory_2', color: 'magalu' },
         { id: 'correios', label: 'CORREIOS', icon: 'mail', color: 'correios' },
-        { id: 'ultra', label: 'ULTRA RÁPIDO', icon: 'speed', color: 'ultra' },
+        { id: 'ultra', label: 'ULTRÁPIDO', icon: 'speed', color: 'ultra' },
         { id: 'full', label: 'FULL', icon: 'flash_on', color: 'full' },
         { id: 'pdv', label: 'PDV (BALCÃO)', icon: 'store', color: 'pdv' }
     ];
 
     let channels = fallbackChannels;
     if (appData.channels.length > 0) {
-        const uniqueLabels = new Set();
         channels = appData.channels.map(c => {
-            const label = c.col_B || c.nome || c.Nome || c.label || Object.values(c)[0];
+            const label = c.nome || c.col_B || '';
+            const id = c.canal_id || c.col_A || '';
+            const type = c.tipo || c.col_C || '';
             const config = getChannelConfig(label);
             return {
-                id: c.id || (c.col_B ? String(c.col_B).toLowerCase() : 'chan'),
+                ...config,
+                id: id,
                 label: label,
-                icon: c.icon || config.icon,
-                color: c.color || config.color
+                type: type
             };
-        }).filter(c => {
-            if (!c.label || uniqueLabels.has(String(c.label).trim().toUpperCase())) return false;
-            uniqueLabels.add(String(c.label).trim().toUpperCase());
-            return true;
         });
     }
 
@@ -4410,7 +5110,7 @@ function renderPickMenu() {
                         </div>
                         <div class="menu-grid">
                             ${channels.map(item => `
-                                <div class="menu-card channel-card" data-channel="${item.color}" onclick="startPickingSession('${item.label}', '${item.color}')">
+                                <div class="menu-card channel-card" data-channel="${item.color}" onclick="startPickingSession('${item.id}', '${item.label}', '${item.color}')">
                                     <div class="icon-box">
                                         <span class="material-symbols-rounded icon">${item.icon}</span>
                                     </div>
@@ -4465,24 +5165,32 @@ function renderPickHistory() {
             `;
 }
 
-function startPickingSession(channelLabel, channelColor) {
+function startPickingSession(channelId, channelLabel, channelColor) {
     const currentUser = localStorage.getItem('currentUser');
     const draftStr = localStorage.getItem('draft_pick_session');
     if (draftStr) {
         const draft = JSON.parse(draftStr);
-        if (draft.channelColor === channelColor) {
+        // Se o rascunho for do MESMO canal, retoma direto
+        if (draft.channelColor === channelColor || draft.channelId === channelId) {
             currentSessionItems = draft.items || [];
-            renderPickingScreen(draft.sessionId, draft.channelLabel, draft.channelColor);
+            renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
             updatePickItemsList();
             return;
         } else {
-            if (!confirm(`Sessão ativa detectada em ${draft.channelLabel}. Para manter a integridade, você deve concluí-la ou limpar o rascunho atual. Deseja RETOMAR essa sessão agora?`)) {
+            // Se o rascunho for de OUTRO canal, oferece Retomar ou Limpar
+            const msg = `Sessão ativa detectada em ${draft.channelLabel}.\n\nPara iniciar em ${channelLabel}, você deve descartar o rascunho anterior.\n\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`;
+            if (confirm(msg)) {
+                localStorage.removeItem('draft_pick_session');
+                // Segue para criação de nova sessão abaixo
+            } else {
+                // Se não quiser limpar, oferece retomar o antigo
+                if (confirm(`Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`)) {
+                    currentSessionItems = draft.items || [];
+                    renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
+                    updatePickItemsList();
+                }
                 return;
             }
-            currentSessionItems = draft.items || [];
-            renderPickingScreen(draft.sessionId, draft.channelLabel, draft.channelColor);
-            updatePickItemsList();
-            return;
         }
     }
 
@@ -4506,16 +5214,15 @@ function startPickingSession(channelLabel, channelColor) {
 
     currentSessionItems = [];
     localStorage.setItem('draft_pick_session', JSON.stringify({
-        sessionId, channelLabel, channelColor, items: [],
+        sessionId, channelId, channelLabel, channelColor, items: [],
         operatorId: currentUser, status: 'in_progress', timestamp: now.toISOString()
     }));
 
-    renderPickingScreen(sessionId, channelLabel, channelColor);
+    renderPickingScreen(sessionId, channelId, channelLabel, channelColor);
 }
 
-let currentSessionItems = [];
-
-function renderPickingScreen(sessionId, channelLabel, channelColor) {
+// Global currentSessionItems moved to top for hoisting safety
+function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
     const currentUser = localStorage.getItem('currentUser');
 
     app.innerHTML = `
@@ -4557,7 +5264,7 @@ function renderPickingScreen(sessionId, channelLabel, channelColor) {
                             </div>
                         </div>
 
-                        <button class="btn-action" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem;" onclick="finishPickingSession('${sessionId}', '${channelLabel}', '${channelColor}')">
+                        <button class="btn-action" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem;" onclick="finishPickingSession('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
                             <span class="material-symbols-rounded">check_circle</span>
                             Finalizar Separação
                         </button>
@@ -4595,7 +5302,7 @@ function addPickItem(scannedEan = null) {
                 input.focus();
                 return;
             } else {
-                showToast(`⚠️ AVISO: Estoque negativo para ${product.descricao_base || 'este item'}`);
+                showToast(`⚠️ AVISO: Estoque negativo para ${product.descricao_base || 'este item'}`);
             }
         }
 
@@ -4653,7 +5360,7 @@ function updatePickItemsList() {
                         <div style="font-weight: 700; font-size: 0.9rem; color: white;">${item.descricao_base}</div>
                         <div style="font-size: 0.7rem; color: var(--muted);"><span style="color: #fca5a5;">EAN:</span> ${item.ean} | <span style="color: #fca5a5;">SKU:</span> ${item.sku_fornecedor || '-'}</div>
                     </div>
-                    ${item.qty > 1 ? `<div style="font-weight: 800; color: var(--primary); font-size: 1.1rem; margin-right: 8px;">${item.qty}</div>` : ''}
+                    <div style="font-weight: 800; color: var(--primary); font-size: 1.1rem; margin-right: 8px;">x${item.qty}</div>
                     <button onclick="removePickItem(${index})" style="background: transparent; border: none; color: #ef4444; cursor: pointer;">
                         <span class="material-symbols-rounded">delete</span>
                     </button>
@@ -4676,7 +5383,7 @@ function removePickItem(index) {
 }
 
 
-async function finishPickingSession(sessionId, channelLabel, channelColor) {
+async function finishPickingSession(sessionId, channelId, channelLabel, channelColor) {
     if (isFinalizing) return;
     isFinalizing = true;
 
@@ -4694,25 +5401,27 @@ async function finishPickingSession(sessionId, channelLabel, channelColor) {
         const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
 
         const pickingData = {
-            rom_id: sessionId,
-            canal_id: channelColor,
+            separacao_id: sessionId,
+            canal_id: channelId,
             canal_nome: channelLabel,
             data_separacao: new Date().toLocaleDateString('pt-BR'),
-            status: modoRapidoAtivo ? 'CONCLUÍDO' : 'SEPARADO',
+            status: 'em_separacao',
             criado_por: currentUser,
             criado_em: now,
             finalizado_em: now,
+            data_hora: now,
             observacao: modoRapidoAtivo ? 'SAIDA_RAPIDA AUTOMATICA' : ''
         };
 
         const groupedItems = currentSessionItems.reduce((acc, item) => {
-            if (!acc[item.ean]) acc[item.ean] = { ...item, qty: 0 };
-            acc[item.ean].qty++;
+            const key = item.ean || item.id_interno || item.sku_fornecedor || 'unknown';
+            if (!acc[key]) acc[key] = { ...item, qty: 0 };
+            acc[key].qty += (item.qty || 1);
             return acc;
         }, {});
 
         const conferenceRows = Object.values(groupedItems).map(item => ({
-            rom_id: sessionId,
+            separacao_id: sessionId,
             id_interno: item.id_interno || '',
             ean: item.ean,
             descricao: item.descricao_base,
@@ -4735,56 +5444,185 @@ async function finishPickingSession(sessionId, channelLabel, channelColor) {
             conferenceRows
         };
 
+        // [NOVO FLUXO]: Bloqueio de Diverg??ncia se houver lista carregada
+        currentPickSession = session;
+        renderPickResult(sessionId, channelId, channelLabel, channelColor);
+
+
+    } catch (error) {
+        console.error("Error preparing picking result:", error);
+        showToast("Erro ao processar separa????o!");
+    } finally {
+        isFinalizing = false;
+        const submitBtn = document.querySelector(`button[onclick^="finishPickingSession"]`);
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> Finalizar Separa????o'; }
+    }
+}
+
+function renderPickResult(sessionId, channelId, channelLabel, channelColor) {
+    const currentUser = localStorage.getItem('currentUser');
+    
+    // [BLOQUEIO DE DIVERG??NCIA] - Calcula se há disparidade entre Pedido e Separado
+    // Nota: Atualmente, se n??o houver lista de refer??ncia, consideramos OK
+    let hasDivergence = false;
+    if (currentPickSession.expectedItems && currentPickSession.expectedItems.length > 0) {
+        hasDivergence = currentPickSession.expectedItems.some(req => {
+            const picked = currentPickSession.items.find(p => p.ean == req.ean || p.id_interno == req.id_interno);
+            return (picked ? picked.qty : 0) !== (req.qty_requested || 0);
+        });
+    }
+
+    app.innerHTML = `
+        <div class="dashboard-screen fade-in">
+            ${getTopBarHTML(currentUser, `renderPickingScreen('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')`)}
+
+            <main class="container">
+                <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="font-size: 0.7rem; color: var(--primary); font-weight: 800; letter-spacing: 0.1em;">REVIS??O DE SEPARA????O</div>
+                    <h2 style="font-size: 1.2rem; font-weight: 700;">${sessionId}</h2>
+                </div>
+
+                <div style="margin-bottom: 24px; padding: 20px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                    <span class="material-symbols-rounded" style="font-size: 48px; color: var(--primary); margin-bottom: 12px;">fact_check</span>
+                    <h3 style="font-size: 1.1rem; font-weight: 700; color: white;">Resumo da Caixa</h3>
+                    <p style="color: var(--muted); font-size: 0.8rem;">Verifique as quantidades antes de fechar a separa????o.</p>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;">
+                    ${currentPickSession.items.map((item, index) => `
+                        <div class="fade-in" style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 700; font-size: 0.85rem; color: white;">${item.descricao_base || item.col_aa}</div>
+                                    <div style="font-size: 0.65rem; color: var(--muted);">EAN: ${item.ean}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 12px;">
+                                <div style="font-size: 0.7rem; color: var(--muted);">Quantidade:</div>
+                                <div style="display: flex; align-items: center; gap: 15px;">
+                                    <button onclick="adjustPickRow(${index}, -1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white;">
+                                        <span class="material-symbols-rounded" style="font-size: 18px;">remove</span>
+                                    </button>
+                                    <div style="font-weight: 800; font-size: 1rem; color: var(--primary);">${item.qty}</div>
+                                    <button onclick="adjustPickRow(${index}, 1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white;">
+                                        <span class="material-symbols-rounded" style="font-size: 18px;">add</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    
+                    <button class="btn-action btn-secondary" style="width: 100%; border: 1px dashed var(--primary); background: transparent;" onclick="openManualAddProductToSession('${sessionId}', 'PICK')">
+                        <span class="material-symbols-rounded">add_circle</span>
+                        Adicionar Produto Manulamente
+                    </button>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    ${!hasDivergence ? `
+                    <button class="btn-action" style="background: #22c55e;" onclick="savePickResultFinal('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
+                        <span class="material-symbols-rounded">done_all</span>
+                        Confirmar e Salvar Planilha
+                    </button>
+                    ` : `
+                    <div style="text-align: center; color: #ef4444; font-size: 0.75rem; font-weight: 800; padding: 18px; background: rgba(239, 68, 68, 0.1); border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.3);">
+                        <span class="material-symbols-rounded" style="vertical-align: middle; font-size: 24px; margin-bottom: 8px; display: block;">lock</span>
+                        <span style="display: block; font-size: 1rem; letter-spacing: 0.1em;">BLOQUEADO</span>
+                        <p style="font-weight: 500; margin-top: 4px; opacity: 0.8;">Separa????o n??o bate com o pedido</p>
+                    </div>
+                    `}
+                    <button class="btn-action btn-secondary" onclick="renderPickingScreen('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
+                        <span class="material-symbols-rounded">arrow_back</span>
+                        Voltar para Bipagem
+                    </button>
+                </div>
+            </main>
+        </div>
+    `;
+}
+
+
+function adjustPickRow(index, delta, sessionId, channelId, channelLabel, channelColor) {
+    const item = currentPickSession.items[index];
+    item.qty = Math.max(0, item.qty + delta);
+    if (item.qty === 0) {
+        currentPickSession.items.splice(index, 1);
+    }
+    currentSessionItems = currentPickSession.items;
+    localStorage.setItem('draft_pick_session', JSON.stringify({
+        sessionId, channelId, channelLabel, channelColor, items: currentSessionItems,
+        timestamp: new Date().toISOString()
+    }));
+    renderPickResult(sessionId, channelId, channelLabel, channelColor);
+}
+
+async function savePickResultFinal(sessionId, channelId, channelLabel, channelColor) {
+    if (isFinalizing) return;
+    isFinalizing = true;
+    showToast("Finalizando separação...");
+
+    try {
+        const currentUser = localStorage.getItem('currentUser');
+        const now = new Date().toISOString();
+        const pickingData = { ...currentPickSession.pickingData, status: 'aberta' };
+
+        console.log("[savePickResultFinal] currentPickSession.items:", currentPickSession.items);
+
+        // Preparar itens para salvamento em lote
+        const itemsToSave = currentPickSession.items.map(item => ({
+            separacao_id: sessionId,
+            id_interno: item.id_interno || '',
+            ean: item.ean || '',
+            descri_ao: item.descricao_base || item.col_aa || '', // Mantendo compatibilidade com header normalizado
+            quantidade: item.qty || 1,
+            usuario: currentUser,
+            data_hora: now
+        }));
+
+        console.log("[savePickResultFinal] itemsToSave:", JSON.stringify(itemsToSave, null, 2));
+
         if (SCRIPT_URL) {
-            showToast("Salvando na planilha...");
-            const separacaoPromise = safePost({
+            // 1. Salvar cabeçalho
+            console.log("[savePickResultFinal] Salvando cabeçalho separacao:", pickingData);
+            await safePost({
                 action: 'append',
                 sheet: 'separacao',
                 data: pickingData
             });
 
-            let movementPromises = [];
-            if (modoRapidoAtivo) {
-                movementPromises = conferenceRows.map(row => {
-                    if (row.processed) return Promise.resolve(true);
-                    row.processed = true;
+            // 2. Salvar itens em lote
+            console.log("[savePickResultFinal] Salvando itens em separacao_itens:", itemsToSave.length, "itens");
+            const result = await safePost({
+                action: 'batch_append',
+                sheet: 'separacao_itens',
+                data: itemsToSave
+            });
+            console.log("[savePickResultFinal] Result do batch_append:", result);
 
-                    return safePost({
-                        action: 'movimento',
-                        tipo: 'SAIDA_RAPIDA',
-                        id_interno: row.id_interno,
-                        local: '1_ANDAR',
-                        quantidade: row.qtd_separada,
-                        usuario: currentUser,
-                        origem: `RAPIDO-${sessionId}`,
-                        observacao: `Baixa automática (Modo Rápido) da separação ${sessionId}`,
-                        itens_afetados: JSON.stringify([{ id: row.id_interno, qtd: row.qtd_separada }])
-                    });
-                });
-            }
-
-            await Promise.all([separacaoPromise, ...movementPromises]);
-        }
-
-        if (!modoRapidoAtivo) {
-            let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
-            activeSessions.push(session);
-            localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+            // [OTIMISMO]: Atualizar appData local para que o card apareça instantaneamente
+            if (!appData.separacao) appData.separacao = [];
+            // Adicionar ao início para aparecer primeiro
+            appData.separacao.unshift({
+                ...pickingData,
+                separacao_id: sessionId,
+                canal_nome: channelLabel,
+                data_separacao: now.split('T')[0],
+                status: 'aberta'
+            });
         }
 
         localStorage.removeItem('draft_pick_session');
-        showToast(`Separação ${sessionId} finalizada!`);
+        showToast(`Separação ${sessionId} finalizada e enviada para conferência!`);
         renderMenu();
-
-    } catch (error) {
-        console.error("Error saving to sheet:", error);
-        showToast("Erro ao finalizar separação!");
+    } catch (e) {
+        console.error("Erro ao finalizar pick:", e);
+        showToast("Erro ao salvar finalização!");
     } finally {
         isFinalizing = false;
-        const submitBtn = document.querySelector(`button[onclick^="finishPickingSession"]`);
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> Finalizar Separação'; }
     }
 }
+
 function renderPackMenu() {
     const currentUser = localStorage.getItem('currentUser');
     const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
@@ -4794,23 +5632,30 @@ function renderPackMenu() {
         renderMenu();
         return;
     }
-    const activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
+
+    // Filtrar sessões pendentes (status 'aberta' ou 'em_conferencia') vindas da planilha ou otimismo
+    const activeSessions = (appData.separacao || []).filter(s => {
+        const st = String(s.status || '').toLowerCase();
+        return st === 'aberta' || st === 'em_conferencia' || st === 'aberto';
+    });
 
     // Group sessions by channel
     const channelsWithSessions = [];
     const channelMap = {};
 
     activeSessions.forEach(s => {
-        if (!channelMap[s.channel]) {
-            channelMap[s.channel] = {
-                name: s.channel,
-                color: s.channelColor || getChannelConfig(s.channel).color,
-                icon: getChannelConfig(s.channel).icon,
+        const channelName = s.canal_nome || s.col_c || s.canal || 'Outros';
+        const channelId = s.separacao_id || s.col_a;
+        if (!channelMap[channelName]) {
+            channelMap[channelName] = {
+                name: channelName,
+                color: getChannelConfig(channelName).color,
+                icon: getChannelConfig(channelName).icon,
                 count: 0
             };
-            channelsWithSessions.push(channelMap[s.channel]);
+            channelsWithSessions.push(channelMap[channelName]);
         }
-        channelMap[s.channel].count++;
+        channelMap[channelName].count++;
     });
 
     app.innerHTML = `
@@ -4893,8 +5738,11 @@ function renderPackHistory() {
 
 function renderPackSessionsList(channelName) {
     const currentUser = localStorage.getItem('currentUser');
-    const activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]')
-        .filter(s => s.channel === channelName);
+    const activeSessions = (appData.separacao || []).filter(s => {
+        const chan = s.canal_nome || s.col_c || s.canal || 'Outros';
+        const st = String(s.status || '').toLowerCase();
+        return chan === channelName && (st === 'aberta' || st === 'em_conferencia' || st === 'aberto');
+    });
 
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
@@ -4906,25 +5754,26 @@ function renderPackSessionsList(channelName) {
                         </div>
 
                         <div style="display: flex; flex-direction: column; gap: 12px;">
-                            ${activeSessions.map(session => `
+                            ${activeSessions.map(session => {
+                                const sid = session.separacao_id || session.col_a;
+                                const user = session.criado_por || session.col_e || 'N/A';
+                                return `
                                 <div class="menu-card" style="flex-direction: row; align-items: center; justify-content: space-between; padding: 16px 20px; height: auto; cursor: default;">
-                                    <div style="text-align: left; flex: 1; cursor: pointer;" onclick="renderPackSessionDetails('${session.id}')">
+                                    <div style="text-align: left; flex: 1; cursor: pointer;" onclick="renderPackSessionDetails('${sid}')">
                                         <div style="font-weight: 800; color: white; display: flex; align-items: center; gap: 8px;">
-                                            ${session.id}
-                                            <span style="font-size: 0.6rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; color: var(--muted);">AGUARDANDO</span>
+                                            ${sid}
+                                            <span style="font-size: 0.6rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; color: var(--muted);">${session.status.toUpperCase()}</span>
                                         </div>
-                                        <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">Separado por: ${session.user}</div>
+                                        <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">Separado por: ${user}</div>
                                     </div>
                                     <div style="display: flex; gap: 8px;">
-                                        <button class="btn-action" style="padding: 8px; min-width: auto; background: var(--primary); border-radius: 12px;" onclick="renderPackSessionDetails('${session.id}')" title="Conferir">
+                                        <button class="btn-action" style="padding: 8px; min-width: auto; background: var(--primary); border-radius: 12px;" onclick="renderPackSessionDetails('${sid}')" title="Conferir">
                                             <span class="material-symbols-rounded" style="font-size: 20px;">fact_check</span>
-                                        </button>
-                                        <button class="btn-action" style="padding: 8px; min-width: auto; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px;" onclick="event.stopPropagation(); deletePickingSession('${session.id}', '${channelName.replace(/'/g, "'")}')" title="Excluir">
-                                            <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
                                         </button>
                                     </div>
                                 </div>
-                            `).join('')}
+                                `;
+                            }).join('')}
                         </div>
                     </main>
                 </div>
@@ -4950,121 +5799,301 @@ function deletePickingSession(sessionId, channelName) {
     }
 }
 
-let currentPackSession = null;
-
-function renderPackSessionDetails(sessionId) {
+// Global Session State moved to top for hoisting safety
+async function renderPackSessionDetails(sessionId) {
     const currentUser = localStorage.getItem('currentUser');
-    const activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
-    currentPackSession = activeSessions.find(s => s.id === sessionId);
-
-    if (!currentPackSession) {
-        showToast("Sessão não encontrada.");
-        renderPackMenu();
-        return;
+    
+    // Verificar se o mesmo usuário que fez a Separação está tentando fazer a Conferência
+    const separacaoSession = (appData.separacao || []).find(s => 
+        (s.separacao_id || s.col_a) === sessionId
+    );
+    
+    if (separacaoSession) {
+        const criadoPor = (separacaoSession.criado_por || separacaoSession.col_e || '').trim().toLowerCase();
+        const usuarioAtual = (currentUser || '').trim().toLowerCase();
+        
+        if (criadoPor && criadoPor === usuarioAtual) {
+            showToast("Esta conferência deve ser realizada por outro usuário. O mesmo usuário que fez a separação não pode conferir esta sessão.", "error");
+            playBeep('error');
+            return;
+        }
     }
+    
+    // Tenta carregar do cache para resposta instantânea
+    const activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
+    let session = activeSessions.find(s => s.id === sessionId);
+    
+    // INICIALIZAR SESSÃO IMEDIATAMENTE para permitir bipagem sem depender de sync
+    currentPackSession = session || {
+        id: sessionId,
+        items: [],
+        pickingData: { separacao_id: sessionId, canal_nome: '' },
+        conferenceRows: []
+    };
+    
+    // 0. Renderizar a Moldura Imediatamente com sessão inicializada
+    renderPackSessionFrame(sessionId, currentUser);
 
-    // Ensure conferenceRows exist (they should if saved recently)
-    if (!currentPackSession.conferenceRows) {
-        const groupedItems = currentPackSession.items.reduce((acc, item) => {
-            if (!acc[item.ean]) {
-                acc[item.ean] = { ...item, qty: 0 };
-            }
-            acc[item.ean].qty++;
+    // 1. Buscar itens da planilha em BACKGROUND (não bloqueante)
+    try {
+        const [itemsRes] = await Promise.all([
+            safeGet(`action=find&sheet=separacao_itens&field=separacao_id&value=${sessionId}`)
+        ]);
+
+        const expectedItems = itemsRes.data || [];
+        
+        // Reconstruir conferenceRows baseando-se no que está na planilha
+        const groupedExpected = expectedItems.reduce((acc, item) => {
+            const key = item.ean || item.id_interno;
+            if (!acc[key]) acc[key] = { ...item, qtd_separada: 0, qtd_conferida: 0 };
+            acc[key].qtd_separada += parseFloat(item.quantidade || 0);
             return acc;
         }, {});
 
-        currentPackSession.conferenceRows = Object.values(groupedItems).map(item => ({
-            rom_id: sessionId,
-            id_interno: item.id_interno || '',
-            ean: item.ean,
-            descricao: item.descricao_base,
-            qtd_separada: item.qty,
-            qtd_conferida: 0,
-            divergencia: 'FALTA',
-            conferido_por: '',
-            conferido_em: ''
-        }));
+        // Se já existia cache local com conferência em andamento, mesclar quantidades
+        if (session && session.conferenceRows) {
+            session.conferenceRows.forEach(row => {
+                const key = row.ean || row.id_interno;
+                if (groupedExpected[key]) {
+                    groupedExpected[key].qtd_conferida = row.qtd_conferida;
+                }
+            });
+        }
+
+        currentPackSession = {
+            id: sessionId,
+            items: expectedItems,
+            pickingData: {
+                separacao_id: sessionId,
+                canal_nome: expectedItems.length > 0 ? (expectedItems[0].canal_nome || sessionId.split('-')[1] || '') : ''
+            },
+            conferenceRows: Object.values(groupedExpected)
+        };
+
+        // Salvar no local para persistência de sessão ativa
+        if (!session) {
+            activeSessions.push(currentPackSession);
+        } else {
+            const idx = activeSessions.findIndex(s => s.id === sessionId);
+            activeSessions[idx] = currentPackSession;
+        }
+        localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+
+        // Atualizar lista após carregar dados
+        const packList = document.getElementById('pack-items-list');
+        if (packList) packList.innerHTML = renderPackItemsListHTML();
+        
+    } catch (err) {
+        console.error("Erro ao carregar sessão:", err);
+        showToast("Erro ao carregar dados da planilha.", "error");
     }
+}
 
+/**
+ * Renderiza apenas a moldura da tela de conferência para resposta imediata
+ */
+function renderPackSessionFrame(sessionId, currentUser) {
     app.innerHTML = `
-                <div class="dashboard-screen fade-in">
-                    ${getTopBarHTML(currentUser, "renderPackSessionsList('" + currentPackSession.channel + "')")}
+        <div class="dashboard-screen fade-in">
+            ${getTopBarHTML(currentUser, "renderPackMenu()")}
 
-                    <main class="container">
-                        <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-                            <div style="font-size: 0.7rem; color: var(--primary); font-weight: 800; letter-spacing: 0.1em;">CONFERÊNCIA</div>
-                            <h2 style="font-size: 1.2rem; font-weight: 700;">${sessionId}</h2>
-                        </div>
-
-                        <div class="search-container" style="background: var(--surface); padding: 20px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
-                            <div class="input-group" style="margin-bottom: 0;">
-                                <label style="margin-bottom: 12px; display: block; font-size: 0.7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Bipar ou Digitar EAN para Conferir</label>
-                                <div style="display: flex; gap: 12px;">
-                                    <input type="text" id="pack-ean-input" class="input-field" style="flex: 1;" placeholder="EAN do Produto..." onkeypress="if(event.key === 'Enter') addPackScan()">
-                                    <button class="btn-action" style="padding: 0 20px; min-width: auto; background: var(--primary);" onclick="startScanner(false, true)">
-                                        <span class="material-symbols-rounded">photo_camera</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div id="scanner-container-pack" class="hidden" style="margin-top: 20px; overflow: hidden; border-radius: 16px; border: 2px solid var(--primary); background: black; position: relative; transition: border-color 0.3s ease;">
-                                <div id="reader-pack" style="width: 100%;"></div>
-                                <div id="scanner-feedback" style="position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; pointer-events: none; transition: background 0.3s ease;">
-                                    <div id="scanner-feedback-icon" class="material-symbols-rounded" style="font-size: 80px; color: white; text-shadow: 0 0 20px rgba(0,0,0,0.5);"></div>
-                                </div>
-                                <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
-                                    <button class="btn-action btn-secondary" style="padding: 8px; min-width: auto; border-radius: 50%;" onclick="stopScanner()">
-                                        <span class="material-symbols-rounded">close</span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="pack-items-list" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;">
-                            ${renderPackItemsListHTML()}
-                        </div>
-
-                        <button class="btn-action" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem;" onclick="finishConferenceSession()">
-                            <span class="material-symbols-rounded">check_circle</span>
-                            Finalizar Conferência
-                        </button>
-                    </main>
+            <main class="container">
+                <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+                    <div style="font-size: 0.7rem; color: var(--primary); font-weight: 800; letter-spacing: 0.1em;">CONFERÊNCIA</div>
+                    <h2 style="font-size: 1.2rem; font-weight: 700;">${sessionId}</h2>
                 </div>
-            `;
-    document.getElementById('pack-ean-input').focus();
+
+                <div class="search-container" style="background: var(--surface); padding: 20px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+                    <div class="input-group" style="margin-bottom: 0;">
+                        <label style="margin-bottom: 12px; display: block; font-size: 0.7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Bipar ou Digitar EAN para Conferir (às cegas)</label>
+                        <div style="display: flex; gap: 12px;">
+                            <input type="text" id="pack-ean-input" class="input-field" style="flex: 1;" 
+                                   placeholder="EAN do Produto..." 
+                                   onkeypress="if(event.key === 'Enter') addPackScan()">
+                            <button class="btn-action" style="padding: 0 20px; min-width: auto; background: var(--primary);" onclick="startScanner(false, true)">
+                                <span class="material-symbols-rounded">photo_camera</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pack-items-list" style="margin-bottom: 20px;"></div>
+
+                <button class="btn-action" id="btn-finish-pack" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem; opacity: 0.6; cursor: not-allowed;" onclick="showToast('Aguarde o carregamento...', 'warning')">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    Finalizar Conferência
+                </button>
+            </main>
+        </div>
+    `;
+    
+    const eanInput = document.getElementById('pack-ean-input');
+    if (eanInput) eanInput.focus();
 }
 
 function renderPackItemsListHTML() {
-    // Filter to show only items that have been scanned at least once
-    const scannedRows = currentPackSession.conferenceRows.filter(row => row.qtd_conferida > 0);
-
-    if (scannedRows.length === 0) {
-        return `
-                    <div style="text-align: center; padding: 30px; color: var(--muted); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
-                        <p>Nenhum item conferido ainda.</p>
-                    </div>
-                `;
+    if (!currentPackSession || !currentPackSession.conferenceRows) return '';
+    
+    // Atualizar estado do botão de finalizar se já carregou
+    const btnFinish = document.getElementById('btn-finish-pack');
+    if (btnFinish) {
+        btnFinish.style.opacity = '1';
+        btnFinish.style.cursor = 'pointer';
+        btnFinish.setAttribute('onclick', 'finishConferenceSession()');
+        const input = document.getElementById('pack-ean-input');
+        if (input) input.placeholder = "Bipe o produto...";
     }
 
-    return scannedRows.map(row => {
+    // [BLIND MODE]: Filtrar para mostrar apenas o que JÁ FOI BIPADO 
+    // ou mostrar todos os itens mas SEM a quantidade esperada.
+    // O usuário preferiu "bipar às cegas", então mostraremos a lista conforme bipagem.
+    
+    const rowsToShow = currentPackSession.conferenceRows.filter(r => r.qtd_conferida > 0);
+
+    if (rowsToShow.length === 0) {
         return `
-                    <div class="fade-in" style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                            <span class="material-symbols-rounded" style="color: var(--primary)">check_circle</span>
-                        </div>
-                        <div style="flex: 1;">
-                            <div style="font-weight: 700; font-size: 0.9rem; color: white;">${row.descricao}</div>
-                            <div style="font-size: 0.7rem; color: var(--muted);"><span style="color: #fca5a5;">EAN:</span> ${row.ean}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="font-size: 0.6rem; color: var(--muted); text-transform: uppercase; font-weight: 800;">CONFERIDO</div>
-                            <div style="font-weight: 800; font-size: 1.1rem; color: white;">
-                                <span style="color: var(--primary)">${row.qtd_conferida}</span>
-                            </div>
-                        </div>
+            <div style="text-align: center; padding: 40px; color: var(--muted); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+                <span class="material-symbols-rounded" style="font-size: 32px; margin-bottom: 12px; display: block; opacity: 0.5;">barcode_scanner</span>
+                Nenhum item conferido ainda.<br>Comece a bipar os produtos.
+            </div>
+        `;
+    }
+
+    return rowsToShow.map(row => {
+        return `
+            <div class="fade-in conference-item" 
+                 style="background: var(--surface); 
+                        padding: 16px; 
+                        border-radius: 16px; 
+                        border: 1px solid rgba(255,255,255,0.05); 
+                        display: flex; 
+                        align-items: center; 
+                        gap: 12px;">
+                <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <span class="material-symbols-rounded" style="color: var(--primary)">inventory_2</span>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-weight: 700; font-size: 0.9rem; color: white;">${row.descricao}</div>
+                    <div style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;">
+                        <span style="color: var(--primary);">EAN:</span> ${row.ean}
                     </div>
-                `;
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.6rem; color: var(--muted); text-transform: uppercase; font-weight: 800;">CONFERIDO</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button onclick="adjustConferenceRowDirect(${currentPackSession.conferenceRows.indexOf(row)}, -1)" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-rounded" style="font-size: 14px;">remove</span>
+                        </button>
+                        <div style="font-weight: 800; font-size: 1.1rem; color: var(--primary)">
+                            ${row.qtd_conferida}
+                        </div>
+                        <button onclick="adjustConferenceRowDirect(${currentPackSession.conferenceRows.indexOf(row)}, 1)" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-rounded" style="font-size: 14px;">add</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }).join('');
 }
+
+function adjustConferenceRowDirect(index, delta) {
+    const row = currentPackSession.conferenceRows[index];
+    row.qtd_conferida = Math.max(0, row.qtd_conferida + delta);
+    
+    if (row.qtd_conferida === row.qtd_separada) {
+        row.divergencia = 'OK';
+    } else if (row.qtd_conferida > row.qtd_separada) {
+        row.divergencia = 'SOBRA';
+    } else {
+        row.divergencia = 'FALTA';
+    }
+    
+    document.getElementById('pack-items-list').innerHTML = renderPackItemsListHTML();
+}
+
+/**
+ * Fun????o Compartilhada para Busca Manual de Produto
+ */
+function openManualAddProduct(callback) {
+    const term = prompt("Digite o EAN ou C??digo do produto para adicionar:");
+    if (!term) return;
+
+    const product = appData.products.find(p =>
+        (p.ean && p.ean.toString() === term) ||
+        (p.id_interno && p.id_interno.toString() === term) ||
+        (p.sku_fornecedor && p.sku_fornecedor.toString() === term)
+    );
+
+    if (!product) {
+        playBeep('error');
+        showToast("Produto n??o encontrado!");
+        return;
+    }
+
+    playBeep('success');
+    callback(product);
+}
+
+function openManualAddProductToSession(sessionId, type = 'PACK') {
+    openManualAddProduct((product) => {
+        if (type === 'PACK') {
+            manualAddItemToConference(product);
+        } else {
+            // L??gica para Separa????o
+            const existing = currentSessionItems.find(item => item.ean == product.ean || item.id_interno == product.id_interno);
+            if (existing) {
+                existing.qty = (existing.qty || 0) + 1;
+            } else {
+                currentSessionItems.unshift({
+                    ...product,
+                    qty: 1,
+                    scanTime: new Date().toLocaleTimeString()
+                });
+            }
+            updatePickItemsList();
+            showToast(`Item adicionado: ${product.descricao_base}`);
+            
+            if (currentPickSession && currentPickSession.id === sessionId) {
+                currentPickSession.items = currentSessionItems;
+                renderPickResult(sessionId, currentPickSession.channelId, currentPickSession.channelLabel, currentPickSession.channelColor);
+            }
+        }
+    });
+}
+
+function manualAddItemToConference(product) {
+    let row = currentPackSession.conferenceRows.find(r => r.ean === product.ean || r.id_interno === product.id_interno);
+    if (row) {
+        row.qtd_conferida++;
+    } else {
+        row = {
+            separacao_id: currentPackSession.pickingData.separacao_id,
+            rom_id: currentPackSession.id,
+            id_interno: product.id_interno || '',
+            ean: product.ean || '',
+            descricao: product.descricao_base || 'Produto Adicionado',
+            qtd_separada: 0,
+            qtd_conferida: 1,
+            divergencia: 'SOBRA'
+        };
+        currentPackSession.conferenceRows.push(row);
+    }
+    // Atualizar lista de conferidos
+    const packList = document.getElementById('pack-items-list');
+    if (packList) packList.innerHTML = renderPackItemsListHTML();
+    
+    // Atualizar botão de finalizar
+    const btnFinish = document.getElementById('btn-finish-pack');
+    if (btnFinish) {
+        btnFinish.style.opacity = '1';
+        btnFinish.style.cursor = 'pointer';
+        btnFinish.setAttribute('onclick', 'finishConferenceSession()');
+    }
+}
+
+
+
 
 function addPackScan(scannedEan = null) {
     const input = document.getElementById('pack-ean-input');
@@ -5122,9 +6151,32 @@ function addPackScan(scannedEan = null) {
     document.getElementById('pack-items-list').innerHTML = renderPackItemsListHTML();
 }
 
-function renderConferenceResult() {
+/**
+ * TELA DE CORREÇÃO DE DIVERGÊNCIA (Obrigatória se houver erro)
+ */
+function renderConferenceCorrection() {
     const currentUser = localStorage.getItem('currentUser');
     const hasDivergence = currentPackSession.conferenceRows.some(r => r.divergencia !== 'OK');
+    const isStarted = currentPackSession.conferenceRows.some(r => r.qtd_conferida > 0);
+    
+    // [BLOQUEIO DE DIVERG??NCIA] - Somente permitimos finalizar se hasDivergence for false
+    
+    let conferenceStatus = 'EM CONFER??NCIA';
+    if (hasDivergence && isStarted) conferenceStatus = 'COM DIVERG??NCIA';
+    if (!hasDivergence) conferenceStatus = 'CONFERIDO';
+
+
+    // Rolar para o primeiro erro se houver divergência
+    if (hasDivergence) {
+        setTimeout(() => {
+            const firstError = document.querySelector('.conference-item-error');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstError.style.boxShadow = '0 0 20px rgba(227, 6, 19, 0.3)';
+                setTimeout(() => firstError.style.boxShadow = '', 2000);
+            }
+        }, 300);
+    }
 
     app.innerHTML = `
                 <div class="dashboard-screen fade-in">
@@ -5133,18 +6185,23 @@ function renderConferenceResult() {
                     <main class="container">
                         <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
                             <div style="font-size: 0.7rem; color: var(--primary); font-weight: 800; letter-spacing: 0.1em;">RESULTADO DA CONFERÊNCIA</div>
-                            <h2 style="font-size: 1.2rem; font-weight: 700;">${currentPackSession.id}</h2>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h2 style="font-size: 1.2rem; font-weight: 700;">${currentPackSession.id}</h2>
+                                <span class="status-pill" style="background: ${hasDivergence ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)'}; color: ${hasDivergence ? '#ef4444' : '#22c55e'}; font-size: 0.6rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; border: 1px solid ${hasDivergence ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'};">
+                                    ${conferenceStatus}
+                                </span>
+                            </div>
                         </div>
 
-                        <div style="margin-bottom: 24px; padding: 20px; border-radius: 20px; background: ${hasDivergence ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)'}; border: 1px solid ${hasDivergence ? '#ef4444' : '#22c55e'}; text-align: center;">
+                        <div style="margin-bottom: 24px; padding: 20px; border-radius: 20px; background: ${hasDivergence ? 'rgba(239, 68, 68, 0.05)' : 'rgba(34, 197, 94, 0.1)'}; border: 1px solid ${hasDivergence ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)'}; text-align: center;">
                             <span class="material-symbols-rounded" style="font-size: 48px; color: ${hasDivergence ? '#ef4444' : '#22c55e'}; margin-bottom: 12px;">
-                                ${hasDivergence ? 'warning' : 'check_circle'}
+                                ${hasDivergence ? 'report' : 'task_alt'}
                             </span>
                             <h3 style="font-size: 1.1rem; font-weight: 700; color: white;">
-                                ${hasDivergence ? 'Divergências Encontradas' : 'Conferência 100% OK!'}
+                                ${hasDivergence ? 'Atenção: Divergência Detectada' : 'Fluxo Validado com Sucesso'}
                             </h3>
                             <p style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;">
-                                ${hasDivergence ? 'Revise os itens abaixo antes de finalizar.' : 'Tudo pronto para o envio.'}
+                                ${hasDivergence ? 'Há uma diferença entre o separado e o conferido. Ajuste obrigatório para liberar.' : 'Tudo em ordem. O status final será gravado como CONFERIDO.'}
                             </p>
                         </div>
 
@@ -5157,16 +6214,18 @@ function renderConferenceResult() {
         if (row.divergencia === 'SOBRA') statusColor = '#f59e0b';
 
         return `
-                                    <div class="fade-in" style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+                                    <div class="fade-in ${row.divergencia !== 'OK' ? 'conference-item-error' : ''}" 
+                                         id="conf-res-item-${index}"
+                                         style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid ${row.divergencia !== 'OK' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.05)'}; transition: all 0.3s ease;">
                                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                                            <div style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                                                <span class="material-symbols-rounded" style="font-size: 18px; color: ${statusColor}">${row.divergencia === 'OK' ? 'check_circle' : 'error'}</span>
+                                            <div style="width: 32px; height: 32px; background: ${row.divergencia === 'SOBRA' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.05)'}; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid ${row.divergencia === 'SOBRA' ? 'rgba(245, 158, 11, 0.2)' : 'transparent'};">
+                                                <span class="material-symbols-rounded" style="font-size: 18px; color: ${statusColor}">${row.divergencia === 'OK' ? 'check_circle' : (row.divergencia === 'SOBRA' ? 'priority_high' : 'error')}</span>
                                             </div>
                                             <div style="flex: 1;">
                                                 <div style="font-weight: 700; font-size: 0.85rem; color: white;">${row.descricao}</div>
                                                 <div style="font-size: 0.65rem; color: var(--muted);">EAN: ${row.ean}</div>
                                             </div>
-                                            <div style="text-align: right; font-size: 0.7rem; font-weight: 800; color: ${statusColor};">
+                                            <div style="text-align: right; font-size: 0.7rem; font-weight: 900; color: ${statusColor}; background: ${statusColor}1A; padding: 2px 8px; border-radius: 4px;">
                                                 ${row.divergencia}
                                             </div>
                                         </div>
@@ -5191,16 +6250,43 @@ function renderConferenceResult() {
                                     </div>
                                 `;
     }).join('')}
+                        
+                        ${hasDivergence ? `
+                        <div style="margin: 20px 0; padding: 16px; background: rgba(234, 179, 8, 0.1); border-radius: 12px; border: 1px solid rgba(234, 179, 8, 0.3); text-align: center;">
+                            <p style="color: #facc15; font-weight: 600; margin-bottom: 16px;">Deseja corrigir as divergências?</p>
+                            <button onclick="confirm('Clique OK para confirmar a correção e prosseguir') && renderConferenceCorrection()" class="btn-action" style="width: 100%; background: #f59e0b;">
+                                <span class="material-symbols-rounded">edit</span>
+                                CORRIGIR E CONTINUAR
+                            </button>
                         </div>
+                        ` : ''}
+                        
+                        <!-- Botão Adicionar Produto Extra -->
+                        <button onclick="openManualAddProductToSession('${currentPackSession.id}', 'PACK')" class="btn-action" style="width: 100%; border: 1px dashed var(--primary); background: transparent; margin-bottom: 20px;">
+                            <span class="material-symbols-rounded">add_circle</span>
+                            Adicionar Produto
+                        </button>
 
-                        <div style="display: flex; gap: 12px;">
-                            <button class="btn-action btn-secondary" style="flex: 1; justify-content: center;" onclick="renderPackSessionDetails('${currentPackSession.id}')">
-                                Voltar
+                        <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px;">
+                            <button class="btn-action" style="width: 100%; justify-content: center; background: var(--surface);" onclick="renderPackSessionDetails('${currentPackSession.id}')">
+                                <span class="material-symbols-rounded">barcode_scanner</span>
+                                VOLTAR PARA BIPAGEM
                             </button>
-                            <button class="btn-action" style="flex: 2; justify-content: center;" onclick="confirmFinishConference()">
+                            
+                            <button class="btn-action" id="btn-finish-atomic"
+                                    style="width: 100%; justify-content: center; background: #22c55e; ${hasDivergence ? 'opacity: 0.5; cursor: not-allowed;' : ''}" 
+                                    ${hasDivergence ? 'disabled onclick="showToast(\'Corrija as divergências para finalizar\', \'warning\')"' : 'onclick="confirmFinishConference()"'}>
                                 <span class="material-symbols-rounded">check_circle</span>
-                                Confirmar e Salvar
+                                FINALIZAR E DAR BAIXA
                             </button>
+
+                            ${hasDivergence ? `
+                            <div style="text-align: center; color: #ef4444; font-size: 0.75rem; font-weight: 800; padding: 18px; background: rgba(239, 68, 68, 0.1); border-radius: 12px; border: 2px solid rgba(239, 68, 68, 0.3);">
+                                <span class="material-symbols-rounded" style="vertical-align: middle; font-size: 24px; margin-bottom: 8px; display: block;">lock_clock</span>
+                                <span style="display: block; font-size: 1rem; letter-spacing: 0.1em;">CORREÇÃO PENDENTE</span>
+                                <p style="font-weight: 500; margin-top: 4px; opacity: 0.8;">Ajuste as quantidades para baterem com o esperado.</p>
+                            </div>
+                            ` : ''}
                         </div>
                     </main>
                 </div>
@@ -5209,6 +6295,7 @@ function renderConferenceResult() {
 
 function adjustConferenceRow(index, delta) {
     const row = currentPackSession.conferenceRows[index];
+    const prevDivergence = row.divergencia;
     row.qtd_conferida = Math.max(0, row.qtd_conferida + delta);
 
     // Update divergence
@@ -5220,12 +6307,54 @@ function adjustConferenceRow(index, delta) {
         row.divergencia = 'FALTA';
     }
 
-    renderConferenceResult();
+    // Registrar log interno caso tenha corrigido uma divergência
+    if (prevDivergence !== 'OK' && row.divergencia === 'OK') {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            session: currentPackSession.id,
+            item: row.ean,
+            description: row.descricao,
+            action: 'RECONCILIAÇÃO',
+            from: prevDivergence,
+            original_qtd: row.qtd_separada,
+            final_qtd: row.qtd_conferida,
+            user: localStorage.getItem('currentUser')
+        };
+        const logs = JSON.parse(localStorage.getItem('conference_correction_logs') || '[]');
+        logs.push(logEntry);
+        localStorage.setItem('conference_correction_logs', JSON.stringify(logs));
+        console.log('Divergência corrigida logada:', logEntry);
+    }
+
+    // Persistência imediata no localStorage para evitar perda em F5
+    let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
+    const sIndex = activeSessions.findIndex(s => s.id === currentPackSession.id);
+    if (sIndex !== -1) {
+        activeSessions[sIndex] = currentPackSession;
+        localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
+    }
+
+    renderConferenceCorrection();
 }
 
 async function finishConferenceSession() {
-    // Instead of finishing directly, show the blind result screen
-    renderConferenceResult();
+    // 1. Validar se há divergência (Comparação de Ouro)
+    const hasDivergence = currentPackSession.conferenceRows.some(row => 
+        parseFloat(row.qtd_conferida || 0) !== parseFloat(row.qtd_separada || 0)
+    );
+
+    if (hasDivergence) {
+        showToast("Divergência detectada! Abrindo tela de correção.", "warning");
+        playBeep('error');
+        renderConferenceCorrection();
+    } else {
+        // Se bater 100%, já oferece finalizar
+        if (confirm("Conferência perfeita! Deseja finalizar e dar baixa no estoque agora?")) {
+            await confirmFinishConference();
+        } else {
+            renderConferenceCorrection(); // Mostra o resumo mesmo assim
+        }
+    }
 }
 
 function startFastPackSession(channelLabel, channelColor) {
@@ -5251,14 +6380,14 @@ function startFastPackSession(channelLabel, channelColor) {
         channelColor: channelColor || 'var(--primary)',
         items: [],
         pickingData: {
-            rom_id: sessionId,
+            separacao_id: sessionId,
             canal_id: channelColor || '',
             canal_nome: channelLabel,
             data_separacao: todayStr,
-            status: 'SEPARADO',
+            status: 'rascunho',
             criado_por: currentUser,
             criado_em: now.toISOString(),
-            finalizado_em: now.toISOString(),
+            finalizado_em: now.toISOString(), data_hora: now.toISOString(),
             observacao: 'MODO CONFERÊNCIA DIRETA'
         },
         conferenceRows: [],
@@ -5272,91 +6401,63 @@ async function confirmFinishConference() {
     if (isFinalizing) return;
     isFinalizing = true;
 
-    const submitBtn = document.querySelector(`button[onclick^="confirmFinishConference"]`);
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.innerHTML = 'Salvando...'; }
+    const btn = document.getElementById('btn-finish-atomic');
+    const originalHTML = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-rounded spin">sync</span> BAIXANDO...';
+    }
 
     try {
         const currentUser = localStorage.getItem('currentUser');
-        const now = new Date().toISOString();
+        const sessionId = currentPackSession.id;
 
-        // Update conference rows with final info
-        currentPackSession.conferenceRows.forEach(row => {
-            row.conferido_por = currentUser;
-            row.conferido_em = now;
+        // Formatar linhas para o backend processar movimentos atomicos
+        const rows = currentPackSession.conferenceRows.map(row => ({
+            id_interno: row.id_interno,
+            ean: row.ean,
+            descricao: row.descricao,
+            qtd_separada: row.qtd_separada,
+            qtd_conferida: row.qtd_conferida,
+            separacao_id: sessionId
+        }));
+
+        await safePost({
+            action: 'finalizar_conferencia',
+            sessionId: sessionId,
+            user: currentUser,
+            rows: rows
         });
 
-        // Update picking status
-        currentPackSession.pickingData.status = 'SEPARADO';
-        currentPackSession.pickingData.finalizado_em = now;
+        showToast("Conferência finalizada e estoque baixado!");
+        playBeep('success');
 
-        // Attempt to save to Google Sheets if SCRIPT_URL is provided
-        if (SCRIPT_URL) {
-            showToast("Salvando conferência...");
-
-            // 1. Save movements of type CONFIRMACAO_SAIDA (Parallel for speed)
-            const movementPromises = currentPackSession.conferenceRows
-                .filter(row => row.qtd_conferida > 0 && !row.processed)
-                .map(row => {
-                    row.processed = true;
-                    return safePost({
-                        action: 'movimento',
-                        tipo: 'CONFIRMACAO_SAIDA',
-                        id_interno: row.id_interno,
-                        local: '1_ANDAR', // Confirming from main stock
-                        quantidade: row.qtd_conferida,
-                        usuario: currentUser,
-                        origem: `PACK-${currentPackSession.id}`,
-                        observacao: `Baixa definitiva via conferência ${currentPackSession.id}`,
-                        itens_afetados: JSON.stringify([{ id: row.id_interno, qtd: row.qtd_conferida }]) // Auditoria
-                    });
-                });
-
-            // 2. Save to CONFERENCIA sheet for history (Parallel for speed)
-            const historyPromises = currentPackSession.conferenceRows.map(row => safePost({
-                action: 'append',
-                sheet: 'CONFERENCIA',
-                data: row
-            }));
-
-            // 3. Update or Append picking status in 'separacao' sheet
-            let statusPromise;
-            if (currentPackSession.isFastMode) {
-                currentPackSession.pickingData.status = 'CONCLUÍDO';
-                currentPackSession.pickingData.finalizado_em = now;
-                statusPromise = safePost({
-                    action: 'append',
-                    sheet: 'separacao',
-                    data: currentPackSession.pickingData
-                });
-            } else {
-                statusPromise = safePost({
-                    action: 'update',
-                    sheet: 'separacao',
-                    keyField: 'rom_id',
-                    keyValue: currentPackSession.id,
-                    data: { status: 'CONCLUÍDO', finalizado_em: now }
-                });
-            }
-
-            // Execute all in parallel
-            await Promise.all([...movementPromises, ...historyPromises, statusPromise]);
-        }
-
-        // Remove from active sessions
+        // Limpar sessões locais e cache
+        localStorage.removeItem('draft_pack_session');
         let activeSessions = JSON.parse(localStorage.getItem('active_pick_sessions') || '[]');
-        activeSessions = activeSessions.filter(s => s.id !== currentPackSession.id);
+        activeSessions = activeSessions.filter(s => s.id !== sessionId);
         localStorage.setItem('active_pick_sessions', JSON.stringify(activeSessions));
 
-        showToast(`Conferência ${currentPackSession.id} finalizada!`);
-        renderPackMenu();
-    } catch (error) {
-        console.error("Error saving conference:", error);
-        showToast("Erro ao salvar conferência na planilha.");
+        // Atualizar appData local com status final para não aparecer mais como pendente
+        const sIdx = (appData.separacao || []).findIndex(s => (s.separacao_id || s.col_a) === sessionId);
+        if (sIdx !== -1) {
+            appData.separacao[sIdx].status = 'finalizada'; // ou 'conferido' conforme o backend
+        }
+
+        renderMenu();
+    } catch (err) {
+        console.error("Erro na finalização:", err);
+        showToast("Erro ao finalizar conferência.", "error");
     } finally {
         isFinalizing = false;
-        const submitBtn = document.querySelector(`button[onclick^="confirmFinishConference"]`);
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = '<span class="material-symbols-rounded">check_circle</span> Confirmar e Salvar'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
     }
+}
+
+
+
+async function backFromConference() {
+    renderPackMenu();
 }
 
 function handleMenuClick(label) {
@@ -5366,140 +6467,283 @@ function handleMenuClick(label) {
 function renderGuiaLampada() {
     const currentUser = localStorage.getItem('currentUser');
     const appContainer = document.getElementById('app');
-    
+
     if (!appContainer) return;
 
     appContainer.innerHTML = `
                 <div class="dashboard-screen fade-in">
-                    ${getTopBarHTML(currentUser, 'renderProductSubMenu()')}
+                    ${getTopBarHTML(currentUser, 'renderMenu()')}
                     <main class="container">
                         <div class="sub-menu-header">
-                            <h2 style="font-size: 1.2rem; font-weight: 700;">GUIA DE LÂMPADAS</h2>
+                            <h2 style="font-size: 1.2rem; font-weight: 700;">KIT DE LÂMPADAS</h2>
                         </div>
                         
-                        <div style="margin-bottom: 24px;">
-                            <div class="input-group">
-                                <label>PESQUISAR VEÍCULO (EX: GOL G5)</label>
-                                <div style="display: flex; gap: 10px;">
-                                    <input type="text" id="guia-lampada-input" class="input-field" placeholder="Digite o modelo do carro..." style="flex: 1;" onkeyup="if(event.key==='Enter') performGuiaLampadaSearch()">
-                                    <button onclick="performGuiaLampadaSearch()" class="btn-action" style="padding: 10px 20px;">
-                                        <span class="material-symbols-rounded">search</span>
-                                    </button>
+                        <div class="autocomplete-container" style="margin-bottom: 24px;">
+                            <div class="input-group" style="position: relative;">
+                                <label style="font-size: 0.65rem; color: var(--muted); font-weight: 800; margin-bottom: 8px; display: block;">PESQUISA INTELIGENTE</label>
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <span class="material-symbols-rounded" style="position: absolute; left: 16px; color: var(--muted); font-size: 20px;">search</span>
+                                    <input type="text" id="guia-lampada-search" class="input-field" placeholder="Buscar veículo (modelo, montadora ou ano)..." style="width: 100%; padding-left: 48px;" oninput="onGuiaLampadaInputChange(this.value)">
+                                    <div id="guia-lampada-loading" class="hidden" style="position: absolute; right: 16px;">
+                                        <div style="width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                    </div>
                                 </div>
+                                <div id="guia-lampada-suggestions" class="suggestions-list hidden"></div>
                             </div>
                         </div>
 
                         <div id="guia-lampada-results">
-                            <div style="text-align: center; padding: 40px; color: var(--muted); background: var(--surface); border-radius: 20px; border: 1px dashed rgba(255,255,255,0.1);">
-                                <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;">directions_car</span>
-                                <p>Digite um modelo para ver as lâmpadas compatíveis.</p>
+                            <div style="text-align: center; padding: 60px 40px; color: var(--muted); background: var(--surface); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1);">
+                                <span class="material-symbols-rounded" style="font-size: 64px; margin-bottom: 20px; opacity: 0.2; color: white;">directions_car</span>
+                                <h3 style="color: white; margin-bottom: 8px;">Encontre o Kit Certo</h3>
+                                <p style="font-size: 0.9rem; opacity: 0.6;">Digite o nome do veículo para ver as especificações das lâmpadas.</p>
                             </div>
                         </div>
                     </main>
                 </div>
             `;
-    const input = document.getElementById('guia-lampada-input');
+            
+    // Setup debounce function globally for this screen
+    window.onGuiaLampadaInputChange = (val) => {
+        const termClean = normalizar(val);
+        const suggestionsBox = document.getElementById('guia-lampada-suggestions');
+        
+        if (termClean.length < 2) {
+            if (suggestionsBox) {
+                suggestionsBox.innerHTML = '';
+                suggestionsBox.classList.add('hidden');
+            }
+            return;
+        }
+        
+        // BUSCA LOCAL IMEDIATA (Performance Crítica)
+        if (appData.kit_lampada && appData.kit_lampada.length > 0) {
+            const filtered = appData.kit_lampada.filter(item => {
+                const modelo = normalizar(item.modelo || '');
+                const montadora = normalizar(item.montadora || '');
+                return modelo.includes(termClean) || montadora.includes(termClean);
+            });
+            renderGuiaLampadaSuggestions(filtered, termClean);
+        } else {
+            // Em emergência, tenta buscar do servidor se o cache falhou
+            debouncedGetSuggestions(val);
+        }
+    };
+
+    const debouncedGetSuggestions = debounce(async (termClean) => {
+        const suggestionsBox = document.getElementById('guia-lampada-suggestions');
+        const loadingIcon = document.getElementById('guia-lampada-loading');
+        
+        if (loadingIcon) loadingIcon.classList.remove('hidden');
+        if (suggestionsBox) suggestionsBox.classList.remove('hidden');
+
+        try {
+            const result = await buscarKitLampada(termClean, "", "");
+            renderGuiaLampadaSuggestions(result.data || [], termClean);
+        } catch (err) {
+            console.error("Search error:", err);
+            if (suggestionsBox) suggestionsBox.innerHTML = '<div class="suggestion-empty">Erro ao pesquisar</div>';
+        } finally {
+            if (loadingIcon) loadingIcon.classList.add('hidden');
+        }
+    }, 300);
+
+    const input = document.getElementById('guia-lampada-search');
     if (input) input.focus();
 }
 
-async function performGuiaLampadaSearch() {
-    const input = document.getElementById('guia-lampada-input');
+function renderGuiaLampadaSuggestions(items, term = "") {
+    const suggestionsBox = document.getElementById('guia-lampada-suggestions');
+    if (!suggestionsBox) return;
+
+    if (items.length === 0) {
+        suggestionsBox.innerHTML = '<div class="suggestion-empty">Nenhum veículo encontrado</div>';
+    } else {
+        suggestionsBox.innerHTML = `
+            <div style="padding: 12px; font-size: 0.7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">
+                Resultados Sugeridos (${items.length})
+            </div>
+            ${items.map((item, idx) => {
+                const kitId = (item.kit_lampada_id || item.col_a || item.col_A || '').toString();
+                return `
+                <div class="menu-card search-product-card fade-in" style="margin-bottom: 8px; cursor: pointer;" onclick="selectGuiaLampadaResult('${kitId}', ${idx})">
+                    <div class="product-img-container" style="background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden;">
+                        ${(item.url || item.col_i || item.col_8 || item.link_imagem) ? 
+                            `<img src="${formatImageUrl(item.url || item.col_i || item.col_8 || item.link_imagem)}" alt="${item.modelo}" style="width: 100%; height: 100%; object-fit: cover;" onerror="handleImageError(this, 'directions_car')">` : 
+                            `<span class="material-symbols-rounded" style="color: var(--muted)">directions_car</span>`
+                        }
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 800; color: white; line-height: 1.2;">${highlightText(item.modelo, term)}</div>
+                        <div style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;">
+                            <span style="color: var(--primary);">${item.montadora}</span> | ${item.ano_inicio} - ${item.ano_fim || 'Presente'}
+                        </div>
+                    </div>
+                    <span class="material-symbols-rounded" style="color: var(--muted); font-size: 20px;">arrow_forward_ios</span>
+                </div>
+            `}).join('')}
+        `;
+    }
+    suggestionsBox.classList.remove('hidden');
+}
+
+async function selectGuiaLampadaResult(id, index = -1) {
+    const suggestionsBox = document.getElementById('guia-lampada-suggestions');
     const resultsContainer = document.getElementById('guia-lampada-results');
+    const input = document.getElementById('guia-lampada-search');
 
-    if (!input || !resultsContainer) return;
+    if (suggestionsBox) suggestionsBox.classList.add('hidden');
 
-    const term = input.value.trim();
-    if (!term) return;
+    // 1. Tentar por Índice (Mais confiável e instantâneo)
+    if (index !== -1 && appData.kit_lampada && appData.kit_lampada[index]) {
+        const directItem = appData.kit_lampada[index];
+        if (input) input.value = directItem.modelo || '';
+        renderKitDetailsCard(directItem);
+        return;
+    }
 
+    // 2. Tentar localizar localmente por ID se o índice falhar
+    if (appData.kit_lampada) {
+        const localItem = appData.kit_lampada.find(k => 
+            (k.kit_lampada_id && k.kit_lampada_id.toString() === id.toString()) || 
+            (k.col_a && k.col_a.toString() === id.toString()) || 
+            (k.col_A && k.col_A.toString() === id.toString())
+        );
+        
+        if (localItem) {
+            if (input) input.value = localItem.modelo || '';
+            renderKitDetailsCard(localItem);
+            return;
+        }
+    }
+
+    // Fallback para API caso não encontre localmente
     resultsContainer.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <span class="material-symbols-rounded" style="font-size: 48px; color: var(--primary); animation: spin 2s linear infinite;">sync</span>
-                    <p style="margin-top: 10px; color: var(--muted);">Buscando especificações...</p>
+                    <p style="margin-top: 10px; color: var(--muted);">Carregando kit...</p>
                 </div>
             `;
 
     try {
-        const response = await fetch(`${SCRIPT_URL}?action=guia_lampada&termo=${encodeURIComponent(term)}`);
-        const result = await response.json();
-
-        if (!result.ok || !result.data || result.data.length === 0) {
-            resultsContainer.innerHTML = `
-                        <div style="text-align: center; padding: 40px; background: var(--surface); border-radius: 20px; color: var(--muted);">
-                            <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 16px;">search_off</span>
-                            <p>Nenhuma especificação encontrada para "${term}".</p>
-                        </div>
-                    `;
-            return;
+        const res = await dyGet({ action: "kit_lampada", termo: id });
+        if (res.ok && res.data && res.data.length > 0) {
+            const item = res.data[0];
+            if (input) input.value = item.modelo;
+            renderKitDetailsCard(item);
+        } else {
+            resultsContainer.innerHTML = `<div class="suggestion-empty">Erro ao carregar detalhes</div>`;
         }
-
-        resultsContainer.innerHTML = `
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                        ${result.data.map(item => `
-                            <div style="background: var(--surface); padding: 16px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">
-                                <div style="flex: 1;">
-                                    <div style="font-size: 0.85rem; font-weight: 800; color: white;">${item.veiculo}</div>
-                                    <div style="font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-top: 4px;">${item.lampada}</div>
-                                </div>
-                                <div style="background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 8px; font-weight: 800; color: #fef08a; border: 1px solid rgba(254, 240, 138, 0.2);">
-                                    ${item.codigo}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                `;
     } catch (err) {
-        console.error("Erro na busca do Guia de Lâmpadas:", err);
-        showToast("Erro ao conectar com a base de dados.");
-        resultsContainer.innerHTML = `<p style="text-align: center; padding: 20px; color: var(--danger);">Falha na conexão.</p>`;
+        resultsContainer.innerHTML = `<div class="suggestion-empty">Falha na conexão</div>`;
     }
 }
 
-// Initial Route - Bootstrap Seguro para evitar Tela Branca
-window.onload = async () => {
-    try {
-        const appContainer = document.getElementById('app');
-        if (!appContainer) throw new Error("Elemento #app não encontrado no DOM.");
-
-        // Sincronizar qualquer pendência offline se houver rede no carregamento
-        if (navigator.onLine) {
-            processSyncQueue();
-        }
-
-        // Ouvinte global para processar fila assim que voltar online
-        window.addEventListener('online', processSyncQueue);
-
-        // Always clear current user on fresh load to force user selection screen
-        localStorage.removeItem('currentUser');
-
-        // Show immediate login screen with fallback users
-        renderLogin();
-
-        // Load users list in the background
-        try {
-            await loadUsersOnly();
-            renderLogin(); // Refresh if users loaded
-        } catch (userErr) {
-            console.error("Aviso: Falha ao carregar usuários dinâmicos, usando fallbacks.", userErr);
-            renderLogin();
-        }
-
-        console.log('Bootstrap da aplicação concluído com sucesso.');
-    } catch (fatalErr) {
-        console.error("ERRO CRÍTICO NO BOOTSTRAP:", fatalErr);
-        localStorage.setItem('app_load_error', 'true'); // Sinalizar falha para limpeza de SW no próximo boot
-
-        const appContainer = document.getElementById('app');
-        if (appContainer) {
-            appContainer.innerHTML = `
-                        <div style="padding: 40px; text-align: center; color: white; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                            <span class="material-symbols-rounded" style="font-size: 64px; color: var(--primary); margin-bottom: 24px; animation: pulse 2s infinite;">sync_problem</span>
-                            <h2 style="margin-bottom: 12px; font-weight: 800;">Recuperando Sistema...</h2>
-                            <p style="color: var(--muted); font-size: 0.85rem; margin-bottom: 32px; max-width: 300px; line-height: 1.6;">
-                                Detectamos um problema na inicialização. O Service Worker será resetado para garantir integridade.
-                            </p>
-                            <button onclick="location.reload()" class="btn-action" style="background: var(--primary); padding: 16px 32px; border-radius: 12px; font-weight: 700;">TENTAR NOVAMENTE</button>
-                        </div>
-                    `;
-        }
+function renderKitDetailsCard(item) {
+    const currentUser = localStorage.getItem('currentUser');
+    const appContainer = document.getElementById('app');
+    const resultsContainer = document.getElementById('guia-lampada-results');
+    const imageUrl = formatImageUrl(item.url || item.col_i || item.col_8 || item.link_imagem);
+    
+    // Atualizar Top Bar para oferecer navegação correta de retorno
+    const topBarContainer = appContainer.querySelector('.top-bar-container') || appContainer;
+    if (topBarContainer.innerHTML.includes('getTopBarHTML')) {
+        // Se estivermos em um layout que permite o re-render isolado do header
+    } else {
+        // Re-renderizar o header no topo do app se possível ou simplesmente garantir que o conteúdo tenha o header correto
+        const headerHTML = getTopBarHTML(currentUser, 'renderGuiaLampada()');
+        const existingHeader = appContainer.querySelector('header');
+        if (existingHeader) existingHeader.outerHTML = headerHTML;
     }
-};
+
+    resultsContainer.innerHTML = `
+        <div class="fade-in" style="background: var(--surface); border-radius: 28px; border: 1px solid rgba(255,255,255,0.05); box-shadow: 0 30px 60px rgba(0,0,0,0.5); overflow: hidden; max-width: 900px; margin: 0 auto; position: relative;">
+            
+            <!-- Botão Voltar integrado ao Top Bar - Removido o botão suspenso duplo -->
+
+            <div style="display: flex; flex-direction: column;">
+                <!-- Destaque da Imagem (Banner Premium) -->
+                <div style="width: 100%; height: 380px; background: #000; position: relative; overflow: hidden; cursor: zoom-in;" onclick="openImageModal('${imageUrl}')">
+                    <img src="${imageUrl}" alt="${item.modelo}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: transform 0.5s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onerror="this.src='/imagens/icon-512-black.png'">
+                    <div style="position: absolute; inset: 0; background: linear-gradient(to top, var(--surface) 0%, transparent 70%);"></div>
+                    
+                    <div style="position: absolute; bottom: 32px; left: 32px; right: 32px;">
+                        <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 200px;">
+                            <div style="flex: 1;">
+                                <span style="font-size: 0.75rem; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 0.25em; display: block; margin-bottom: 8px;">${item.montadora}</span>
+                                <h2 style="font-size: 2.5rem; font-weight: 950; margin: 0; color: white; line-height: 1; letter-spacing: -0.02em;">${item.modelo}</h2>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+                                    <span style="font-size: 1rem; color: rgba(255,255,255,0.7); font-weight: 600;">${item.ano_inicio} — ${item.ano_fim || 'Atual'}</span>
+                                    <span style="width: 4px; height: 4px; border-radius: 50%; background: var(--primary);"></span>
+                                    <span style="font-size: 0.75rem; color: var(--primary); font-weight: 800; background: rgba(227,6,19,0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(227,6,19,0.2);">ID: ${item.kit_lampada_id || 'N/A'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ficha Técnica (Grid) -->
+                <div style="padding: 40px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 32px;">
+                        <span class="material-symbols-rounded" style="color: var(--primary); font-size: 20px;">assignment</span>
+                        <h3 style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--muted); font-weight: 800; margin: 0;">Ficha Técnica de Iluminação</h3>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;">
+                        <!-- Farol Baixo -->
+                        <div class="fade-in bulb-info-card" onclick="showProductDetailsByCode('${item.lampada_baixo}')" onmouseover="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(227,6,19,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                            <div class="bulb-icon-box">
+                                <span class="material-symbols-rounded" style="color: var(--primary); font-size: 28px;">light_mode</span>
+                            </div>
+                            <div>
+                                <span class="bulb-label">Farol Baixo</span>
+                                <div class="bulb-value">${item.lampada_baixo || '—'}</div>
+                            </div>
+                        </div>
+
+                        <!-- Farol Alto -->
+                        <div class="fade-in bulb-info-card" onclick="showProductDetailsByCode('${item.lampada_alto}')" onmouseover="this.style.background='rgba(255,255,255,0.04)'; this.style.borderColor='rgba(227,6,19,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                            <div class="bulb-icon-box">
+                                <span class="material-symbols-rounded" style="color: var(--primary); font-size: 28px;">flashlight_on</span>
+                            </div>
+                            <div>
+                                <span class="bulb-label">Farol Alto</span>
+                                <div class="bulb-value">${item.lampada_alto || '—'}</div>
+                            </div>
+                        </div>
+
+                        <!-- Farol de Neblina -->
+                        <div class="fade-in bulb-info-card" onclick="showProductDetailsByCode('${item.lampada_neblina}')" onmouseover="this.style.background='rgba(34,197,94,0.04)'; this.style.borderColor='rgba(34,197,94,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.borderColor='rgba(255,255,255,0.05)'">
+                            <div class="bulb-icon-box" style="background: rgba(34,197,94,0.1);">
+                                <span class="material-symbols-rounded" style="color: #22c55e; font-size: 28px;">foggy</span>
+                            </div>
+                            <div>
+                                <span class="bulb-label" style="color: #22c55e;">Neblina</span>
+                                <div class="bulb-value" style="color: #22c55e;">${item.lampada_neblina || '—'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observações -->
+                    ${item.observacao ? `
+                        <div style="margin-top: 40px; padding: 24px; background: rgba(255,165,0,0.05); border-radius: 20px; border: 1px solid rgba(255,165,0,0.15); display: flex; gap: 20px; align-items: flex-start;">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255,165,0,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <span class="material-symbols-rounded" style="color: #ffa500; font-size: 24px;">info</span>
+                            </div>
+                            <div>
+                                <span style="display: block; font-size: 0.7rem; color: #ffa500; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;">Observações Técnicas</span>
+                                <p style="font-size: 0.95rem; color: rgba(255,255,255,0.8); line-height: 1.6; margin: 0; font-weight: 500;">${item.observacao}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+
+
+
+
+

@@ -26,7 +26,7 @@
         :root { --bg: #181818; --primary: #E30613; --surface: #242424; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background-color: var(--bg); font-family: 'Roboto Mono', monospace; color: white; overflow-x: hidden; }
-        #app { min-height: 100vh; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #app { min-height: 100vh; width: 100%; position: relative; }
         .splash-preloader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; animation: fadeIn 0.5s ease-out; }
         .splash-logo { width: 300px; height: auto; filter: drop-shadow(0 0 10px rgba(227, 6, 19, 0.2)); }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -46,6 +46,7 @@
     </div>
     <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
     <div id="toast">Mensagem aqui</div>
-    <script src="/app.js"></script>
+    <script src="/dataClient.js"></script>
+    <script src="/app.js?v=2.0.1"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dy-autoparts-v1';
+const CACHE_NAME = 'dy-autoparts-v10';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -15,13 +15,31 @@ const ASSETS_TO_CACHE = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      // Force immediate activation
+      self.skipWaiting();
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
 });
 
+self.addEventListener('activate', (event) => {
+  // Clear old caches
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log('Clearing old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
-  // Ignorar requisi??es para o Google Sheets (SCRIPT_URL) e Google Apps Script para n??o cachear dados din??micos de forma errada no SW
+  // Ignorar requisições para o Google Sheets (SCRIPT_URL) e Google Apps Script para não cachear dados dinâmicos de forma errada no SW
   if (event.request.url.includes('google.com') || event.request.url.includes('googleusercontent.com')) {
     return;
   }
