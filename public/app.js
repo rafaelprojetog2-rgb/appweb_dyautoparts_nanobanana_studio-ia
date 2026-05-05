@@ -1634,30 +1634,58 @@ async function ensureProdutosLoaded(force = false) {
  * [CANAIS DEBUG]
  */
 async function ensureCanaisLoaded(force = false) {
+    console.log('[CANAIS DEBUG] ensureCanaisLoaded chamado, force =', force);
+    console.log('[CANAIS DEBUG] cache atual appData.channels =', appData.channels ? appData.channels.length : 'undefined');
+
+    // Se já temos canais em cache e não é forçado, usar cache
     if (!force && appData.channels && appData.channels.length > 0) {
-        console.log('[CANAIS DEBUG] Usando canais do cache appData');
+        console.log(`[CANAIS DEBUG] Usando ${appData.channels.length} canais do cache appData`);
         return true;
     }
     
     try {
-        console.log('[CANAIS DEBUG] Supabase client disponível?', !!window.supabaseClient);
-        console.log('[CANAIS DEBUG] Carregando canais do Supabase...');
+        console.log('[CANAIS DEBUG] supabase client existe?', !!window.supabaseClient);
+        console.log('[CANAIS DEBUG] buscando tabela canais_envio via DataClient...');
         
-        const data = await window.DataClient.loadModule('channels', force);
+        // Sempre forçar refresh para canais (evitar cache vazio)
+        const data = await window.DataClient.loadModule('channels', true);
         
-        if (data && data.channels) {
+        console.log('[CANAIS DEBUG] resposta DataClient.loadModule:', data);
+        
+        if (data && data.channels && data.channels.length > 0) {
             appData.channels = data.channels;
-            console.log(`[CANAIS DEBUG] Quantidade de canais carregados: ${appData.channels.length}`);
-            console.log(`[CANAIS DEBUG] Lista de nomes carregados:`, appData.channels.map(c => c.nome || c.col_B));
+            console.log(`[CANAIS DEBUG] quantidade retornada: ${appData.channels.length}`);
+            console.log(`[CANAIS DEBUG] canais retornados:`, appData.channels.map(c => c.nome || c.col_B));
             return true;
         }
         
+        // Fallback: tentar busca direta no Supabase se DataClient falhou
+        console.warn('[CANAIS DEBUG] DataClient retornou vazio, tentando busca direta...');
+        if (window.supabaseClient) {
+            const { data: directData, error } = await window.supabaseClient
+                .from('canais_envio')
+                .select('*')
+                .eq('ativo', true)
+                .order('nome', { ascending: true });
+            
+            if (error) {
+                console.error('[CANAIS DEBUG] erro supabase direto:', error);
+            } else if (directData && directData.length > 0) {
+                appData.channels = directData;
+                console.log(`[CANAIS DEBUG] busca direta OK: ${directData.length} canais`);
+                console.log('[CANAIS DEBUG] canais retornados:', directData.map(c => c.nome));
+                return true;
+            } else {
+                console.warn('[CANAIS DEBUG] busca direta retornou 0 canais');
+            }
+        }
+        
         console.warn('[CANAIS DEBUG] Nenhum canal retornado do Supabase');
-        appData.channels = [];
+        appData.channels = appData.channels || [];
         return false;
     } catch (error) {
         console.error('[CANAIS DEBUG] Erro ao carregar canais:', error);
-        appData.channels = [];
+        appData.channels = appData.channels || [];
         return false;
     }
 }
@@ -6700,11 +6728,11 @@ async function renderPickMenu() {
     // Garantir carregamento real do Supabase
     await ensureCanaisLoaded();
     
-    console.log(`[CANAIS DEBUG] Renderizando canais vindos do Supabase: ${appData.channels.length}`);
+    console.log(`[CANAIS DEBUG] renderizando canais: ${(appData.channels || []).length} registros`);
 
-    let channels = appData.channels.map(c => {
+    let channels = (appData.channels || []).map(c => {
         const label = c.nome || c.col_B || '';
-        const id = c.canal_id || c.col_A || '';
+        const id = c.canal_id || c.id || c.col_A || '';
         const type = c.tipo || c.col_C || '';
         const config = getChannelConfig(label);
         return {
@@ -6737,7 +6765,7 @@ async function renderPickMenu() {
                     <main class="container">
                         <div class="menu-grid">
                             ${channels.map(item => `
-                                <div class="menu-card" onclick="startPickingSession('${item.id}', '${item.label}', '${item.color}')">
+                                <div class="menu-card ${item.color}" onclick="startPickingSession('${item.id}', '${item.label}', '${item.color}')">
                                     <span class="menu-icon-3d">${item.svgIcon || `<span class="material-symbols-rounded">${item.icon}</span>`}</span>
                                     <span class="label">${item.label}</span>
                                 </div>
@@ -6790,39 +6818,13 @@ function renderPickHistory() {
             `;
 }
 
-function startPickingSession(channelId, channelLabel, channelColor) {
-    const currentUser = localStorage.getItem('currentUser');
-    const draftStr = localStorage.getItem('draft_pick_session');
-    if (draftStr) {
-        const draft = JSON.parse(draftStr);
-        // Se o rascunho for do MESMO canal, retoma direto
-        if (draft.channelColor === channelColor || draft.channelId === channelId) {
-            currentSessionItems = draft.items || [];
-            renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
-            updatePickItemsList();
-            return;
-        } else {
-            // Se o rascunho for de OUTRO canal, oferece Retomar ou Limpar
-            const msg = `Sessão ativa detectada em ${draft.channelLabel}.\n\nPara iniciar em ${channelLabel}, você deve descartar o rascunho anterior.\n\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`;
-            if (confirm(msg)) {
-                localStorage.removeItem('draft_pick_session');
-                // Segue para criação de nova sessão abaixo
-            } else {
-                // Se não quiser limpar, oferece retomar o antigo
-                if (confirm(`Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`)) {
-                    currentSessionItems = draft.items || [];
-                    renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
-                    updatePickItemsList();
-                }
-                return;
-            }
-        }
-    }
+// Variável global para armazenar o contexto da sessão antes de ser persistida
+let currentPickingContext = null;
 
+function generatePickSessionId(channelLabel) {
     const now = new Date();
     const ddmm = now.getDate().toString().padStart(2, '0') + (now.getMonth() + 1).toString().padStart(2, '0');
     const todayStr = now.toLocaleDateString('pt-BR');
-
     const cleanChannel = channelLabel.split(' ')[0].toUpperCase();
 
     let countInSheet = 0;
@@ -6835,68 +6837,107 @@ function startPickingSession(channelId, channelLabel, channelColor) {
     }
 
     const seq = countInSheet + 1;
-    const sessionId = `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
-
-    currentSessionItems = [];
-    localStorage.setItem('draft_pick_session', JSON.stringify({
-        sessionId, channelId, channelLabel, channelColor, items: [],
-        operatorId: currentUser, status: 'in_progress', timestamp: now.toISOString()
-    }));
-
-    renderPickingScreen(sessionId, channelId, channelLabel, channelColor);
+    return `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
 }
 
-// Global currentSessionItems moved to top for hoisting safety
+function startPickingSession(channelId, channelLabel, channelColor) {
+    const currentUser = localStorage.getItem('currentUser');
+    const draftStr = localStorage.getItem('draft_pick_session');
+    
+    console.log(`[PICKING DEBUG] canal selecionado: ${channelLabel}`);
+
+    if (draftStr) {
+        const draft = JSON.parse(draftStr);
+        const hasItems = draft.items && draft.items.length > 0;
+        
+        if (hasItems) {
+            console.log(`[PICKING DEBUG] rascunho com itens detectado: ${draft.channelLabel}`);
+            // Se o rascunho for de OUTRO canal, oferece Retomar ou Limpar
+            if (draft.channelId !== channelId) {
+                const msg = `Sessão ativa detectada em ${draft.channelLabel}.\n\nPara iniciar em ${channelLabel}, você deve descartar o rascunho anterior.\n\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`;
+                if (confirm(msg)) {
+                    localStorage.removeItem('draft_pick_session');
+                    console.log(`[PICKING DEBUG] rascunho de ${draft.channelLabel} descartado`);
+                } else {
+                    if (confirm(`Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`)) {
+                        currentSessionItems = draft.items || [];
+                        renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
+                        updatePickItemsList();
+                    }
+                    return;
+                }
+            } else {
+                // Mesmo canal, retoma direto
+                currentSessionItems = draft.items || [];
+                renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
+                updatePickItemsList();
+                return;
+            }
+        } else {
+            console.log(`[PICKING DEBUG] rascunho vazio ignorado`);
+            localStorage.removeItem('draft_pick_session');
+        }
+    }
+
+    console.log(`[PICKING DEBUG] abriu bipagem sem criar rascunho`);
+    
+    // Define contexto para criação futura no primeiro item
+    currentPickingContext = {
+        channelId, 
+        channelLabel, 
+        channelColor,
+        sessionId: generatePickSessionId(channelLabel)
+    };
+    
+    currentSessionItems = [];
+    renderPickingScreen(currentPickingContext.sessionId, channelId, channelLabel, channelColor);
+}
+
 function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
     const currentUser = localStorage.getItem('currentUser');
+    currentPickingContext = { sessionId, channelId, channelLabel, channelColor };
     
-    // Fallback absoluto para rótulos
-    const safeLabel = channelLabel && channelLabel !== 'undefined' ? channelLabel : 'CANAIS';
-
     app.innerHTML = `
-                <div class="dashboard-screen fade-in internal picking-screen">
+                <div class="dashboard-screen fade-in internal picking-active-minimal">
                     ${getTopBarHTML(localStorage.getItem('currentUser'), 'renderPickMenu()')}
 
-                    <main class="container" style="padding: 16px;">
-                        <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 20px;">
-                            <div style="font-size: 0.7rem; color: #EF2B2D; font-weight: 950; letter-spacing: 0.1em; text-transform: uppercase;">SEPARAÇÃO • ${safeLabel}</div>
-                            <h2 style="font-size: 1.5rem; font-weight: 950; color: #FFFFFF;">${sessionId || 'NOVA SESSÃO'}</h2>
+                    <main class="container">
+                        <!-- Campo de bipagem grande e centralizado (Estilo Kit Lampada) -->
+                        <div class="picking-search-container">
+                            <input type="text" id="pick-ean-input" class="picking-search-input" 
+                                   placeholder="BIPAR OU BUSCAR PRODUTO..." 
+                                   onkeypress="if(event.key === 'Enter') addPickItem()">
+                            
+                            <button class="picking-search-btn" onclick="startScanner(true)" title="Abrir Scanner">
+                                <span class="material-symbols-rounded">qr_code_scanner</span>
+                            </button>
                         </div>
 
-                        <div class="op-card" style="padding: 20px !important; margin-bottom: 20px; border: 2px solid #27272A !important;">
-                            <div class="op-label" style="margin-bottom: 12px; font-weight: 900; color: #EF2B2D !important;">ESCANEAR PRODUTO</div>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="pick-ean-input" class="op-input" placeholder="BIPE OU DIGITE O CÓDIGO" onkeypress="if(event.key === 'Enter') addPickItem()">
-                                <button class="btn-action" style="padding: 0 16px; min-width: auto; background: #EF2B2D; border-radius: 10px;" onclick="startScanner(true)">
-                                    <span class="material-symbols-rounded" style="font-size: 26px;">qr_code_scanner</span>
+                        <!-- Scanner Area -->
+                        <div id="scanner-container-pick" class="hidden" style="width: 100%; max-width: 900px; margin-bottom: 24px; overflow: hidden; border-radius: 16px; border: 2px solid rgba(255,255,255,0.2); background: #000; position: relative;">
+                            <div id="reader-pick" style="width: 100%;"></div>
+                            <div id="scanner-feedback" style="position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; pointer-events: none;">
+                                <div id="scanner-feedback-icon" class="material-symbols-rounded" style="font-size: 80px; color: white; text-shadow: 0 0 20px rgba(0,0,0,0.5);"></div>
+                            </div>
+                            <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                                <button class="btn-action btn-secondary" style="padding: 6px; min-width: auto; border-radius: 50%;" onclick="stopScanner()">
+                                    <span class="material-symbols-rounded" style="font-size: 20px;">close</span>
                                 </button>
                             </div>
-
-                            <div id="scanner-container-pick" class="hidden" style="margin-top: 16px; overflow: hidden; border-radius: 14px; border: 3px solid #EF2B2D; background: #09090B; position: relative;">
-                                <div id="reader-pick" style="width: 100%;"></div>
-                                <div id="scanner-feedback" style="position: absolute; inset: 0; z-index: 5; display: none; align-items: center; justify-content: center; pointer-events: none;">
-                                    <div id="scanner-feedback-icon" class="material-symbols-rounded" style="font-size: 80px; color: white; text-shadow: 0 0 20px rgba(0,0,0,0.5);"></div>
-                                </div>
-                                <div style="position: absolute; top: 10px; right: 10px; z-index: 10;">
-                                    <button class="btn-action btn-secondary" style="padding: 8px; min-width: auto; border-radius: 50%;" onclick="stopScanner()">
-                                        <span class="material-symbols-rounded">close</span>
-                                    </button>
-                                </div>
-                            </div>
                         </div>
 
-                        <div id="pick-items-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px;">
-                            <div class="op-card" style="text-align: center; padding: 40px !important; border: 1px dashed rgba(255,255,255,0.1) !important;">
-                                <span class="material-symbols-rounded" style="font-size: 48px; color: #52525B; margin-bottom: 12px;">inventory_2</span>
-                                <p style="color: #71717A; font-weight: 700; font-size: 0.9rem;">NENHUM ITEM NA CAIXA</p>
-                            </div>
+                        <div id="pick-items-list" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+                            <!-- Itens bipados aqui -->
                         </div>
+                    </main>
 
-                        <button class="btn-action" style="width: 100%; justify-content: center; padding: 18px; font-size: 1rem; font-weight: 950; letter-spacing: 0.05em; background: #22C55E; border-radius: 14px;" onclick="finishPickingSession('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
-                            <span class="material-symbols-rounded" style="font-size: 24px;">check_circle</span>
+                    <footer class="picking-footer" id="picking-footer-action" style="display: none;">
+                        <button class="btn-action" onclick="finishPickingSession('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" 
+                                style="background: #22C55E; color: white; width: 100%; max-width: 600px; height: 56px; border-radius: 999px; font-weight: 900; font-size: 1.1rem; box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);">
+                            <span class="material-symbols-rounded" style="margin-right: 8px;">check_circle</span>
                             FINALIZAR SEPARAÇÃO
                         </button>
-                    </main>
+                    </footer>
                 </div>
             `;
 
@@ -6949,7 +6990,26 @@ function addPickItem(scannedEan = null) {
             });
         }
 
-        const draft = JSON.parse(localStorage.getItem('draft_pick_session') || '{}');
+        const draftStr = localStorage.getItem('draft_pick_session');
+        let draft;
+        
+        if (!draftStr) {
+            console.log(`[PICKING DEBUG] primeiro item bipado, criando rascunho`);
+            const now = new Date();
+            draft = {
+                sessionId: currentPickingContext ? currentPickingContext.sessionId : `SEP-TEMP-${now.getTime()}`,
+                channelId: currentPickingContext ? currentPickingContext.channelId : '',
+                channelLabel: currentPickingContext ? currentPickingContext.channelLabel : 'OUTROS',
+                channelColor: currentPickingContext ? currentPickingContext.channelColor : 'pdv',
+                items: [],
+                operatorId: localStorage.getItem('currentUser'),
+                status: 'in_progress',
+                timestamp: now.toISOString()
+            };
+        } else {
+            draft = JSON.parse(draftStr);
+        }
+
         draft.items = currentSessionItems;
         draft.timestamp = new Date().toISOString();
         localStorage.setItem('draft_pick_session', JSON.stringify(draft));
@@ -6971,32 +7031,31 @@ function addPickItem(scannedEan = null) {
 
 function updatePickItemsList() {
     const container = document.getElementById('pick-items-list');
+    const footer = document.getElementById('picking-footer-action');
+    
     if (currentSessionItems.length === 0) {
+        if (footer) footer.style.display = 'none';
         container.innerHTML = `
-                    <div class="op-card" style="text-align: center; padding: 40px !important; border: 1px dashed rgba(255,255,255,0.1) !important;">
-                        <span class="material-symbols-rounded" style="font-size: 48px; color: #52525B; margin-bottom: 12px;">inventory_2</span>
-                        <p style="color: #71717A; font-weight: 700; font-size: 0.9rem;">NENHUM ITEM NA CAIXA</p>
-                    </div>
-                `;
+            <div style="text-align: center; padding: 20px; opacity: 0.5; margin-top: 20px;">
+                <p style="font-size: 0.9rem; font-weight: 600; color: #fff;">NENHUM PRODUTO BIPADO</p>
+            </div>
+        `;
         return;
     }
 
+    if (footer) footer.style.display = 'flex';
     container.innerHTML = currentSessionItems.map((item, index) => `
-                <div class="op-card fade-in" style="display: flex; align-items: center; gap: 14px; padding: 12px 16px !important; border-left: 4px solid #EF2B2D !important;">
-                    <div style="flex: 1; min-width: 0;">
-                        <div class="op-value" style="font-size: 0.95rem; color: #FFFFFF; margin-bottom: 4px; font-weight: 700; line-height: 1.2;">${item.descricao_base || 'ITEM SEM DESCRIÇÃO'}</div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <div class="op-badge-grey" style="font-size: 0.55rem; padding: 2px 6px !important;">${item.ean || '-'}</div>
-                            <div class="op-label" style="font-size: 0.55rem; color: #71717A;">${item.scanTime || ''}</div>
-                        </div>
-                    </div>
-                    <div style="background: #EF2B2D; color: #FFFFFF; font-size: 1.4rem; font-weight: 950; min-width: 44px; text-align: center; padding: 4px 8px; border-radius: 8px; line-height: 1;">${item.qty}</div>
-                    <button onclick="removePickItem(${index})" style="background: rgba(220, 38, 38, 0.15); border: 1px solid rgba(220, 38, 38, 0.3); color: #FCA5A5; width: 40px; height: 40px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                        <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
-                    </button>
-                </div>
-            `).join('');
-
+        <div class="pick-item-card fade-in">
+            <div style="flex: 1; min-width: 0;">
+                <div style="font-size: 0.9rem; color: #0f172a; font-weight: 800; line-height: 1.2; margin-bottom: 2px; text-transform: uppercase;">${item.descricao_base || 'PRODUTO'}</div>
+                <div style="font-size: 0.75rem; color: #64748b; font-weight: 600;">ID: ${item.id_interno || item.ean || '-'}</div>
+            </div>
+            <div style="background: #f1f5f9; color: #0f172a; font-size: 1.4rem; font-weight: 900; min-width: 50px; text-align: center; padding: 8px; border-radius: 12px; border: 1.5px solid #e2e8f0;">${item.qty}</div>
+            <button onclick="removePickItem(${index})" style="background: #fef2f2; border: 1px solid #fee2e2; color: #ef4444; width: 44px; height: 44px; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.2s;">
+                <span class="material-symbols-rounded" style="font-size: 20px;">delete</span>
+            </button>
+        </div>
+    `).join('');
 }
 
 function removePickItem(index) {
@@ -7007,10 +7066,14 @@ function removePickItem(index) {
         currentSessionItems.splice(index, 1);
     }
     updatePickItemsList();
-    const draft = JSON.parse(localStorage.getItem('draft_pick_session') || '{}');
-    draft.items = currentSessionItems;
-    draft.timestamp = new Date().toISOString();
-    localStorage.setItem('draft_pick_session', JSON.stringify(draft));
+    if (currentSessionItems.length === 0) {
+        localStorage.removeItem('draft_pick_session');
+    } else {
+        const draft = JSON.parse(localStorage.getItem('draft_pick_session') || '{}');
+        draft.items = currentSessionItems;
+        draft.timestamp = new Date().toISOString();
+        localStorage.setItem('draft_pick_session', JSON.stringify(draft));
+    }
 }
 
 
@@ -7095,72 +7158,53 @@ function renderPickResult(sessionId, channelId, channelLabel, channelColor) {
     const hasDivergence = currentPickSession && currentPickSession.divergence;
 
     app.innerHTML = `
-        <div class="dashboard-screen fade-in internal picking-screen">
+        <div class="dashboard-screen fade-in internal picking-active-minimal">
             ${getTopBarHTML(localStorage.getItem('currentUser'), `renderPickingScreen('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')`)}
 
             <main class="container" style="padding: 16px;">
-                <div class="sub-menu-header" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 20px;">
-                    <div style="font-size: 0.7rem; color: var(--primary); font-weight: 950; letter-spacing: 0.1em; text-transform: uppercase;">REVISÃO DE SEPARAÇÃO • ${channelLabel}</div>
-                    <h2 style="font-size: 1.5rem; font-weight: 950; color: white;">${sessionId}</h2>
+                <div class="sub-menu-header" style="margin-bottom: 20px;">
+                    <h2 style="font-size: 1.5rem; font-weight: 900; color: var(--text);">REVISÃO</h2>
+                    <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">${sessionId}</div>
                 </div>
 
-                <div class="op-card" style="margin-bottom: 24px; text-align: center; padding: 30px !important;">
-                    <span class="material-symbols-rounded" style="font-size: 56px; color: var(--primary); margin-bottom: 12px;">fact_check</span>
-                    <h3 style="font-size: 1.2rem; font-weight: 950; color: white; margin-bottom: 4px;">CONFERÊNCIA FINAL</h3>
-                    <p style="color: #94A3B8; font-size: 0.8rem; font-weight: 700;">VALIDE OS ITENS ANTES DE SALVAR A SESSÃO</p>
-                </div>
-
-
-
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px;">
-                    <div class="op-label" style="padding-left: 8px;">ITENS NA CAIXA (${currentPickSession.items.length})</div>
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 30px;">
                     ${currentPickSession.items.map((item, index) => `
-                        <div class="op-card fade-in" style="padding: 12px 16px !important;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <div style="flex: 1; min-width: 0;">
-                                    <div class="op-value" style="font-size: 0.95rem; margin-bottom: 2px;">${item.descricao_base || item.col_aa || 'SEM DESCRIÇÃO'}</div>
-                                    <div class="op-badge-grey" style="font-size: 0.6rem;">EAN: ${item.ean}</div>
-                                </div>
-                            </div>
+                        <div class="op-card fade-in" style="padding: 12px 16px !important; background: var(--surface); border: 1px solid rgba(0,0,0,0.05);">
+                            <div style="font-size: 0.9rem; color: var(--text); font-weight: 700; line-height: 1.2; margin-bottom: 8px;">${item.descricao_base || 'PRODUTO'}</div>
                             
-                            <div style="display: flex; align-items: center; justify-content: space-between; background: #000; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-                                <div class="op-label">QTDE COLETADA:</div>
-                                <div style="display: flex; align-items: center; gap: 20px;">
-                                    <button onclick="adjustPickRow(${index}, -1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: #1a1a24; color: white; cursor: pointer;">
-                                        <span class="material-symbols-rounded">remove</span>
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <div style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted);">QUANTIDADE:</div>
+                                <div style="display: flex; align-items: center; gap: 16px;">
+                                    <button onclick="adjustPickRow(${index}, -1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-rounded" style="font-size: 18px;">remove</span>
                                     </button>
-                                    <div class="op-qty-highlight" style="font-size: 1.5rem;">${item.qty}</div>
-                                    <button onclick="adjustPickRow(${index}, 1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 32px; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: #1a1a24; color: white; cursor: pointer;">
-                                        <span class="material-symbols-rounded">add</span>
+                                    <div style="font-size: 1.2rem; font-weight: 900; color: var(--primary); min-width: 24px; text-align: center;">${item.qty}</div>
+                                    <button onclick="adjustPickRow(${index}, 1, '${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')" style="width: 32px; height: 32px; border-radius: 6px; border: 1px solid #cbd5e1; background: white; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                                        <span class="material-symbols-rounded" style="font-size: 18px;">add</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
                     `).join('')}
                     
-                    <button class="btn-action" style="width: 100%; border: 2px dashed var(--primary); background: transparent; color: var(--primary); font-weight: 900;" onclick="openManualAddProductToSession('${sessionId}', 'PICK')">
-                        <span class="material-symbols-rounded">add_circle</span>
-                        ADICIONAR ITEM MANUALMENTE
+                    <button class="btn-action" style="width: 100%; border: 1px dashed var(--primary); background: transparent; color: var(--primary); font-weight: 700; padding: 12px;" onclick="openManualAddProductToSession('${sessionId}', 'PICK')">
+                        <span class="material-symbols-rounded" style="font-size: 20px;">add_circle</span>
+                        ADICIONAR MANUAL
                     </button>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px;">
                     ${!hasDivergence ? `
-                    <button class="btn-action" style="background: #22c55e; padding: 20px; font-weight: 950; font-size: 1.1rem;" onclick="savePickResultFinal('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
-                        <span class="material-symbols-rounded" style="font-size: 28px;">done_all</span>
-                        CONFIRMAR E SALVAR
+                    <button class="btn-action" style="background: #22c55e; padding: 18px; font-weight: 900; font-size: 1rem;" onclick="savePickResultFinal('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
+                        <span class="material-symbols-rounded" style="font-size: 24px;">check_circle</span>
+                        FINALIZAR SEPARAÇÃO
                     </button>
                     ` : `
-                    <div style="text-align: center; color: #ef4444; padding: 24px; background: rgba(239, 68, 68, 0.1); border-radius: 16px; border: 3px solid #ef4444;">
-                        <span class="material-symbols-rounded" style="font-size: 40px; margin-bottom: 8px; display: block;">lock</span>
-                        <div style="font-size: 1.2rem; font-weight: 950; letter-spacing: 0.1em; margin-bottom: 4px;">OPERAÇÃO BLOQUEADA</div>
-                        <p style="font-weight: 700; opacity: 0.8; font-size: 0.85rem;">Divergência detectada entre bipagem e pedido.</p>
+                    <div style="text-align: center; color: #ef4444; padding: 16px; background: #fee2e2; border-radius: 12px; border: 2px solid #ef4444;">
+                        <div style="font-weight: 900; font-size: 0.9rem;">OPERAÇÃO BLOQUEADA</div>
+                        <p style="font-weight: 600; font-size: 0.75rem;">Divergência detectada.</p>
                     </div>
                     `}
-                    <button class="btn-action btn-secondary" style="padding: 16px; font-weight: 800; opacity: 0.7;" onclick="renderPickingScreen('${sessionId}', '${channelId}', '${channelLabel}', '${channelColor}')">
-                        <span class="material-symbols-rounded">arrow_back</span>
-                        Voltar para Bipagem
-                    </button>
                 </div>
             </main>
         </div>

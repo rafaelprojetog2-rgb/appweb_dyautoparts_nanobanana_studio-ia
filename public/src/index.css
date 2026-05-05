@@ -410,7 +410,7 @@
             padding-top: 0;
             /* Zerado para aproximar do grid */
             margin-bottom: -10px;
-            /* Margem negativa estratégica */
+            /* Margem negativa estratﾃｩgica */
             width: 100%;
         }
 
@@ -534,7 +534,7 @@
             }
         }
 
-        /* Estilos de responsividade para itens de inventário */
+        /* Estilos de responsividade para itens de inventﾃ｡rio */
         .inventory-scanning-screen {
             max-width: 100% !important;
             overflow-x: hidden !important;
@@ -654,7 +654,7 @@
             background: #E30613;
         }
 
-        /* Todo fundo de usuário em Vermelho Dyer */
+        /* Todo fundo de usuﾃ｡rio em Vermelho Dyer */
 
         .user-card .name {
             display: none;
@@ -680,7 +680,7 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Ajuste para topo fixo - Garantindo que o conteúdo comece após o header */
+        /* Ajuste para topo fixo - Garantindo que o conteﾃｺdo comece apﾃｳs o header */
         .dashboard-screen {
             padding-top: 70px;
             /* Mesma altura que o .top-bar */
@@ -995,7 +995,7 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        /* OPERATIONAL UTILITIES (PRODUTOS & SEPARAÇÃO) */
+        /* OPERATIONAL UTILITIES (PRODUTOS & SEPARAﾃ�グ) */
         .op-card {
             background: #18181B !important;
             border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -1166,7 +1166,7 @@
         .kit-detail-modal {
             width: min(520px, calc(100vw - 32px));
             background: #101018;
-            /* Tema escuro padrão */
+            /* Tema escuro padrﾃ｣o */
             color: #ffffff;
             border-radius: 32px;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1313,7 +1313,7 @@
         }
 
 
-        /* KIT LÂMPADA - TELA CHEIA E POSICIONAMENTO */
+        /* KIT Lﾃ�PADA - TELA CHEIA E POSICIONAMENTO */
         .kit-lampada-screen {
             min-height: 100vh !important;
             width: 100% !important;
@@ -1335,7 +1335,7 @@
             box-sizing: border-box;
         }
 
-        /* KIT LÂMPADA - BUSCA PADRONIZADA (VAZADA / GLOW STYLE) */
+        /* KIT Lﾃ�PADA - BUSCA PADRONIZADA (VAZADA / GLOW STYLE) */
         .kit-search-container {
             width: min(70vw, 900px);
             min-width: 750px;
@@ -1385,7 +1385,7 @@
 
 
 
-        /* KIT LÂMPADA - CARDS DE ALTO CONTRASTE */
+        /* KIT Lﾃ�PADA - CARDS DE ALTO CONTRASTE */
         .kit-lamp-card {
             background: #ffffff !important;
             color: #111111 !important;
@@ -1423,7 +1423,7 @@
 
         .kit-lamp-card .marca {
             color: #e11d48 !important;
-            /* vermelho padrão */
+            /* vermelho padrﾃ｣o */
             font-size: 0.65rem;
             font-weight: 800;
             text-transform: uppercase;
@@ -1596,7 +1596,7 @@
             }
 
             .product-search-input {
-                font-size: 16px !important; /* Evita zoom automático no iOS */
+                font-size: 16px !important; /* Evita zoom automﾃ｡tico no iOS */
                 width: 100% !important;
                 -webkit-appearance: none;
                 border-radius: 0;
@@ -1612,7 +1612,7 @@
             }
 
             .product-result-list {
-                gap: 8px !important; /* Separação elegante e compacta entre cards */
+                gap: 8px !important; /* Separaﾃｧﾃ｣o elegante e compacta entre cards */
                 width: 100% !important;
                 padding: 0 !important;
                 margin: 0 !important;
@@ -2258,7 +2258,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        /* HEADER MINIMALISTA & DINÂMICA DE VISIBILIDADE */
+        /* HEADER MINIMALISTA & DINﾃ�ICA DE VISIBILIDADE */
         .top-bar-minimal {
             position: fixed;
             top: 0;
@@ -2267,7 +2267,7 @@
             height: 50px;
             background: #000;
             display: none;
-            /* Escondido por padrão */
+            /* Escondido por padrﾃ｣o */
             align-items: center;
             justify-content: space-between;
             padding: 0 16px;
@@ -2314,7 +2314,7 @@
         }
 
         /* Menu principal - App Shell Layout */
-        /* Lógica flutuante do topo e rodapé no Menu - REMOVIDO PARA CONSOLIDAÇÃO NO FINAL DO ARQUIVO */
+        /* Lﾃｳgica flutuante do topo e rodapﾃｩ no Menu - REMOVIDO PARA CONSOLIDAﾃ�グ NO FINAL DO ARQUIVO */
         .dashboard-screen.menu-screen .top-bar {
             display: none !important;
         }
@@ -2404,10 +2404,10 @@
 
 
 
-        /* Ajuste do grid quando o footer está visível/escondido */
+        /* Ajuste do grid quando o footer estﾃ｡ visﾃｭvel/escondido */
         .dashboard-screen.menu-screen.menu-footer-visible {
             padding-bottom: 70px;
-            /* Espaço para o footer fixo */
+            /* Espaﾃｧo para o footer fixo */
         }
 
 
@@ -3342,19 +3342,19 @@
             font-size: 0.85rem;
         }
 
-        /* MODO TELA LIMPA (ESTILOS PERMANENTES) - ALTERNÂNCIA VIA CSS */
+        /* MODO TELA LIMPA (ESTILOS PERMANENTES) - ALTERNﾃ�CIA VIA CSS */
 
         /* 1. Em tela normal: o topo minimalista deve sumir */
         body:not(.fullscreen-mode) .top-bar-minimal {
             display: none !important;
         }
 
-        /* 2. Em tela normal: o topo padrão deve aparecer */
+        /* 2. Em tela normal: o topo padrﾃ｣o deve aparecer */
         body:not(.fullscreen-mode) .top-bar {
             display: flex !important;
         }
 
-        /* 3. Em tela cheia: o topo padrão deve sumir */
+        /* 3. Em tela cheia: o topo padrﾃ｣o deve sumir */
         body.fullscreen-mode .top-bar {
             display: none !important;
         }
@@ -3390,7 +3390,7 @@
             padding: 0 16px;
             height: 50px;
             display: none;
-            /* Alterado: escondido por padrão */
+            /* Alterado: escondido por padrﾃ｣o */
             justify-content: space-between;
             align-items: center;
             width: 100%;
@@ -3436,12 +3436,12 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Blindagem: Botão de Fullscreen desativado globalmente */
+        /* Blindagem: Botﾃ｣o de Fullscreen desativado globalmente */
         .btn-fullscreen-toggle {
             display: none !important;
         }
 
-        /* Ativação exclusiva por contexto: Tela de Login */
+        /* Ativaﾃｧﾃ｣o exclusiva por contexto: Tela de Login */
         .login-screen .btn-fullscreen-toggle {
             background: rgba(255, 255, 255, 0.05);
             color: white;
@@ -3686,7 +3686,7 @@
 
 
 
-        /* KIT LÂMPADA - INTERATIVIDADE */
+        /* KIT Lﾃ�PADA - INTERATIVIDADE */
         .bulb-info-card {
             background: rgba(255, 255, 255, 0.02) !important;
             padding: 28px !important;
@@ -4068,7 +4068,7 @@
             }
         }
 
-        /* OTIMIZAÇÃO DE TELAS INTERNAS - FOCO NO CONTEÚDO */
+        /* OTIMIZAﾃ�グ DE TELAS INTERNAS - FOCO NO CONTEﾃ咼O */
         .dashboard-screen.internal,
         .dashboard-screen.product-detail {
             height: 100dvh;
@@ -4119,7 +4119,7 @@
             padding: 16px 20px !important;
         }
 
-        /* Ocultar rodapé em telas internas para maximizar espaço */
+        /* Ocultar rodapﾃｩ em telas internas para maximizar espaﾃｧo */
         .dashboard-screen.internal .menu-footer,
         .dashboard-screen.product-detail .menu-footer {
             display: none !important;
@@ -4134,7 +4134,7 @@
             padding-bottom: 0 !important;
         }
 
-        /* ESTILIZAÇÃO DOS CARDS DE CANAIS (SEPARAÇÃO) */
+        /* ESTILIZAﾃ�グ DOS CARDS DE CANAIS (SEPARAﾃ�グ) */
         .channel-card {
             background: rgba(255, 255, 255, 0.03) !important;
             border: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -4215,11 +4215,11 @@
         }
 
         /* ===================================================
-   PADRONIZAÇÃO GLOBAL DE CARDS — FJALLA ONE + UPPERCASE
+   PADRONIZAﾃ�グ GLOBAL DE CARDS 窶� FJALLA ONE + UPPERCASE
    Aplica a: menu-item, menu-card, channel-card
    =================================================== */
 
-        /* Títulos dos cards (sub-menus internos) com Fjalla One */
+        /* Tﾃｭtulos dos cards (sub-menus internos) com Fjalla One */
         .menu-card .label,
         .dashboard-screen.internal .menu-card .label {
             font-family: 'Fjalla One', sans-serif !important;
@@ -4266,7 +4266,7 @@
             transition: transform 0.25s ease-in-out !important;
         }
 
-        /* channel-card label (Separação/Picking) */
+        /* channel-card label (Separaﾃｧﾃ｣o/Picking) */
         .channel-card .op-label,
         .channel-card .label {
             font-family: 'Fjalla One', sans-serif !important;
@@ -4294,7 +4294,7 @@
             outline: none !important;
         }
 
-        /* Hover for channel-card (Separação) */
+        /* Hover for channel-card (Separaﾃｧﾃ｣o) */
         .dashboard-screen.internal .channel-card:hover {
             transform: none !important;
             box-shadow: none !important;
@@ -4327,7 +4327,7 @@
 
         /* 
    FIX: Remover faixa/topo escuro das telas operacionais 
-   Garante que o conteúdo comece exatamente no topo (Fullscreen Real)
+   Garante que o conteﾃｺdo comece exatamente no topo (Fullscreen Real)
 */
         .product-submenu-screen,
         .product-search-screen,
@@ -4384,13 +4384,13 @@
             color: #111 !important;
         }
 
-        /* TELA DE DETALHES - CENTRALIZAÇÃO E LAYOUT */
+        /* TELA DE DETALHES - CENTRALIZAﾃ�グ E LAYOUT */
         .product-detail-screen {
             min-height: 100dvh !important;
             width: 100% !important;
             display: flex !important;
             flex-direction: column !important;
-            /* Coluna para empilhar conteúdo e centralizar horizontalmente */
+            /* Coluna para empilhar conteﾃｺdo e centralizar horizontalmente */
             align-items: center !important;
             /* Centraliza horizontalmente no eixo cruzado do flex-direction column */
             justify-content: flex-start !important;
@@ -4403,7 +4403,7 @@
             margin-right: auto !important;
         }
 
-        /* Container que ocupa melhor a tela - Forçando centralização no desktop */
+        /* Container que ocupa melhor a tela - Forﾃｧando centralizaﾃｧﾃ｣o no desktop */
         .product-detail-screen .container,
         .product-detail-card {
             width: 100% !important;
@@ -4472,7 +4472,7 @@
             font-weight: 500 !important;
         }
 
-        /* LABEL PADRÃO */
+        /* LABEL PADRﾃグ */
         .product-meta .meta-label {
             color: #777 !important;
             font-weight: 500 !important;
@@ -4550,7 +4550,7 @@
             font-size: 14px !important;
         }
 
-        /* Hierarquia e Espaçamento entre Seções */
+        /* Hierarquia e Espaﾃｧamento entre Seﾃｧﾃｵes */
         .product-detail-header,
         .product-detail-prices,
         .product-stock-locations,
@@ -4561,7 +4561,7 @@
             margin-bottom: 20px !important;
         }
 
-        /* Labels Secundários e Seções */
+        /* Labels Secundﾃ｡rios e Seﾃｧﾃｵes */
         .product-detail-sub,
         .product-stock-title,
         .product-related-title,
@@ -4600,7 +4600,7 @@
             color: #9CA3AF !important;
         }
 
-        /* Preços Destacados */
+        /* Preﾃｧos Destacados */
         .product-detail-prices {
             display: grid !important;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
@@ -4615,7 +4615,7 @@
             text-align: center !important;
         }
 
-        /* Preço Principal (Varejo) */
+        /* Preﾃｧo Principal (Varejo) */
         .product-price-card:first-child .product-price-value,
         .product-price-main {
             font-size: 24px !important;
@@ -4629,7 +4629,7 @@
             color: #111827 !important;
         }
 
-        /* Estoque Mais Legível */
+        /* Estoque Mais Legﾃｭvel */
         .product-stock-grid {
             display: grid !important;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
@@ -4681,7 +4681,7 @@
             color: #111827 !important;
         }
 
-        /* Identificação */
+        /* Identificaﾃｧﾃ｣o */
         .product-detail-id-section {
             display: flex !important;
             flex-direction: column !important;
@@ -4738,7 +4738,7 @@
             color: #111827 !important;
         }
 
-        /* Ajuste nos textos secundários e observações */
+        /* Ajuste nos textos secundﾃ｡rios e observaﾃｧﾃｵes */
         .product-obs-text {
             color: #475569 !important;
             font-size: 0.9rem !important;
@@ -4772,11 +4772,11 @@
         }
 
         /* ===================================================
-   REFINAMENTOS MENU E CARDS DE NAVEGAÇÃO DESKTOP
+   REFINAMENTOS MENU E CARDS DE NAVEGAﾃ�グ DESKTOP
    =================================================== */
         @media (min-width: 1024px) {
 
-            /* Cards de Navegação e Canais */
+            /* Cards de Navegaﾃｧﾃ｣o e Canais */
             .menu-card,
             .channel-card,
             .dashboard-screen.internal .menu-card,
@@ -4790,7 +4790,7 @@
                 /* Fundo branco para contraste */
             }
 
-            /* Labels de Navegação - COR PRETA OBRIGATÓRIA */
+            /* Labels de Navegaﾃｧﾃ｣o - COR PRETA OBRIGATﾃ迭IA */
             .menu-card .label,
             .channel-card .label,
             .channel-card .op-label,
@@ -4801,7 +4801,7 @@
                 font-weight: 700 !important;
             }
 
-            /* Ícones 3D, Imagens e Containers de Ícone */
+            /* ﾃ皇ones 3D, Imagens e Containers de ﾃ皇one */
             .menu-icon-3d,
             .channel-card .menu-icon-3d,
             .channel-card img,
@@ -4820,15 +4820,15 @@
                 flex-shrink: 0 !important;
             }
 
-            /* Ajuste de tamanho para Material Icons dentro dos cards de navegação */
+            /* Ajuste de tamanho para Material Icons dentro dos cards de navegaﾃｧﾃ｣o */
             .menu-card .icon,
             .channel-card .icon-box .material-symbols-rounded,
             .channel-card .icon-box .icon {
                 font-size: 40px !important;
             }
 
-            /* REMOVER TOPBAR EM TODAS AS TELAS INTERNAS - FULLSCREEN OBRIGATÓRIO */
-            /* Seletor específico para o header/top-bar principal */
+            /* REMOVER TOPBAR EM TODAS AS TELAS INTERNAS - FULLSCREEN OBRIGATﾃ迭IO */
+            /* Seletor especﾃｭfico para o header/top-bar principal */
             .dashboard-screen.internal header.top-bar,
             .dashboard-screen.internal .top-bar-container .top-bar,
             .inventory-screen header.top-bar,
@@ -4836,7 +4836,7 @@
                 display: none !important;
             }
 
-            /* Garantir que NÃO haja padding-top nas telas internas para ocupar 100% da altura */
+            /* Garantir que Nﾃグ haja padding-top nas telas internas para ocupar 100% da altura */
             .dashboard-screen.internal,
             .product-search-screen,
             .product-detail-screen,
@@ -4846,31 +4846,31 @@
         }
 
         /* ===================================================
-   NAVEGAÇÃO FLUTUANTE (HOVER TRIGGER)
+   NAVEGAﾃ�グ FLUTUANTE (HOVER TRIGGER)
    =================================================== */
 
         /* ===================================================
-   NAVEGAÇÃO FLUTUANTE (HOVER TRIGGER) - GLOBAL
+   NAVEGAﾃ�グ FLUTUANTE (HOVER TRIGGER) - GLOBAL
    =================================================== */
 
-        /* Área de Hover no Topo (Desktop) */
+        /* ﾃ〉ea de Hover no Topo (Desktop) */
         .menu-top-trigger-area {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 60px;
-            /* Faixa invisível de gatilho no topo */
+            /* Faixa invisﾃｭvel de gatilho no topo */
             z-index: 99998;
             background: transparent;
             pointer-events: auto;
         }
 
-        /* Container das Ações Flutuantes */
+        /* Container das Aﾃｧﾃｵes Flutuantes */
         .menu-floating-top-actions {
             position: fixed;
             top: 15px;
-            /* Posição left/right injetada via app.js */
+            /* Posiﾃｧﾃ｣o left/right injetada via app.js */
             z-index: 99999;
             display: flex;
             gap: 15px;
@@ -4883,7 +4883,7 @@
             transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Ativar ao passar o mouse na área de trigger ou sobre o próprio botão */
+        /* Ativar ao passar o mouse na ﾃ｡rea de trigger ou sobre o prﾃｳprio botﾃ｣o */
         .menu-top-trigger-area:hover~.menu-floating-top-actions,
         .menu-floating-top-actions:hover {
             opacity: 1;
@@ -4892,7 +4892,7 @@
             transform: translateY(0);
         }
 
-        /* Estilo do Botão Flutuante */
+        /* Estilo do Botﾃ｣o Flutuante */
         .btn-exit-floating {
             width: 48px;
             height: 48px;
@@ -4921,7 +4921,7 @@
             font-weight: 700;
         }
 
-        /* AJUSTE PARA MOBILE (Sempre Visível e Discreto) */
+        /* AJUSTE PARA MOBILE (Sempre Visﾃｭvel e Discreto) */
         @media (max-width: 768px) {
             .menu-floating-top-actions {
                 opacity: 0.7 !important;
@@ -5002,7 +5002,7 @@
                 opacity: 1;
             }
 
-            /* Garantir que o conteúdo fique acima do brilho */
+            /* Garantir que o conteﾃｺdo fique acima do brilho */
             .menu-card>*,
             .channel-card>* {
                 position: relative;
@@ -5011,7 +5011,7 @@
                 /* Deixa o evento passar para o card */
             }
 
-            /* Reativar eventos para botões internos se houver */
+            /* Reativar eventos para botﾃｵes internos se houver */
             .menu-card button,
             .channel-card button,
             .menu-card a,
@@ -5019,7 +5019,7 @@
                 pointer-events: auto;
             }
 
-            /* Mobile - Redução de intensidade */
+            /* Mobile - Reduﾃｧﾃ｣o de intensidade */
             @media (max-width: 768px) {
 
                 .menu-card::before,
@@ -5037,7 +5037,7 @@
             }
         }
 
-        /* Cores Dinâmicas para a Tela de Conferência (Accent) */
+        /* Cores Dinﾃ｢micas para a Tela de Conferﾃｪncia (Accent) */
         .dashboard-screen.internal.shopee {
             --channel-accent: #FFCCBC;
         }
@@ -5068,11 +5068,11 @@
         .dashboard-screen.internal.amazon .sub-menu-header div:first-child {}
 
         /* ===================================================
-   PADRONIZAÇÃO CARDS MOBILE (MODO CIRÚRGICO)
+   PADRONIZAﾃ�グ CARDS MOBILE (MODO CIRﾃ啌GICO)
    =================================================== */
         @media (max-width: 768px) {
 
-            /* Grid com 2 colunas para TODAS as telas que usam cards de seleção */
+            /* Grid com 2 colunas para TODAS as telas que usam cards de seleﾃｧﾃ｣o */
             .dashboard-screen .menu-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
                 gap: 12px !important;
@@ -5082,8 +5082,8 @@
                 display: grid !important;
             }
 
-            /* Card Layout Global Mobile: Ícone acima, Texto abaixo, Totalmente Centralizado */
-            /* Aplicado especificamente em cards de seleção (dentro de menu-grid) */
+            /* Card Layout Global Mobile: ﾃ皇one acima, Texto abaixo, Totalmente Centralizado */
+            /* Aplicado especificamente em cards de seleﾃｧﾃ｣o (dentro de menu-grid) */
             .menu-card,
             .channel-card {
                 display: flex !important;
@@ -5101,7 +5101,7 @@
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
             }
 
-            /* Tamanho Padronizado de Ícones (Global Mobile) */
+            /* Tamanho Padronizado de ﾃ皇ones (Global Mobile) */
             .dashboard-screen .menu-card .menu-icon-3d,
             .dashboard-screen .channel-card .menu-icon-3d,
             .dashboard-screen .channel-card .icon-box {
@@ -5119,13 +5119,13 @@
                 box-shadow: none !important;
             }
 
-            /* Ícones Material dentro dos cards */
+            /* ﾃ皇ones Material dentro dos cards */
             .dashboard-screen .menu-card .icon,
             .dashboard-screen .channel-card .icon-box .material-symbols-rounded {
                 font-size: 32px !important;
             }
 
-            /* Ajuste do texto (Labels): Centralizado, Máximo 2 linhas, Cor preta #101018 */
+            /* Ajuste do texto (Labels): Centralizado, Mﾃ｡ximo 2 linhas, Cor preta #101018 */
             .dashboard-screen .menu-card .label,
             .dashboard-screen .channel-card .op-label,
             .dashboard-screen .channel-card .label {
@@ -5158,7 +5158,7 @@
         }
 
         /* ===================================================
-   PADRONIZAÇÃO CARDS MOBILE - OBRIGATÓRIO (CIRÚRGICO)
+   PADRONIZAﾃ�グ CARDS MOBILE - OBRIGATﾃ迭IO (CIRﾃ啌GICO)
    =================================================== */
         @media (max-width: 768px) {
 
@@ -5182,7 +5182,7 @@
                 height: auto !important;
             }
 
-            /* FORÇA QUALQUER WRAPPER DE ÍCONE (Aumentado para 85px igual ao menu principal) */
+            /* FORﾃ② QUALQUER WRAPPER DE ﾃ垢ONE (Aumentado para 85px igual ao menu principal) */
             .menu-card .menu-icon-3d,
             .channel-card .menu-icon-3d,
             .submenu-card .menu-icon-3d,
@@ -5249,7 +5249,7 @@
                 display: block !important;
             }
 
-            /* FORÇA TEXTO (0.95rem e 700 weight igual ao menu principal) */
+            /* FORﾃ② TEXTO (0.95rem e 700 weight igual ao menu principal) */
             .menu-card span,
             .channel-card span,
             .submenu-card span,
@@ -5300,7 +5300,7 @@
                 width: 100% !important;
             }
 
-            /* Garantir que o texto apareça em branco se for fundo escuro ou preto se for fundo claro */
+            /* Garantir que o texto apareﾃｧa em branco se for fundo escuro ou preto se for fundo claro */
             .menu-screen .label {
                 color: #ffffff !important;
             }
@@ -5310,7 +5310,7 @@
                 color: #101018 !important;
             }
 
-            /* Se houver uma div que engloba o texto, força-la a alinhar também */
+            /* Se houver uma div que engloba o texto, forﾃｧa-la a alinhar tambﾃｩm */
             .menu-card>div:not([class*="icon"]):not(img),
             .channel-card>div:not([class*="icon"]):not(img),
             .submenu-card>div:not([class*="icon"]):not(img),
@@ -5373,3 +5373,127 @@
         @keyframes scanFeedbackFadeOut {
             to { transform: translate(-50%, -80%) scale(0.9); opacity: 0; }
         }
+
+
+
+/* === SEPARACAO MINIMAL STANDARDIZATION (DARK OPERATIONAL) === */
+.picking-active-minimal { background: #101018 !important; min-height: 100vh; color: #fff !important; }
+.picking-active-minimal .container { padding: 12px !important; padding-bottom: 100px !important; display: flex; flex-direction: column; align-items: center; }
+.picking-active-minimal .op-card { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #fff !important; box-shadow: none !important; border-radius: 16px !important; width: 100%; max-width: 900px; }
+
+/* Campo de Bipagem estilo Kit Lampada */
+.picking-search-container {
+    width: min(70vw, 900px);
+    max-width: 900px;
+    height: 60px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+}
+.picking-search-input {
+    width: 100%;
+    height: 60px;
+    border-radius: 999px;
+    padding: 0 65px 0 24px;
+    font-size: 1.1rem;
+    background: transparent !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.55) !important;
+    color: #ffffff !important;
+    outline: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.12), inset 0 0 8px rgba(255, 255, 255, 0.06) !important;
+    text-align: center;
+    font-weight: 800;
+}
+.picking-search-input:focus {
+    border-color: rgba(255, 255, 255, 0.85) !important;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.1) !important;
+}
+.picking-search-btn {
+    position: absolute;
+    right: 8px;
+    height: 44px;
+    width: 44px;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: none !important;
+    border-radius: 50%;
+    color: #fff !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.picking-search-btn:hover { background: rgba(255, 255, 255, 0.2) !important; transform: scale(1.05); }
+
+/* Item Cards */
+.pick-item-card {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #111 !important;
+    border-radius: 14px !important;
+    padding: 10px 16px !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+@media (max-width: 768px) {
+    .picking-search-container { width: calc(100% - 24px); height: 54px; }
+    .picking-search-input { height: 54px; font-size: 1rem; }
+}
+
+.picking-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 20px;
+    background: rgba(16, 16, 24, 0.8);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+}
+
+/* Channel Colors logic */
+.menu-card.flex { --canal-color: #FFD700; --canal-color-soft: rgba(255, 215, 0, 0.15); }
+.menu-card.shopee { --canal-color: #EE4D2D; --canal-color-soft: rgba(238, 77, 45, 0.15); }
+.menu-card.ml { --canal-color: #3483FA; --canal-color-soft: rgba(52, 131, 250, 0.15); }
+.menu-card.magalu { --canal-color: #0086FF; --canal-color-soft: rgba(0, 134, 255, 0.15); }
+.menu-card.correios { --canal-color: #FFE600; --canal-color-soft: rgba(255, 230, 0, 0.15); }
+.menu-card.ultra { --canal-color: #EF2B2D; --canal-color-soft: rgba(239, 43, 45, 0.15); }
+.menu-card.full { --canal-color: #22C55E; --canal-color-soft: rgba(34, 197, 94, 0.15); }
+.menu-card.pdv { --canal-color: #64748B; --canal-color-soft: rgba(100, 116, 139, 0.15); }
+
+/* Hover & Active states */
+.menu-card:hover, .menu-card:active { 
+    background: var(--canal-color-soft) !important; 
+    border-color: var(--canal-color) !important; 
+    transform: translateY(-4px) !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.menu-card:active { transform: scale(0.96) !important; }
+
+.menu-card:hover .menu-icon-3d, .menu-card:active .menu-icon-3d { 
+    filter: drop-shadow(0 0 12px var(--canal-color)); 
+    transform: scale(1.1);
+}
+
+.menu-card:hover .label, .menu-card:active .label { color: var(--text) !important; font-weight: 900 !important; }
+
+/* Grid Desktop standardization for Minimal Picking */
+@media (min-width: 1024px) {
+    .picking-active-minimal .menu-grid {
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 20px !important;
+        padding: 20px !important;
+    }
+}

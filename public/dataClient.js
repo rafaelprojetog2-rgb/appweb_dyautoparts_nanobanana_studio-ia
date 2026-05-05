@@ -157,21 +157,28 @@ const DataClient = (function () {
     async function fetchCanaisEnvioSupabase() {
         const client = window.supabaseClient
 
+        console.log('[CANAIS DEBUG] supabase client existe?', !!client);
+
         if (!client) {
-            console.error('[Supabase] client não encontrado')
+            console.error('[CANAIS DEBUG] Supabase client NAO encontrado!')
             return []
         }
+
+        console.log('[CANAIS DEBUG] buscando tabela canais_envio...');
 
         const { data, error } = await client
             .from('canais_envio')
             .select('*')
+            .eq('ativo', true)
+            .order('nome', { ascending: true })
 
         if (error) {
-            console.error('[Supabase] erro ao buscar canais_envio:', error)
+            console.error('[CANAIS DEBUG] erro supabase:', error)
             return []
         }
 
-        console.log(`[BOOT] canais_envio -> Supabase (${data.length} registros)`);
+        console.log(`[CANAIS DEBUG] quantidade retornada: ${(data || []).length}`);
+        console.log('[CANAIS DEBUG] canais retornados:', data);
 
         return data || []
     }
