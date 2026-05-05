@@ -1424,14 +1424,18 @@ function getTopBarHTML(currentUser, backAction = null, screenType = 'internal') 
     const isMenuScreen = screenType === 'menu';
     
     if (isMenuScreen) {
-        // MENU PRINCIPAL: Aparece somente SAIR/LOGOUT (Power icon), no lado direito
+        // MENU PRINCIPAL: Topo fixo preto
         return `
-            <div class="menu-top-trigger-area"></div>
-            <div class="menu-floating-top-actions" style="right: 20px !important; left: auto !important;">
-                <button class="btn-exit-floating" onclick="logout()" title="Sair do Sistema">
-                    <span class="material-symbols-rounded">power_settings_new</span>
-                </button>
-            </div>
+            <header class="top-bar menu-top-bar">
+                <div class="top-bar-left" style="display: flex; align-items: center;">
+                    <img src="${LOGO_URL}" alt="Logo" class="top-bar-logo-img" onerror="this.onerror=null; this.src='/imagens/icon-512.png';" style="height: 42px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(255,255,255,0.15));">
+                </div>
+                <div class="top-bar-right">
+                    <button class="btn-action" onclick="logout()" title="Sair do Sistema" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; transition: all 0.2s ease;">
+                        <span class="material-symbols-rounded" style="font-size: 22px;">power_settings_new</span>
+                    </button>
+                </div>
+            </header>
         `;
     }
 
