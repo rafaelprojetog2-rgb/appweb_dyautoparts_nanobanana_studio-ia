@@ -26,6 +26,16 @@ function normalizeText(text) {
         .replace(/[\u0300-\u036f]/g, "");
 }
 
+function normalizeProductSearchTerm(text) {
+    if (!text) return "";
+    return text.toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .replace(/\s+/g, ' ');
+}
+
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -202,7 +212,11 @@ async function handleProductScan(rawValue, context = 'search') {
         
         return product;
     } else {
-        showScanFeedback('warning', 'Produto não cadastrado');
+        // Mostrar alerta apenas se a leitura for real (scanner/câmera).
+        // Não mostrar enquanto o usuário estiver digitando (context === 'search')
+        if (context !== 'search') {
+            showScanFeedback('warning', 'Produto não cadastrado');
+        }
         return null;
     }
 }
@@ -303,28 +317,34 @@ window.addEventListener('DOMContentLoaded', () => {
 // goBack centralizado acima
 
 function toggleFullscreen() {
+    const btnTelaCheia = document.querySelector('.btn-tela-cheia');
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
             console.error(`Erro ao entrar em fullscreen: ${err.message}`);
         });
         document.body.classList.add('fullscreen-mode');
+        if (btnTelaCheia) btnTelaCheia.style.display = 'none';
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
         }
         document.body.classList.remove('fullscreen-mode');
+        if (btnTelaCheia) btnTelaCheia.style.display = 'flex';
     }
 }
 
 // Listener para sincronizar classe CSS se sair pelo ESC nativo
 document.addEventListener('fullscreenchange', () => {
     const controls = document.getElementById('fullscreen-controls');
+    const btnTelaCheia = document.querySelector('.btn-tela-cheia');
     if (!document.fullscreenElement) {
         document.body.classList.remove('fullscreen-mode');
         if (controls) controls.style.display = 'none';
+        if (btnTelaCheia) btnTelaCheia.style.display = 'flex';
     } else {
         document.body.classList.add('fullscreen-mode');
         if (controls) controls.style.display = 'flex';
+        if (btnTelaCheia) btnTelaCheia.style.display = 'none';
     }
 });
 
@@ -563,7 +583,7 @@ function normalizeSheetValue(sheet, field, value) {
     // ABA: Movimentos
     if (sheet === 'movimentos') {
         if (field === 'tipo') {
-            const valid = ['entrada', 'saida', 'transferencia', 'reserva', 'confirmacao_saida', 'ajuste_inventario'];
+            const valid = ['entrada', 'saida', 'transferencia', 'reserva', 'confirmacao_saida', 'ajuste_inventario', 'ajuste_estoque'];
             return valid.includes(lower) ? lower : 'saida'; // fallback seguro
         }
         if (field === 'local_origem' || field === 'local_destino' || field === 'local') {
@@ -698,9 +718,84 @@ function criarStatusConexao() {
     window.addEventListener("online", atualizar)
     window.addEventListener("offline", atualizar)
 
+    const LOGO_URL = '/imagens/logo-dy.png';
+    const LOGO_LIGHT_URL = '/imagens/logo-dy.png';
+
+    // ==== CONFIGURAÇÃO APP ====
+    function getAppConfig() {
+        const config = localStorage.getItem('app_config');
+        if (!config) {
+            const defaultConfig = {
+                permitir_saida_estoque_zero: false,
+                modo_rapido: false
+            };
+            localStorage.setItem('app_config', JSON.stringify(defaultConfig));
+            return defaultConfig;
+        }
+        return JSON.parse(config);
+    }
+
+    function setAppConfig(config) {
+        localStorage.setItem('app_config', JSON.stringify(config));
+        // Notificar mudanças se necessário
+    }
+
+    function isModoRapidoAtivo() {
+        return getAppConfig().modo_rapido === true;
+    }
+
+    function isSaidaEstoqueZeroPermitida() {
+        return getAppConfig().permitir_saida_estoque_zero === true;
+    }
+
+    function canAllowStockExit(produto, quantidade) {
+        const estoqueAtual = parseFloat(produto.estoque_atual || 0);
+        if (estoqueAtual >= quantidade) return true;
+        return isSaidaEstoqueZeroPermitida();
+    }
+
+    // Expor helpers de configuração para o escopo global
+    window.getAppConfig = getAppConfig;
+    window.setAppConfig = setAppConfig;
+    window.isModoRapidoAtivo = isModoRapidoAtivo;
+    window.isSaidaEstoqueZeroPermitida = isSaidaEstoqueZeroPermitida;
+    window.canAllowStockExit = canAllowStockExit;
+
     atualizar()
 
     return status
+}
+
+// ==== CONFIGURAÇÃO APP (GLOBAL) ====
+function getAppConfig() {
+    const config = localStorage.getItem('app_config');
+    if (!config) {
+        const defaultConfig = {
+            permitir_saida_estoque_zero: false,
+            modo_rapido: false
+        };
+        localStorage.setItem('app_config', JSON.stringify(defaultConfig));
+        return defaultConfig;
+    }
+    return JSON.parse(config);
+}
+
+function setAppConfig(config) {
+    localStorage.setItem('app_config', JSON.stringify(config));
+}
+
+function isModoRapidoAtivo() {
+    return getAppConfig().modo_rapido === true;
+}
+
+function isSaidaEstoqueZeroPermitida() {
+    return getAppConfig().permitir_saida_estoque_zero === true;
+}
+
+function canAllowStockExit(produto, quantidade) {
+    const estoqueAtual = parseFloat(produto.estoque_atual || 0);
+    if (estoqueAtual >= quantidade) return true;
+    return isSaidaEstoqueZeroPermitida();
 }
 
 // URLs das imagens locais
@@ -1420,32 +1515,47 @@ function getColumnLetter(index) {
     return letter;
 }
 
-function getTopBarHTML(currentUser, backAction = null, screenType = 'internal') {
-    const isMenuScreen = screenType === 'menu';
-    
-    if (isMenuScreen) {
-        // MENU PRINCIPAL: Topo fixo preto
-        return `
-            <header class="top-bar menu-top-bar">
-                <div class="top-bar-left" style="display: flex; align-items: center;">
-                    <img src="${LOGO_URL}" alt="Logo" class="top-bar-logo-img" onerror="this.onerror=null; this.src='/imagens/icon-512.png';" style="height: 42px; object-fit: contain; filter: drop-shadow(0 0 8px rgba(255,255,255,0.15));">
-                </div>
-                <div class="top-bar-right">
-                    <button class="btn-action" onclick="logout()" title="Sair do Sistema" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; transition: all 0.2s ease;">
-                        <span class="material-symbols-rounded" style="font-size: 22px;">power_settings_new</span>
-                    </button>
-                </div>
-            </header>
-        `;
-    }
+function getOfflinePendingCount() {
+    // Se houver uma fila offline real no appData, retornar o tamanho dela.
+    // Por enquanto, retorna 0 conforme solicitado.
+    return (window.appData && window.appData.offlineQueue) ? window.appData.offlineQueue.length : 0;
+}
 
-    // TELAS INTERNAS: Aparece somente botão VOLTAR (Seta), no lado esquerdo
+// Listener para atualização de status online/offline
+window.addEventListener('online', () => updateMenuStatusUI());
+window.addEventListener('offline', () => updateMenuStatusUI());
+
+function getNFBackButton(backAction) {
+    const currentUser = localStorage.getItem('currentUser');
+    return getTopBarHTML(currentUser, backAction);
+}
+
+function updateMenuStatusUI() {
+    const statusDot = document.querySelector('.status-dot');
+    const statusText = document.querySelector('.status-text');
+    const pendingCount = document.querySelector('.pending-count');
+    
+    if (statusDot && statusText) {
+        const isOnline = navigator.onLine;
+        statusDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+        statusText.textContent = isOnline ? 'ONLINE' : 'OFFLINE';
+    }
+    
+    if (pendingCount) {
+        pendingCount.textContent = `${getOfflinePendingCount()} pendentes`;
+    }
+}
+
+function getTopBarHTML(currentUser, backAction = null, screenType = 'internal') {
+    // Topo e Rodapé abolidos.
+    // Retornamos apenas o botão de voltar, englobado na zona de hover.
     return `
-        <div class="menu-top-trigger-area"></div>
-        <div class="menu-floating-top-actions" style="right: auto !important; left: 20px !important;">
-            <button class="btn-exit-floating" onclick="${backAction || 'goBack()'}" title="Voltar">
-                <span class="material-symbols-rounded">arrow_back</span>
-            </button>
+        <div class="top-hover-zone">
+            ${backAction ? `
+                <button class="btn-floating-app btn-voltar" onclick="${backAction}" title="Voltar">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                </button>
+            ` : ''}
         </div>
     `;
 }
@@ -1599,7 +1709,8 @@ async function ensureProdutosLoaded(force = false) {
                     p.subcategoria || "",
                     p.ean || "",
                     p.sku_fornecedor || p.sku || "",
-                    p.id_interno || p.id || ""
+                    p.id_interno || p.id || "",
+                    (p.id_interno || p.id || "").toString().replace(/[-.]/g, '')
                 ];
                 
                 // Atributos também entram no índice
@@ -1614,7 +1725,7 @@ async function ensureProdutosLoaded(force = false) {
                     _dBaseNorm: normalizeText(p.descricao_base || p.descricao || ""),
                     _dFullNorm: normalizeText(p.descricao_completa || ""),
                     _brandCatSubNorm: normalizeText(`${p.marca || ""} ${p.categoria || ""} ${p.subcategoria || ""}`),
-                    _searchIndex: searchableTerms.map(normalizeText).join(" ")
+                    _searchIndex: searchableTerms.map(normalizeProductSearchTerm).join(" ")
                 };
             });
             
@@ -1778,6 +1889,14 @@ function playBeep(type) {
 
 let isSyncingFlowActive = false;
 
+// SYNC WATCHDOG — garante que a flag nunca fique travada permanentemente
+setInterval(() => {
+    if (isSyncingFlowActive) {
+        console.warn('[SYNC WATCHDOG] resetando sync travado');
+        isSyncingFlowActive = false;
+    }
+}, 3000);
+
 function showSyncLoader() {
     // Silent mode - UI screen removed per User request
 }
@@ -1787,32 +1906,40 @@ function hideSyncLoader() {
 }
 
 async function setUser(userName, userId, userProfile) {
+    console.log('[LOGIN DEBUG] usuário clicado');
+    console.log(`[LOGIN DEBUG] isSyncingFlowActive antes: ${isSyncingFlowActive}`);
+
     if (isSyncingFlowActive) {
-        addSyncTrace('setUser', 'BLOCK', 'isSyncingFlowActive=true');
-        return;
+        console.log('[LOGIN DEBUG] resetando bloqueio');
+        isSyncingFlowActive = false;
     }
+
+    console.log('[LOGIN DEBUG] setUser permitido');
     isSyncingFlowActive = true;
 
-    addSyncTrace('setUser', 'START', `user=${userName} profile=${userProfile}`);
+    try {
+        addSyncTrace('setUser', 'START', `user=${userName} profile=${userProfile}`);
 
-    localStorage.setItem('currentUser', userName);
-    localStorage.setItem('currentUserId', userId || '');
-    localStorage.setItem('currentUserProfile', userProfile || 'Operador');
+        localStorage.setItem('currentUser', userName);
+        localStorage.setItem('currentUserId', userId || '');
+        localStorage.setItem('currentUserProfile', userProfile || 'Operador');
 
-    // Entrada INSTANTÂNEA no menu
-    renderMenu();
+        // Entrada INSTANTÂNEA no menu
+        renderMenu();
 
-    // Sincronização silenciosa em background - COORDENADA
-    if (navigator.onLine) {
-        addTechnicalLog('LOGIN', 'SILENT_SYNC_START', userName);
-        console.log("[SYNC] setUser coordenando sincronização inicial...");
-        addSyncTrace('setUser', 'CALL', 'processSyncQueue + loadAllData');
-        processSyncQueue('setUser');
-        loadAllData(true, 'setUser');
+        // Sincronização silenciosa em background - COORDENADA
+        if (navigator.onLine) {
+            addTechnicalLog('LOGIN', 'SILENT_SYNC_START', userName);
+            console.log("[SYNC] setUser coordenando sincronização inicial...");
+            addSyncTrace('setUser', 'CALL', 'processSyncQueue + loadAllData');
+            processSyncQueue('setUser');
+            loadAllData(true, 'setUser');
+        }
+
+        addSyncTrace('setUser', 'COMPLETE', userName);
+    } finally {
+        isSyncingFlowActive = false;
     }
-
-    isSyncingFlowActive = false;
-    addSyncTrace('setUser', 'COMPLETE', userName);
 }
 function logout() {
     localStorage.removeItem('currentUser');
@@ -1967,8 +2094,8 @@ function renderLogin(push = true) {
 
     const loginHTML = `
         <div class="login-screen fade-in" id="login-screen" ${backgroundStyle}>
-            <div class="login-header-actions" style="position: absolute; top: 20px; right: 20px; z-index: 100;">
-                <button id="btn-fullscreen-login" onclick="toggleFullscreen()" class="btn-fullscreen-toggle" title="Tela Cheia" style="background: rgba(16, 16, 24, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15); transition: all 0.2s; cursor: pointer;">
+            <div class="top-hover-zone">
+                <button id="btn-fullscreen-login" onclick="toggleFullscreen()" class="btn-floating-app btn-tela-cheia" title="Tela Cheia">
                     <span class="material-symbols-rounded">fullscreen</span>
                 </button>
             </div>
@@ -2156,7 +2283,7 @@ const channel3DIcons = {
 
 // Função para obter os itens do menu baseados na configuração centralizada
 function getMenuItemsFromConfig() {
-    const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
+    const modoRapidoAtivo = isModoRapidoAtivo();
     
     // Aplicar lógica baseada na configuração (todos os módulos всегда visíveis)
     return menuModulesConfig
@@ -2197,7 +2324,7 @@ const menuRoutes = {
     financeiro: 'renderFinanceiroSubMenu()',
     configuracoes: 'renderConfigSubMenu()',
     kit_lampada: 'renderGuiaLampada()',
-    ajuste: 'renderInventarioAjuste()'
+    ajuste: 'renderAjusteEstoqueScreen()'
 };
 
 function renderMenu(push = true) {
@@ -2212,18 +2339,21 @@ function renderMenu(push = true) {
     }
     document.body.classList.add('menu-active');
 
-    const modoRapidoAtivo = localStorage.getItem('config_modo_rapido') === 'true';
+    const modoRapidoAtivo = isModoRapidoAtivo();
     const quickButtonIcon = modoRapidoAtivo ? 'bolt' : 'add';
-    const quickButtonAction = modoRapidoAtivo ? 'startFastMode()' : 'toggleQuickActions()';
+    const quickButtonAction = modoRapidoAtivo ? 'showToast("Modo rápido ativo. Use Conferência/Saída direta.", "info")' : 'toggleQuickActions()';
 
     // Usar configuração centralizada
     const finalMenuItems = getMenuItemsFromConfig();
 
     app.innerHTML = `
-                <div class="dashboard-screen fade-in menu-screen">
-                    ${getTopBarHTML(currentUser, null, 'menu')}
-
-                    <main class="container">
+        <div class="dashboard-screen fade-in menu-screen">
+            <div class="top-hover-zone">
+                <button class="btn-floating-app btn-sair" onclick="logout()" title="Sair">
+                    <span class="material-symbols-rounded">power_settings_new</span>
+                </button>
+            </div>
+            <main class="container" style="padding-top: 12px;">
                         <div class="menu-grid">
 ${finalMenuItems.map(item => {
     const routeAction = menuRoutes[item.id] || `handleMenuClick('${item.label}')`;
@@ -2239,31 +2369,7 @@ ${finalMenuItems.map(item => {
                         </div>
                     </main>
 
-                    <div class="menu-bottom-trigger-area"></div>
-                    <footer class="menu-footer">
-                <div class="menu-footer-content">
-                    <div class="menu-footer-item" onclick="renderMovimentacoesSubMenu()">
-                        <span class="material-symbols-rounded icon">swap_horiz</span>
-                        <span>Movimentos</span>
-                    </div>
-                    <div class="menu-footer-item active" onclick="renderSearchScreen()">
-                        <span class="material-symbols-rounded icon">search</span>
-                        <span>Buscar</span>
-                    </div>
-                    <div class="menu-footer-action ${isModoRapido ? 'modo-rapido' : ''}" id="quick-action-btn" onclick="${quickButtonAction}">
-                        <span id="quick-action-icon" class="material-symbols-rounded icon">${quickButtonIcon}</span>
-                    </div>
-                    <div class="menu-footer-item" onclick="renderAlerts()">
-                        <span class="material-symbols-rounded icon">notifications</span>
-                        <span>Alertas</span>
-                    </div>
-                    <div class="menu-footer-item" onclick="renderConfigSubMenu()">
-                        <span class="material-symbols-rounded icon">settings</span>
-                        <span>Config</span>
-                    </div>
                 </div>
-            </footer>
-        </div>
     `;
 }
 
@@ -2551,6 +2657,8 @@ function renderMovimentacoesSubMenu() {
     const currentUser = localStorage.getItem('currentUser');
     const subItems = [
         { id: 'transferencia', label: 'TRANSFERÊNCIA', icon: 'movimentacoes', action: 'renderTransferenciaScreen()' },
+        { id: 'ajuste_estoque', label: 'AJUSTE DE ESTOQUE', icon: 'ajuste', action: 'renderAjusteEstoqueScreen()' },
+        { id: 'garantia', label: 'ENVIAR PARA GARANTIA', icon: 'nf', action: 'renderGarantiaEnvioForm()' },
         { id: 'historico_mov', label: 'HISTÓRICO', icon: 'historico', action: 'renderMovimentacoesHistory()' }
     ];
 
@@ -2611,7 +2719,7 @@ function renderMovimentacoesList(history) {
         return `
             <div style="text-align: center; padding: 40px; color: var(--muted);">
                 <span class="material-symbols-rounded" style="font-size: 48px; margin-bottom: 16px;">inbox</span>
-                <p>Nenhuma movimentação encontrada.</p>
+                <p>Nenhum movimento encontrado</p>
             </div>
         `;
     }
@@ -2624,7 +2732,8 @@ function renderMovimentacoesList(history) {
             'TRANSFERENCIA': { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' },
             'AJUSTE': { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
             'AJUSTE+': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
-            'AJUSTE-': { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' }
+            'AJUSTE-': { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
+            'AJUSTE_ESTOQUE': { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
         };
         const c = colors[tipo] || { bg: 'rgba(255,255,255,0.1)', color: 'white' };
         return `<span style="background: ${c.bg}; color: ${c.color}; padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700;">${tipo}</span>`;
@@ -3433,18 +3542,17 @@ async function renderMovimentacoesHistory() {
     `;
 
     try {
-        console.log('[INV-DIAG] iniciando busca de movimentos...');
-        const history = await DataClient.fetchTable('movimentos');
+        console.log('[MOVIMENTOS DEBUG] iniciando busca de movimentos...');
+        const history = await DataClient.fetchMovimentosSupabase();
         
         // Logs de diagnóstico (history é o 'data' retornado pelo client)
-        console.log('[INV-DIAG] movimentos carregados:', history?.length || 0);
-        console.log('[INV-DIAG] dados movimentos:', history);
+        console.log('[MOVIMENTOS DEBUG] movimentos carregados:', history?.length || 0);
 
         const listContainer = document.getElementById('movimentacoes-list-container');
         if (listContainer) {
             if (!history || history.length === 0) {
-                console.log('[INV-DIAG] Nenhuma movimentação encontrada no banco.');
-                listContainer.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--muted);">Nenhuma movimentação encontrada.</div>`;
+                console.log('[MOVIMENTOS DEBUG] Nenhuma movimentação encontrada no banco.');
+                listContainer.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--muted);">Nenhum movimento encontrado</div>`;
             } else {
                 listContainer.innerHTML = renderMovimentacoesList(history);
                 listContainer.style.textAlign = 'left';
@@ -3452,10 +3560,13 @@ async function renderMovimentacoesHistory() {
             }
         }
     } catch (err) {
-        console.error('[INV-DIAG] erro crítico ao processar movimentos:', err);
+        // Logar erro real com [MOVIMENTOS DEBUG]
+        console.error('[MOVIMENTOS DEBUG] erro crítico ao processar movimentos:', err);
+        
         const listContainer = document.getElementById('movimentacoes-list-container');
         if (listContainer) {
-            listContainer.innerHTML = `<div style="color: #ef4444; padding: 20px; text-align: center;">Erro ao carregar dados do servidor</div>`;
+            // Se vazio ou erro, mostrar "Nenhum movimento encontrado" e não o erro técnico
+            listContainer.innerHTML = `<div style="text-align: center; padding: 40px; color: var(--muted);">Nenhum movimento encontrado</div>`;
         }
     }
 }
@@ -3948,6 +4059,310 @@ function renderInventarioParcialForm() {
     renderInventorySetup('parcial');
 }
 
+// ==== AJUSTE DE ESTOQUE (Módulo Movimentações) ====
+// Correção manual de saldo por produto e local.
+// NÃO cria inventário. Gera movimento tipo 'ajuste_estoque' e atualiza estoque_atual.
+let ajusteSelectedProduct = null;
+
+function renderAjusteEstoqueScreen() {
+    const currentUser = localStorage.getItem('currentUser');
+    if (!currentUser) return renderLogin();
+
+    currentScreen = 'ajuste_estoque';
+    ensureProdutosLoaded();
+
+    ajusteSelectedProduct = null;
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in" style="background: #101018; min-height: 100vh;">
+            ${getTopBarHTML(currentUser, 'renderMovimentacoesSubMenu()')}
+            <main class="container" style="max-width: 560px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 32px;">
+                    <div style="background: rgba(59,130,246,0.12); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
+                        <span class="material-symbols-rounded" style="font-size: 40px; color: #3B82F6;">tune</span>
+                    </div>
+                    <h2 style="color: #ffffff; font-size: 1.3rem; font-weight: 800; margin-bottom: 4px;">Ajuste de Estoque</h2>
+                    <p style="color: var(--muted); font-size: 0.85rem;">Correção manual de saldo por produto e local</p>
+                </div>
+
+                <form id="ajuste-form" onsubmit="event.preventDefault(); saveAjusteEstoque()" style="display: flex; flex-direction: column; gap: 20px;">
+
+                    <!-- 1. Buscar Produto -->
+                    <div class="input-group full-width">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Produto</label>
+                        <input type="text" id="ajuste-search" class="op-input" placeholder="Buscar por nome, EAN ou ID..." oninput="searchProductForAjuste()" autocomplete="off">
+                        <div id="ajuste-search-results" style="margin-top: 4px; max-height: 160px; overflow-y: auto; border-radius: 12px;"></div>
+                        <div id="ajuste-selected-info" style="display: none; background: rgba(59,130,246,0.08); padding: 14px; border-radius: 14px; margin-top: 8px; border: 1px solid rgba(59,130,246,0.3);">
+                            <div id="ajuste-selected-name" style="font-weight: 700; color: #ffffff; font-size: 0.9rem;"></div>
+                            <div id="ajuste-selected-id" style="font-size: 0.7rem; color: var(--muted); margin-top: 2px;"></div>
+                            <div id="ajuste-selected-stock" style="font-size: 0.7rem; color: #4ade80; margin-top: 6px; font-weight: 600;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Local do Estoque -->
+                    <div class="input-group">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Local do Estoque</label>
+                        <select id="ajuste-local" class="op-input" onchange="updateAjusteStockInfo()">
+                            <option value="TÉRREO">TÉRREO</option>
+                            <option value="MOSTRUÁRIO">MOSTRUÁRIO</option>
+                            <option value="1º ANDAR">1º ANDAR</option>
+                            <option value="DEFEITO">DEFEITO</option>
+                            <option value="EM_GARANTIA">EM GARANTIA</option>
+                            <option value="EM_TRANSPORTE">EM TRANSPORTE</option>
+                        </select>
+                    </div>
+
+                    <!-- 3. Tipo de Ajuste -->
+                    <div class="input-group">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Tipo de Ajuste</label>
+                        <select id="ajuste-tipo" class="op-input">
+                            <option value="definir">Definir quantidade correta</option>
+                            <option value="somar">Somar quantidade</option>
+                            <option value="subtrair">Subtrair quantidade</option>
+                        </select>
+                    </div>
+
+                    <!-- 4. Quantidade -->
+                    <div class="input-group">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Quantidade</label>
+                        <input type="number" id="ajuste-qty" class="op-input" placeholder="0" min="0" step="1">
+                    </div>
+
+                    <!-- 5. Motivo -->
+                    <div class="input-group">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Motivo</label>
+                        <select id="ajuste-motivo" class="op-input">
+                            <option value="correcao_contagem">Correção de contagem</option>
+                            <option value="avaria">Avaria</option>
+                            <option value="perda">Perda</option>
+                            <option value="devolucao">Devolução</option>
+                            <option value="garantia">Garantia</option>
+                            <option value="erro_lancamento">Erro de lançamento</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+
+                    <!-- 6. Observação -->
+                    <div class="input-group full-width">
+                        <label style="color: #888; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 8px; display: block;">Observação</label>
+                        <input type="text" id="ajuste-obs" class="op-input" placeholder="Opcional" autocomplete="off">
+                    </div>
+
+                    <!-- Botões -->
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <button type="button" class="btn-action btn-secondary" style="flex: 1; justify-content: center; border-radius: 14px; padding: 16px;" onclick="renderMovimentacoesSubMenu()">Cancelar</button>
+                        <button type="submit" class="btn-action" style="flex: 2; justify-content: center; border-radius: 14px; padding: 16px; background: #3B82F6; font-weight: 800;">Salvar Ajuste</button>
+                    </div>
+                </form>
+            </main>
+        </div>
+    `;
+}
+
+function searchProductForAjuste() {
+    const searchInput = document.getElementById('ajuste-search');
+    const resultsDiv = document.getElementById('ajuste-search-results');
+    if (!searchInput || !resultsDiv) return;
+
+    const query = searchInput.value.toLowerCase().trim();
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+
+    const results = (appData.products || []).filter(p =>
+        (p.descricao_base || '').toLowerCase().includes(query) ||
+        (p.descricao_completa || '').toLowerCase().includes(query) ||
+        (p.ean || '').toString().toLowerCase().includes(query) ||
+        (p.id_interno || '').toString().toLowerCase().includes(query)
+    ).slice(0, 6);
+
+    resultsDiv.innerHTML = results.map(p => `
+        <div style="padding: 12px 14px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'" onclick="selectProductForAjuste('${(p.id_interno || p.ean || '').replace(/'/g, '')}')">
+            <div style="font-weight: 700; font-size: 0.82rem; color: #ffffff;">${p.descricao_base || p.nome || 'Sem nome'}</div>
+            <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">ID: ${p.id_interno || ''} | EAN: ${p.ean || 'N/A'}</div>
+        </div>
+    `).join('');
+}
+
+async function selectProductForAjuste(id) {
+    ajusteSelectedProduct = (appData.products || []).find(p => p.id_interno == id || p.ean == id);
+    if (!ajusteSelectedProduct) return;
+
+    const searchInput = document.getElementById('ajuste-search');
+    const resultsDiv = document.getElementById('ajuste-search-results');
+    const infoDiv = document.getElementById('ajuste-selected-info');
+
+    if (searchInput) searchInput.value = ajusteSelectedProduct.descricao_base || ajusteSelectedProduct.nome || '';
+    if (resultsDiv) resultsDiv.innerHTML = '';
+
+    if (infoDiv) {
+        infoDiv.style.display = 'block';
+        document.getElementById('ajuste-selected-name').textContent = ajusteSelectedProduct.descricao_base || ajusteSelectedProduct.nome || '';
+        document.getElementById('ajuste-selected-id').textContent = `ID: ${ajusteSelectedProduct.id_interno || ''} | EAN: ${ajusteSelectedProduct.ean || 'N/A'}`;
+    }
+
+    await updateAjusteStockInfo();
+}
+
+async function updateAjusteStockInfo() {
+    if (!ajusteSelectedProduct) return;
+
+    const localRaw = document.getElementById('ajuste-local')?.value || 'TÉRREO';
+    const stockDiv = document.getElementById('ajuste-selected-stock');
+    if (!stockDiv) return;
+
+    try {
+        const stockData = await DataClient.fetchEstoqueItemLocalSupabase(ajusteSelectedProduct.id_interno, localRaw);
+        const saldo = stockData ? Number(stockData.saldo_disponivel || 0) : 0;
+        stockDiv.textContent = `Saldo atual neste local: ${saldo}`;
+        stockDiv.style.color = saldo > 0 ? '#4ade80' : '#fbbf24';
+    } catch (e) {
+        stockDiv.textContent = 'Erro ao buscar saldo';
+        stockDiv.style.color = '#ef4444';
+    }
+}
+
+async function saveAjusteEstoque() {
+    if (isFinalizing) return;
+    isFinalizing = true;
+
+    try {
+        // Validar produto
+        if (!ajusteSelectedProduct) {
+            showToast('Selecione um produto.', 'error');
+            isFinalizing = false;
+            return;
+        }
+
+        const localRaw = document.getElementById('ajuste-local')?.value || 'TÉRREO';
+        const tipoAjuste = document.getElementById('ajuste-tipo')?.value || 'definir';
+        const qtyRaw = document.getElementById('ajuste-qty')?.value;
+        const motivo = document.getElementById('ajuste-motivo')?.value || 'outro';
+        const obs = document.getElementById('ajuste-obs')?.value?.trim() || '';
+
+        const qty = parseFloat(qtyRaw);
+        if (isNaN(qty) || qty < 0) {
+            showToast('Quantidade inválida. Digite um número >= 0.', 'error');
+            isFinalizing = false;
+            return;
+        }
+
+        const idInterno = ajusteSelectedProduct.id_interno;
+        const currentUser = localStorage.getItem('currentUser');
+
+        // Buscar saldo atual neste local
+        const stockData = await DataClient.fetchEstoqueItemLocalSupabase(idInterno, localRaw);
+        const saldoAtual = stockData ? Number(stockData.saldo_disponivel || 0) : 0;
+
+        // Calcular novo saldo
+        let novoSaldo = 0;
+        let diferenca = 0;
+
+        if (tipoAjuste === 'definir') {
+            novoSaldo = qty;
+            diferenca = qty - saldoAtual;
+        } else if (tipoAjuste === 'somar') {
+            novoSaldo = saldoAtual + qty;
+            diferenca = qty;
+        } else if (tipoAjuste === 'subtrair') {
+            novoSaldo = saldoAtual - qty;
+            diferenca = -qty;
+        }
+
+        // Verificar estoque negativo
+        if (novoSaldo < 0) {
+            const config = typeof getAppConfig === 'function' ? getAppConfig() : {};
+            if (!config.permitir_saida_estoque_zero) {
+                showToast('Estoque ficaria negativo. Habilite "Permitir saída com estoque zerado" nas Configurações.', 'error');
+                isFinalizing = false;
+                return;
+            }
+        }
+
+        // Montar descrição do motivo
+        const motivoLabels = {
+            'correcao_contagem': 'Correção de contagem',
+            'avaria': 'Avaria',
+            'perda': 'Perda',
+            'devolucao': 'Devolução',
+            'garantia': 'Garantia',
+            'erro_lancamento': 'Erro de lançamento',
+            'outro': 'Outro'
+        };
+        const motivoLabel = motivoLabels[motivo] || motivo;
+        const tipoLabels = { 'definir': 'Definir para', 'somar': 'Somar', 'subtrair': 'Subtrair' };
+        let observacao = `${tipoLabels[tipoAjuste] || tipoAjuste} ${qty} | Motivo: ${motivoLabel}`;
+        if (obs) observacao += ` | Obs: ${obs}`;
+        observacao += ` | Saldo anterior: ${saldoAtual} → Novo: ${novoSaldo}`;
+
+        showToast('Processando ajuste...');
+
+        console.log('[AJUSTE] Salvando movimento tipo ajuste_estoque...');
+        console.log('[AJUSTE] idInterno:', idInterno, 'local:', localRaw, 'tipo:', tipoAjuste, 'qty:', qty, 'novoSaldo:', novoSaldo);
+
+        // 1. Salvar movimento
+        const movData = {
+            tipo: 'ajuste_estoque',
+            id_interno: idInterno,
+            local_origem: localRaw,
+            local_destino: '',
+            quantidade: Math.abs(diferenca),
+            usuario: currentUser,
+            origem: 'MANUAL',
+            observacao: observacao
+        };
+
+        const savedMov = await DataClient.saveMovimentoSupabase(movData);
+        if (!savedMov) {
+            showToast('Erro ao gravar movimento.', 'error');
+            isFinalizing = false;
+            return;
+        }
+
+        console.log('[AJUSTE] Movimento salvo:', savedMov);
+
+        // 2. Atualizar estoque_atual (definir = ajuste absoluto, somar/subtrair = relativo)
+        let operacao;
+        let qtyParaEstoque;
+        if (tipoAjuste === 'definir') {
+            operacao = 'ajuste';
+            qtyParaEstoque = novoSaldo;
+        } else if (tipoAjuste === 'somar') {
+            operacao = 'soma';
+            qtyParaEstoque = qty;
+        } else {
+            operacao = 'subtrai';
+            qtyParaEstoque = qty;
+        }
+
+        const stockSuccess = await DataClient.updateEstoqueSupabase(idInterno, localRaw, operacao, qtyParaEstoque);
+
+        if (stockSuccess) {
+            console.log('[AJUSTE] Estoque atualizado com sucesso');
+            showToast('Ajuste de estoque salvo com sucesso!', 'success');
+
+            // Atualizar cache local
+            if (!appData.movimentacoes) appData.movimentacoes = [];
+            appData.movimentacoes.unshift({
+                ...savedMov,
+                data: new Date(savedMov.data_hora).toLocaleString('pt-BR')
+            });
+            DataClient.invalidateCache('produtos');
+            DataClient.invalidateCache('movimentos');
+
+            setTimeout(() => renderMovimentacoesSubMenu(), 1200);
+        } else {
+            showToast('Movimento salvo, mas estoque NÃO foi atualizado.', 'error');
+        }
+    } catch (e) {
+        console.error('[AJUSTE] Erro fatal:', e);
+        showToast('Erro fatal no ajuste: ' + e.message, 'error');
+    } finally {
+        isFinalizing = false;
+    }
+}
+
 async function renderInventorySetup(type) {
     const currentUser = localStorage.getItem('currentUser');
     
@@ -4109,29 +4524,8 @@ async function createNewInventorySession(type) {
             return;
         }
 
-        const payload = {
-            inventario_id: sessionId,
-            tipo: type,
-            status: 'ABERTO',
-            criado_por: localStorage.getItem('currentUser'),
-            usuario_responsavel: localStorage.getItem('currentUser'),
-            data_inicio: new Date().toISOString(),
-            local: local
-        };
-
-        console.log('[INV-DIAG] payload insert inventarios:', payload);
-
-        const { data, error } = await client
-            .from('inventarios')
-            .insert([payload]);
-
-        console.log('[INV-DIAG] insert result inventarios:', { data, error });
-
-        if (error) {
-            console.error('[INV-DIAG] Erro real Supabase inventario:', error);
-            alert('Erro ao iniciar sessão: ' + error.message);
-            return;
-        }
+        appData.currentInventory.isNewSession = true;
+        console.log('[INVENTARIO DEBUG] tela aberta sem salvar');
 
         await renderInventarioInicialScreen(sessionId);
     } catch (e) {
@@ -4262,15 +4656,29 @@ async function renderInventarioInicialScreen(sessionId, mode = 'edit') {
     app.innerHTML = `
         <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
             ${getTopBarHTML(currentUser, 'renderInventarioSubMenu()')}
-            <div class="inventory-scanning-screen" style="padding: 20px; color: white; max-width: 600px; margin: 0 auto;">
-                <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between;">
-                    <div><div style="font-size: 0.7rem; color: #777; text-transform: uppercase;">Sessão</div><div style="font-weight: 800; color: #4ade80;">${inv.id}</div></div>
-                    <div style="text-align: right;"><div style="font-size: 0.7rem; color: #777; text-transform: uppercase;">Local</div><div style="font-weight: 800;">${inv.local}</div></div>
+            <div class="inventory-scanning-screen" style="padding: 20px; color: white; width: min(92vw, 860px); max-width: 860px; margin: 0 auto;">
+                <div style="background: rgba(255,255,255,0.03); padding: 24px; border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.06); display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <div style="font-size: 0.7rem; color: #777; text-transform: uppercase; margin-bottom: 4px;">Sessão</div>
+                        <div style="font-weight: 800; color: #4ade80; font-size: 1.1rem;">${inv.id}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.7rem; color: #777; text-transform: uppercase; margin-bottom: 4px;">Local</div>
+                        <div style="font-weight: 800; font-size: 1.1rem;">${inv.local}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.7rem; color: #777; text-transform: uppercase; margin-bottom: 4px;">Tipo</div>
+                        <div style="font-weight: 800; color: #eab308; font-size: 1.1rem;">${(inv.tipo || inv.type || '').toUpperCase()}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.7rem; color: #777; text-transform: uppercase; margin-bottom: 4px;">Itens Bipados</div>
+                        <div id="inv-qty-bipados" style="font-weight: 800; font-size: 1.1rem;">${inv.items?.length || 0}</div>
+                    </div>
                 </div>
                 <input type="text" id="inv-ean-input" ${isView ? 'disabled' : ''} placeholder="${isView ? 'MODO VISUALIZAÇÃO' : 'Bipar EAN ou Código...'}" style="width: 100%; padding: 20px; border-radius: 16px; border: 2px solid #333; background: #111; color: white; font-size: 1.2rem; text-align: center;" onkeypress="if(event.key === 'Enter') addInventoryItem()">
                 <div id="inventory-items-list" style="height: calc(100vh - 420px); overflow-y: auto; margin-top: 20px;"></div>
                 <div style="position: fixed; bottom: 0; left: 0; width: 100%; padding: 20px; background: #232323; border-top: 1px solid #333;">
-                    <div style="max-width: 600px; margin: 0 auto;">
+                    <div style="width: min(92vw, 860px); max-width: 860px; margin: 0 auto;">
                         ${isView ? 
                             `
                             <div style="display: flex; gap: 12px;">
@@ -4296,6 +4704,11 @@ async function renderInventarioInicialScreen(sessionId, mode = 'edit') {
 async function updateInventoryItemsList() {
     const list = document.getElementById('inventory-items-list');
     if (!list) return;
+    
+    const qtyBipadosElement = document.getElementById('inv-qty-bipados');
+    if (qtyBipadosElement) {
+        qtyBipadosElement.textContent = appData.currentInventory?.items?.length || 0;
+    }
     
     if (!appData.currentInventory?.items || appData.currentInventory.items.length === 0) {
         list.innerHTML = `
@@ -4386,6 +4799,29 @@ async function saveInventoryItemToServer(item) {
     if (!client) { console.error('[INV-DIAG] Supabase client não encontrado'); return; }
     const inv = appData.currentInventory;
     if (!inv || !inv.id) { console.error('[INV-DIAG] Sessão de inventário inválida'); return; }
+
+    if (inv.isNewSession) {
+        console.log('[INVENTARIO DEBUG] primeiro item bipado, criando inventário');
+        const payload = {
+            inventario_id: inv.id,
+            tipo: inv.type,
+            status: 'ABERTO',
+            criado_por: inv.user,
+            usuario_responsavel: inv.user,
+            data_inicio: inv.date,
+            local: inv.local
+        };
+        const { error } = await client.from('inventarios').insert([payload]);
+        if (error) {
+            console.error('[INVENTARIO DEBUG] Erro ao criar inventário no Supabase:', error);
+            showToast('Erro ao criar sessão de inventário.', 'error');
+            return;
+        }
+        inv.isNewSession = false;
+        
+        if (!appData.inventario) appData.inventario = [];
+        appData.inventario.unshift(payload);
+    }
 
     // Buscar saldo_sistema REAL do Supabase (id_interno + local)
     const estoqueReal = await DataClient.fetchEstoqueItemLocalSupabase(item.id_interno, inv.local);
@@ -4534,8 +4970,16 @@ window.finishInventorySession = async function () {
 
             // 2. Gerar movimento (Trava: se falhar, interrompe)
             if (diferenca !== 0) {
+                // Mapeamento de tipo de movimento de inventário
+                const invType = (appData.currentInventory.type || '').toLowerCase();
+                let movTipo = '';
+                if (invType === 'inicial') movTipo = 'INVENTARIO_INICIAL';
+                else if (invType === 'parcial') movTipo = 'INVENTARIO_PARCIAL';
+                else if (invType === 'geral') movTipo = 'INVENTARIO_GERAL';
+                else movTipo = diferenca > 0 ? 'AJUSTE+' : 'AJUSTE-'; // Fallback seguro
+
                 const movPayload = {
-                    tipo: diferenca > 0 ? 'AJUSTE+' : 'AJUSTE-',
+                    tipo: movTipo,
                     id_interno: item.id_interno,
                     local_origem: null,
                     local_destino: null,
@@ -4630,12 +5074,17 @@ function renderInventorySuccessScreen() {
 
 function renderInventarioSubMenu() {
     stopScanner();
+    
+    if (appData.currentInventory && appData.currentInventory.isNewSession) {
+        console.log('[INVENTARIO DEBUG] usuário saiu sem itens, nada salvo');
+        appData.currentInventory = null;
+    }
+    
     const currentUser = localStorage.getItem('currentUser');
     const subItems = [
         { id: 'inv_inicial', label: 'INVENTÁRIO INICIAL', icon: 'inventario_inicial', onclick: 'startInventarioInicial()' },
         { id: 'inv_geral', label: 'INVENTÁRIO GERAL', icon: 'inventario_geral', onclick: 'startInventarioGeral()' },
         { id: 'inv_parcial', label: 'INVENTÁRIO PARCIAL', icon: 'inventario_parcial', onclick: "renderInventorySetup('parcial')" },
-        { id: 'ajuste', label: 'AJUSTE DE ESTOQUE', icon: 'ajuste', onclick: "renderInventorySetup('ajuste')" },
         { id: 'historico_inv', label: 'HISTÓRICO', icon: 'historico', onclick: 'renderInventarioHistory()' }
     ];
 
@@ -4664,7 +5113,7 @@ async function renderInventarioHistory() {
     app.innerHTML = `
         <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
             ${getTopBarHTML(currentUser, 'renderInventarioSubMenu()')}
-            <div style="padding: 20px; max-width: 600px; margin: 0 auto; text-align: center; color: #777;">
+            <div style="padding: 20px; width: min(92vw, 860px); max-width: 860px; margin: 0 auto; text-align: center; color: #777;">
                 <div class="loading-spinner" style="margin: 20px auto;"></div>
                 Carregando histórico...
             </div>
@@ -4690,22 +5139,20 @@ async function renderInventarioHistory() {
         app.innerHTML = `
             <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
                 ${getTopBarHTML(currentUser, 'renderInventarioSubMenu()')}
-                <div style="padding: 20px; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: white; margin-bottom: 20px; font-size: 1.2rem;">Histórico de Inventários</h2>
-                    <div style="display: flex; flex-direction: column; gap: 12px;">
-                        ${history.length === 0 ? '<p style="color: #555; text-align: center;">Nenhum registro encontrado.</p>' : 
+                <div style="padding: 20px; width: min(92vw, 860px); max-width: 860px; margin: 0 auto;">
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+                        ${history.length === 0 ? '<p style="color: #555; text-align: center; padding: 40px;">Nenhum registro encontrado.</p>' : 
                             history.map(inv => `
-                                <div onclick="${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? `viewClosedInventory('${inv.inventario_id}')` : ''}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; ${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? 'cursor: pointer;' : ''}">
+                                <div onclick="${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? `viewClosedInventory('${inv.inventario_id}')` : ''}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 24px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; ${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? 'cursor: pointer;' : ''}" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
                                     <div>
-                                        <div style="color: #4ade80; font-weight: 700; font-size: 0.9rem;">${inv.inventario_id}</div>
-                                        <div style="color: #777; font-size: 0.75rem;">${inv.tipo} | ${inv.local}</div>
-                                        <div style="color: #555; font-size: 0.7rem;">${new Date(inv.data_inicio).toLocaleDateString('pt-BR')} ${new Date(inv.data_inicio).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</div>
+                                        <div style="color: #4ade80; font-weight: 800; font-size: 1.1rem; margin-bottom: 4px;">${inv.inventario_id}</div>
+                                        <div style="color: #777; font-size: 0.85rem; margin-bottom: 2px;">${(inv.tipo || '').toUpperCase()} | ${inv.local}</div>
+                                        <div style="color: #555; font-size: 0.8rem;">${new Date(inv.data_inicio).toLocaleDateString('pt-BR')} ${new Date(inv.data_inicio).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <div style="color: ${inv.status === 'FECHADO' ? '#4ade80' : (inv.status === 'ANULADO' ? '#ef4444' : '#fbbf24')}; font-size: 0.75rem; font-weight: 700;">${inv.status}</div>
-                                        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 8px;">
-                                            ${(inv.status === 'ABERTO' || inv.status === 'ABERTA') ? `<button onclick="event.stopPropagation(); resumeInventorySession('${inv.inventario_id}', '${inv.tipo}')" style="background: #4ade80; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.7rem; font-weight: 700; cursor: pointer; color: #111;">CONTINUAR</button>` : ''}
-                                            <button onclick="event.stopPropagation(); deleteTestInventory('${inv.inventario_id}')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; padding: 5px 10px; border-radius: 5px; font-size: 0.6rem; font-weight: 700; cursor: pointer; color: #ef4444;">EXCLUIR TESTE</button>
+                                        <div style="color: ${inv.status === 'FECHADO' ? '#4ade80' : (inv.status === 'ANULADO' ? '#ef4444' : '#fbbf24')}; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.5px;">${inv.status}</div>
+                                        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 12px;">
+                                            ${(inv.status === 'ABERTO' || inv.status === 'ABERTA') ? `<button onclick="event.stopPropagation(); resumeInventorySession('${inv.inventario_id}', '${inv.tipo}')" style="background: #4ade80; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; color: #111; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">CONTINUAR</button>` : ''}
                                         </div>
                                     </div>
                                 </div>
@@ -5002,7 +5449,7 @@ function renderSearchScreen(push = true) {
                         type="search"
                         id="search-input"
                         class="product-search-input"
-                        placeholder="Buscar por nome, marca ou código..."
+                        placeholder=""
                         autocomplete="off"
                         autocorrect="off"
                         autocapitalize="none"
@@ -5267,8 +5714,8 @@ function showProductDetailsByCode(code) {
     }
 }
 
-async function performSearch() {
-    console.log('[BUSCA MOBILE DEBUG] evento input');
+const doPerformSearch = async () => {
+    console.log('[BUSCA MOBILE DEBUG] executando busca...');
     const start = performance.now();
     const input = document.getElementById('search-input');
     if (!input) return;
@@ -5294,7 +5741,9 @@ async function performSearch() {
         }
     }
 
-    const query = normalizeText(queryRaw);
+    const query = normalizeProductSearchTerm(queryRaw);
+    console.log('[BUSCA DEBUG] termo original:', queryRaw);
+    console.log('[BUSCA DEBUG] termo normalizado:', query);
 
     // 2. Busca Local no Índice
     const results = appData.products.filter(p => p._searchIndex.includes(query));
@@ -5332,10 +5781,18 @@ async function performSearch() {
         .slice(0, 50);
 
     const end = performance.now();
-    console.log(`[BUSCA] Local: "${queryRaw}" | Encontrados: ${results.length} | Exibindo: ${finalResults.length} | Tempo: ${Math.round(end - start)}ms`);
+    console.log(`[BUSCA DEBUG] Local: "${queryRaw}" | Encontrados: ${results.length} | Exibindo: ${finalResults.length} | Tempo: ${Math.round(end - start)}ms`);
     
     renderSearchResults(finalResults);
-}
+    
+    // Mostrar alerta 'PRODUTO NÃO CADASTRADO' só aqui, após falha na busca e se for termo longo
+    if (finalResults.length === 0 && queryRaw.length >= 6 && !queryRaw.includes(' ')) {
+        console.log('[BUSCA DEBUG] nenhum resultado real encontrado na busca');
+        showScanFeedback('warning', 'PRODUTO NÃO CADASTRADO');
+    }
+};
+
+window.performSearch = debounce(doPerformSearch, 300);
 
 // Criar versão debounced da busca para evitar processamento excessivo ao digitar
 let lastSearchQuery = '';
@@ -6726,6 +7183,10 @@ function getChannelConfig(label) {
 }
 
 async function renderPickMenu() {
+    if (isModoRapidoAtivo()) {
+        showToast("Modo rápido ativo. Use Conferência/Saída direta.", "info");
+        // Opcional: Impedir abertura ou abrir com aviso
+    }
     const currentUser = localStorage.getItem('currentUser');
     document.body.classList.remove('menu-active');
     
@@ -7563,18 +8024,14 @@ function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '') 
                     <h2 style="font-size: 1.2rem; font-weight: 700;">${sessionId}</h2>
                 </div>
 
-                <div class="search-container" style="background: var(--surface); padding: 20px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
-                    <div class="input-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 12px; display: block; font-size: 0.7rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Bipar ou Digitar EAN para Conferir (às cegas)</label>
-                        <div style="display: flex; gap: 12px;">
-                            <input type="text" id="pack-ean-input" class="input-field" style="flex: 1;" 
-                                   placeholder="EAN do Produto..." 
-                                   onkeypress="if(event.key === 'Enter') addPackScan()">
-                            <button class="btn-action" style="padding: 0 20px; min-width: auto; background: var(--primary);" onclick="startScanner(false, true)">
-                                <span class="material-symbols-rounded">photo_camera</span>
-                            </button>
-                        </div>
-                    </div>
+                <div class="product-search-bar" style="margin-top: 20px; max-width: 100%;">
+                    <span class="material-symbols-rounded" style="color: #666; font-size: 24px; margin-right: 12px;">qr_code</span>
+                    <input type="text" id="pack-ean-input" class="product-search-input" 
+                           placeholder="" 
+                           onkeypress="if(event.key === 'Enter') addPackScan()">
+                    <button class="product-search-camera-btn" type="button" onclick="startScanner(false, true)" style="margin-left: 10px;">
+                        <span class="material-symbols-rounded" style="font-size: 24px; color: var(--primary);">photo_camera</span>
+                    </button>
                 </div>
 
                 <div id="pack-items-list" style="margin-bottom: 20px;"></div>
@@ -8169,7 +8626,7 @@ function quickActionSaida() {
 
 function quickActionAjuste() {
     toggleQuickActions();
-    renderInventarioSubMenu();
+    renderAjusteEstoqueScreen();
 }
 
 function quickActionNovoProduto() {
@@ -8378,11 +8835,12 @@ async function renderGuiaLampada(push = true) {
         }
 
         contentArea.innerHTML = `
-            <div class="kit-search-container">
+            <div class="product-search-bar">
+                <span class="material-symbols-rounded" style="color: var(--muted); font-size: 24px; margin-right: 12px;">search</span>
                 <input
                     type="search"
                     id="kit-search-input"
-                    class="kit-search-input"
+                    class="product-search-input"
                     placeholder=""
                     autocomplete="off"
                     autocorrect="off"
@@ -8390,10 +8848,9 @@ async function renderGuiaLampada(push = true) {
                     spellcheck="false"
                     inputmode="search"
                 />
-                <span class="material-symbols-rounded kit-search-icon">search</span>
             </div>
             
-            <div id="kit-results" class="product-search-results" style="margin-top: 30px;">
+            <div id="kit-results" class="product-search-results">
                 <!-- Resultados limpos -->
             </div>
         `;
@@ -8653,18 +9110,374 @@ function renderProductSubMenu() {
 
 function renderConfigSubMenu() {
     const currentUser = localStorage.getItem('currentUser');
+    const config = getAppConfig();
+    currentScreen = 'internal';
+
     app.innerHTML = `
-        <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
+        <div class="dashboard-screen internal fade-in config-screen">
             ${getTopBarHTML(currentUser, 'renderMenu()')}
+            
+            <main class="container" style="padding-top: 60px;">
+                <div style="padding: 0 20px;">
+                    <h2 style="color: white; font-family: 'Fjalla One', sans-serif; margin-bottom: 24px;">CONFIGURAÇÕES</h2>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <!-- OPÇÃO 1 -->
+                        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="flex: 1;">
+                                <div style="color: white; font-weight: 700; font-size: 1rem;">SAÍDA COM ESTOQUE ZERO</div>
+                                <div style="color: var(--muted); font-size: 0.8rem; margin-top: 4px;">Permitir finalizar saídas mesmo sem saldo em estoque.</div>
+                            </div>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="toggle-estoque-zero" ${config.permitir_saida_estoque_zero ? 'checked' : ''} onchange="toggleConfig('permitir_saida_estoque_zero', this.checked)">
+                                <label for="toggle-estoque-zero"></label>
+                            </div>
+                        </div>
+
+                        <!-- OPÇÃO 2 -->
+                        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="flex: 1;">
+                                <div style="color: white; font-weight: 700; font-size: 1rem;">MODO RÁPIDO</div>
+                                <div style="color: var(--muted); font-size: 0.8rem; margin-top: 4px;">Simplifica fluxos e desabilita Separação manual.</div>
+                            </div>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="toggle-modo-rapido" ${config.modo_rapido ? 'checked' : ''} onchange="toggleConfig('modo_rapido', this.checked)">
+                                <label for="toggle-modo-rapido"></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 40px; text-align: center; color: var(--muted); font-size: 0.75rem;">
+                        <p>DY AUTO PARTS - v2.0.0</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+}
+
+function toggleConfig(key, value) {
+    const config = getAppConfig();
+    config[key] = value;
+    setAppConfig(config);
+    showToast(`Configuração atualizada`, 'success');
+    
+    // Se for modo rápido, recarregar menu se necessário para feedback imediato
+    if (key === 'modo_rapido') {
+        renderMenu(false);
+    }
+}
+
+function renderGarantiaEnvioForm() {
+    const currentUser = localStorage.getItem('currentUser');
+    currentScreen = 'internal';
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in garantia-screen">
+            ${getNFBackButton('renderMovimentacoesSubMenu()')}
+            
+            <main class="container" style="padding-top: 60px;">
+                <div style="padding: 0 20px 40px 20px;">
+                    <h2 style="color: white; font-family: 'Fjalla One', sans-serif; margin-bottom: 20px;">ENVIAR PARA GARANTIA</h2>
+                    
+                    <div class="form-grid" style="background: white; padding: 24px; border-radius: 24px; gap: 16px;">
+                        <div class="input-group full-width">
+                            <label style="color: #666; margin-bottom: 8px; display: block; font-size: 0.75rem; font-weight: 700;">BUSCAR PRODUTO</label>
+                            <div class="product-search-bar" style="margin: 0; max-width: 100%; height: 50px; background: #f5f5f5; border: 1px solid #ddd;">
+                                <span class="material-symbols-rounded" style="color: #999; font-size: 20px; margin-right: 8px;">search</span>
+                                <input type="text" class="product-search-input" placeholder="" style="font-size: 0.9rem;">
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label style="color: #666;">QUANTIDADE</label>
+                            <input type="number" class="input-field" value="1" style="background: #f5f5f5;">
+                        </div>
+
+                        <div class="input-group">
+                            <label style="color: #666;">FORNECEDOR / DESTINO</label>
+                            <input type="text" class="input-field" placeholder="Nome do Fornecedor" style="background: #f5f5f5;">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label style="color: #666;">MOTIVO DA GARANTIA</label>
+                            <select class="input-field" style="background: #f5f5f5; appearance: none;">
+                                <option>DEFEITO DE FÁBRICA</option>
+                                <option>QUEBRA NO TRANSPORTE</option>
+                                <option>ERRO DE EMBALAGEM</option>
+                                <option>OUTROS</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label style="color: #666;">OBSERVAÇÕES</label>
+                            <textarea class="input-field" style="background: #f5f5f5; min-height: 80px;" placeholder="Detalhes técnicos..."></textarea>
+                        </div>
+
+                        <div style="grid-column: 1 / -1; margin-top: 10px;">
+                            <button class="btn-action" onclick="showToast('Envio registrado (simulado)', 'success')" style="width: 100%; justify-content: center; padding: 18px; font-size: 1.1rem; background: #000 !important;">
+                                <span class="material-symbols-rounded">send</span>
+                                SALVAR ENVIO PARA GARANTIA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     `;
 }
 
 function renderNFSubMenu() {
     const currentUser = localStorage.getItem('currentUser');
+    currentScreen = 'internal';
+    document.body.classList.remove('menu-active');
+    
     app.innerHTML = `
-        <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
+        <div class="dashboard-screen internal fade-in nf-submenu-screen entrada-nf-screen">
             ${getTopBarHTML(currentUser, 'renderMenu()')}
+
+            <main class="container">
+                <div class="menu-grid" style="margin-top: 12px;">
+                    <div class="menu-card" onclick="renderNFPlaceholder('RECEBER POR XML')">
+                        <span class="menu-icon-3d">${menu3DIcons?.nf || "📄"}</span>
+                        <span class="label">RECEBER POR XML</span>
+                    </div>
+
+                    <div class="menu-card" onclick="renderNFManualForm()">
+                        <span class="menu-icon-3d">${menu3DIcons?.cadastrar || "➕"}</span>
+                        <span class="label">RECEBIMENTO MANUAL</span>
+                    </div>
+
+                    <div class="menu-card" onclick="renderNFAbertasList()">
+                        <span class="menu-icon-3d">${menu3DIcons?.inventario_parcial || "⏳"}</span>
+                        <span class="label">NOTAS EM ABERTO</span>
+                    </div>
+
+                    <div class="menu-card" onclick="renderNFPlaceholder('HISTÓRICO DE ENTRADAS')">
+                        <span class="menu-icon-3d">${menu3DIcons?.historico || "📋"}</span>
+                        <span class="label">HISTÓRICO DE ENTRADAS</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+}
+
+function renderNFManualForm() {
+    const currentUser = localStorage.getItem('currentUser');
+    currentScreen = 'internal';
+    
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in nf-form-screen entrada-nf-screen">
+            ${getTopBarHTML(currentUser, 'renderNFSubMenu()')}
+            
+            <main class="container">
+                <div class="form-grid" style="padding: 12px 20px 40px 20px; gap: 12px;">
+                    <div class="input-group">
+                        <label>Nº NF</label>
+                        <input type="text" id="nf_numero" class="input-field" placeholder="000000">
+                    </div>
+                    <div class="input-group">
+                        <label>Série</label>
+                        <input type="text" id="nf_serie" class="input-field" placeholder="1">
+                    </div>
+                    <div class="input-group">
+                        <label>Emissão</label>
+                        <input type="date" id="nf_data_emissao" class="input-field">
+                    </div>
+                    <div class="input-group">
+                        <label>Recebimento</label>
+                        <input type="date" id="nf_data_recebimento" class="input-field" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div class="input-group">
+                        <label>CNPJ Fornecedor</label>
+                        <input type="text" id="nf_cnpj" class="input-field" placeholder="00.000.000/0000-00">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Fornecedor</label>
+                        <input type="text" id="nf_fornecedor" class="input-field" placeholder="Nome Fantasia / Razão Social">
+                    </div>
+                    <div class="input-group full-width">
+                        <label>Valor Total</label>
+                        <input type="number" id="nf_valor" class="input-field" step="0.01" placeholder="0,00">
+                    </div>
+
+                    <div style="grid-column: 1 / -1; margin-top: 10px;">
+                        <button class="btn-action" onclick="saveNFManual()" style="width: 100%; justify-content: center; padding: 16px; font-size: 1rem; background: #22c55e !important;">
+                            <span class="material-symbols-rounded">check_circle</span>
+                            CONFIRMAR E CONTINUAR
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+}
+
+async function saveNFManual() {
+    const payload = {
+        numero_nf: document.getElementById('nf_numero').value,
+        serie: document.getElementById('nf_serie').value,
+        data_emissao: document.getElementById('nf_data_emissao').value,
+        data_recebimento: document.getElementById('nf_data_recebimento').value,
+        cnpj_fornecedor: document.getElementById('nf_cnpj').value,
+        fornecedor_nome: document.getElementById('nf_fornecedor').value,
+        valor_total: parseFloat(document.getElementById('nf_valor').value || 0),
+        observacoes: '' // Removido do formulário, mas mantido no payload
+    };
+
+    if (!payload.numero_nf || !payload.fornecedor_nome) {
+        showToast('Nº NF e Fornecedor são obrigatórios', 'warning');
+        return;
+    }
+
+    const btn = event.currentTarget;
+    const originalContent = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = 'SALVANDO...';
+
+    const result = await DataClient.createEntradaNFManual(payload);
+
+    if (result) {
+        showToast('NF salva com rascunho', 'success');
+        renderNFDetail(result.id);
+    } else {
+        showToast('Erro ao salvar NF', 'error');
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
+    }
+}
+
+async function renderNFAbertasList() {
+    const currentUser = localStorage.getItem('currentUser');
+    currentScreen = 'internal';
+    
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in nf-list-screen entrada-nf-screen">
+            ${getTopBarHTML(currentUser, 'renderNFSubMenu()')}
+            
+            <main class="container">
+                <div id="nf-list-container" style="padding: 12px 20px 40px 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2 style="color: white; font-family: 'Fjalla One', sans-serif; font-size: 1.4rem;">NOTAS EM ABERTO</h2>
+                        <button class="btn-action" onclick="renderNFManualForm()" style="padding: 8px 16px; font-size: 0.8rem; background: var(--primary) !important;">
+                            <span class="material-symbols-rounded">add</span> NOVA
+                        </button>
+                    </div>
+                    <div id="nf-list-items">
+                        <div style="text-align: center; padding: 40px; color: var(--muted);">Carregando notas...</div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+
+    const notas = await DataClient.listEntradasNFAbertas();
+    const container = document.getElementById('nf-list-items');
+
+    if (notas.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1);">
+                <span class="material-symbols-rounded" style="font-size: 48px; color: var(--muted); margin-bottom: 16px;">description</span>
+                <p style="color: var(--muted);">Nenhuma nota em aberto encontrada.</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+            ${notas.map(nf => `
+                <div class="nf-card" onclick="renderNFDetail('${nf.id}')" style="background: white; padding: 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 800; color: #101018; font-size: 1rem;">NF ${nf.numero_nf}</div>
+                        <div style="font-size: 0.75rem; color: #666; text-transform: uppercase;">${nf.fornecedor_nome}</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-weight: 700; color: var(--primary); font-size: 0.9rem;">R$ ${parseFloat(nf.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                        <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 4px;">
+                            <span class="status-dot" style="width: 6px; height: 6px; background: ${nf.status === 'rascunho' ? '#f59e0b' : '#3b82f6'}; border-radius: 50%;"></span>
+                            <span style="font-size: 0.65rem; font-weight: 700; color: #999; text-transform: uppercase;">${nf.status}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+async function renderNFDetail(id) {
+    const currentUser = localStorage.getItem('currentUser');
+    const nf = await DataClient.getEntradaNFById(id);
+    
+    if (!nf) {
+        showToast('Nota não encontrada', 'error');
+        renderNFAbertasList();
+        return;
+    }
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in nf-detail-screen entrada-nf-screen">
+            ${getTopBarHTML(currentUser, 'renderNFAbertasList()')}
+            
+            <main class="container">
+                <div style="padding: 12px 20px 40px 20px;">
+                    <div style="background: white; border-radius: 24px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px;">
+                            <div>
+                                <div style="font-size: 0.6rem; color: #999; text-transform: uppercase; font-weight: 700;">Número / Série</div>
+                                <div style="font-size: 1.2rem; font-weight: 900; color: #101018;">${nf.numero_nf} / ${nf.serie || '1'}</div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 4px 12px; border-radius: 99px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase;">
+                                    ${nf.status}
+                                </div>
+                            </div>
+                        <div class="form-grid" style="gap: 12px;">
+                            <div class="input-group">
+                                <label style="color: #999; font-size: 0.6rem;">FORNECEDOR</label>
+                                <div style="font-weight: 700; color: #101018; font-size: 0.85rem;">${nf.fornecedor_nome}</div>
+                            </div>
+                            <div class="input-group">
+                                <label style="color: #999; font-size: 0.6rem;">VALOR TOTAL</label>
+                                <div style="font-weight: 800; color: var(--primary); font-size: 1rem;">R$ ${parseFloat(nf.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                        </div>
+
+                        <!-- SEÇÃO DE ITENS (PREPARAÇÃO FASE 2) -->
+                        <div style="margin-top: 30px; border-top: 2px solid #f0f0f0; padding-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="color: #101018; font-family: 'Fjalla One', sans-serif; font-size: 1.1rem;">ITENS DA NOTA</h3>
+                                <button class="btn-action" onclick="showToast('Adição de itens em desenvolvimento (Fase 2)', 'info')" style="padding: 8px 16px; font-size: 0.75rem; background: #000 !important;">
+                                    <span class="material-symbols-rounded">add_box</span> ADICIONAR ITEM
+                                </button>
+                            </div>
+
+                            <div id="nf-items-container" style="text-align: center; padding: 30px; background: #f9f9f9; border-radius: 16px; border: 1px dashed #ddd;">
+                                <span class="material-symbols-rounded" style="font-size: 32px; color: #ccc; margin-bottom: 10px;">inventory_2</span>
+                                <p style="color: #999; font-size: 0.85rem; font-weight: 500;">NENHUM ITEM ADICIONADO</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    `;
+}
+function renderNFPlaceholder(title) {
+    const currentUser = localStorage.getItem('currentUser');
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in nf-placeholder-screen entrada-nf-screen">
+            ${getTopBarHTML(currentUser, 'renderNFSubMenu()')}
+            
+            <main class="container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh;">
+                <div style="text-align: center; padding: 40px; background: rgba(255,255,255,0.03); border-radius: 32px; border: 1px dashed rgba(255,255,255,0.1); max-width: 400px; width: 90%;">
+                    <h2 style="color: white; font-family: 'Fjalla One', sans-serif; margin-bottom: 16px; text-transform: uppercase;">${title}</h2>
+                    <span class="material-symbols-rounded" style="font-size: 64px; color: var(--primary); margin-bottom: 20px;">construction</span>
+                    <p style="color: var(--muted); font-size: 1.1rem; font-weight: 500;">Em desenvolvimento</p>
+                    <p style="color: rgba(255,255,255,0.3); font-size: 0.8rem; margin-top: 10px;">Esta funcionalidade estará disponível em breve.</p>
+                </div>
+            </main>
         </div>
     `;
 }

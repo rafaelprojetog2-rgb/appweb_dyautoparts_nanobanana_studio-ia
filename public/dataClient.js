@@ -50,6 +50,10 @@ const DataClient = (function () {
         usuarios: {
             tables: ['usuarios'],
             cacheKey: 'usuarios'
+        },
+        nf: {
+            tables: ['entradas_nf', 'entradas_nf_itens'],
+            cacheKey: 'nf'
         }
     };
 
@@ -720,34 +724,105 @@ const DataClient = (function () {
     async function fetchMovimentosSupabase() {
         const client = window.supabaseClient;
         if (!client) {
-            console.error('[INV-DIAG] Supabase client não encontrado');
+            console.error('[MOVIMENTOS DEBUG] erro ao listar movimentos: Supabase client não encontrado');
+            throw new Error('Supabase client não encontrado');
+        }
+
+        // 1. Buscar dados
+        const { data, error } = await client
+            .from('movimentos')
+            .select('*')
+            .order('data_hora', { ascending: false });
+
+        if (error) {
+            console.error('[MOVIMENTOS DEBUG] erro ao listar movimentos:', error);
+            throw error;
+        }
+
+        return data || [];
+    }
+
+    /**
+     * ENTRADA NF - Criar NF Manual
+     */
+    async function createEntradaNFManual(payload) {
+        const client = window.supabaseClient;
+        if (!client) {
+            console.error('[ENTRADA NF DEBUG] erro supabase: client não encontrado');
+            return null;
+        }
+
+        console.log('[ENTRADA NF DEBUG] salvando NF manual', payload);
+
+        const { data, error } = await client
+            .from('entradas_nf')
+            .insert([{
+                numero_nf: payload.numero_nf,
+                serie: payload.serie,
+                data_emissao: payload.data_emissao,
+                data_recebimento: payload.data_recebimento,
+                cnpj_fornecedor: payload.cnpj_fornecedor,
+                fornecedor_nome: payload.fornecedor_nome,
+                valor_total: payload.valor_total,
+                origem: 'manual',
+                status: 'rascunho',
+                observacoes: payload.observacoes,
+                criado_por: localStorage.getItem('currentUser')
+            }])
+            .select();
+
+        if (error) {
+            console.error('[ENTRADA NF DEBUG] erro supabase:', error);
+            return null;
+        }
+
+        console.log('[ENTRADA NF DEBUG] NF salva', data);
+        invalidateCache('nf');
+        return data ? data[0] : null;
+    }
+
+    /**
+     * ENTRADA NF - Listar notas abertas
+     */
+    async function listEntradasNFAbertas() {
+        const client = window.supabaseClient;
+        if (!client) return [];
+
+        console.log('[ENTRADA NF DEBUG] listando notas abertas');
+
+        const { data, error } = await client
+            .from('entradas_nf')
+            .select('*')
+            .not('status', 'in', '("entrada_confirmada", "cancelada")')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('[ENTRADA NF DEBUG] erro supabase:', error);
             return [];
         }
 
-        // 1. Buscar dados corretamente (Tentando created_at primeiro)
-        let result = await client
-            .from('movimentos')
-            .select('*')
-            .order('created_at', { ascending: false });
+        return data || [];
+    }
 
-        // 2. Se created_at não existir (erro no order), tentar usar data_hora
-        if (result.error && (result.error.message.includes('created_at') || result.error.code === '42703')) {
-            console.warn('[INV-DIAG] Coluna created_at não encontrada, tentando ordenar por data_hora...');
-            result = await client
-                .from('movimentos')
-                .select('*')
-                .order('data_hora', { ascending: false });
+    /**
+     * ENTRADA NF - Buscar por ID
+     */
+    async function getEntradaNFById(id) {
+        const client = window.supabaseClient;
+        if (!client) return null;
+
+        const { data, error } = await client
+            .from('entradas_nf')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (error) {
+            console.error('[ENTRADA NF DEBUG] erro supabase:', error);
+            return null;
         }
 
-        const { data, error } = result;
-
-        // 3. Log obrigatório
-        console.log('[INV-DIAG] movimentos carregados:', data?.length);
-        console.log('[INV-DIAG] dados movimentos:', data);
-        console.log('[INV-DIAG] erro movimentos:', error);
-
-        // 4. Não bloquear render (retornar array vazio se erro ou nulo)
-        return data || [];
+        return data;
     }
 
     return {
@@ -766,6 +841,11 @@ const DataClient = (function () {
         fetchEstoqueItemLocalSupabase,
         fetchUsuariosSupabase,
         fetchCanaisEnvioSupabase,
+
+        // ENTRADA NF
+        createEntradaNFManual,
+        listEntradasNFAbertas,
+        getEntradaNFById,
 
         // Constantes para uso interno
         MODULES: Object.keys(MODULE_TABLES)

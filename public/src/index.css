@@ -660,30 +660,124 @@
             display: none;
         }
 
-        /* T2: Dashboard Screen */
+        /* T2: Dashboard Screen - MODIFICADO: Topo Removido Visivelmente */
         .top-bar {
-            background: #101018;
-            color: #FFFFFF;
-            padding: 8px 16px;
-            height: 70px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-sizing: border-box;
-            width: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 9999;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            pointer-events: none !important;
+            z-index: 9999 !important;
         }
 
-        /* Ajuste para topo fixo - Garantindo que o conteﾃｺdo comece apﾃｳs o header */
+        /* Esconder logo, status e badge de usuário */
+        .top-bar-left img,
+        .top-bar-logo-img,
+        .connection-status-center,
+        .user-badge,
+        .top-bar-info,
+        .top-bar-title-section {
+            display: none !important;
+        }
+
+        /* Botões Flutuantes Padrão */
+        .btn-back-top,
+        .btn-action[title="Tela Cheia"],
+        .btn-action[title="Sair do Sistema"],
+        .btn-action[onclick="logout()"] {
+            pointer-events: auto !important;
+            position: fixed !important;
+            top: 18px !important;
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 16px !important;
+            background: rgba(16, 16, 24, 0.82) !important;
+            color: #fff !important;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
+            border: none !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            transition: all 0.2s ease !important;
+            z-index: 99999 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .btn-back-top:hover,
+        .btn-action[title="Tela Cheia"]:hover,
+        .btn-action[title="Sair do Sistema"]:hover,
+        .btn-action[onclick="logout()"]:hover {
+            background: var(--primary) !important;
+            color: #fff !important;
+            transform: scale(1.05) !important;
+        }
+
+        .btn-back-top span,
+        .btn-action[title="Tela Cheia"] span,
+        .btn-action[title="Sair do Sistema"] span,
+        .btn-action[onclick="logout()"] span {
+            font-size: 24px !important;
+            color: #fff !important;
+            filter: none !important;
+        }
+
+        /* Posições */
+        .btn-back-top {
+            left: 18px !important;
+        }
+
+        .btn-action[title="Tela Cheia"] {
+            right: 80px !important; /* Dá espaço para o botão Sair */
+        }
+
+        .btn-action[title="Sair do Sistema"],
+        .btn-action[onclick="logout()"] {
+            right: 18px !important;
+        }
+
+        /* Hover Effect para Botão Sair (Desktop apenas) */
+        @media (min-width: 1024px) {
+            .menu-top-bar .btn-action[title="Sair do Sistema"],
+            .menu-top-bar .btn-action[onclick="logout()"] {
+                opacity: 0 !important;
+                visibility: hidden !important;
+                transform: translateY(-10px) !important;
+            }
+
+            /* Zona de hover invisível no topo direito */
+            .menu-top-bar::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 250px;
+                height: 90px;
+                pointer-events: auto !important;
+                z-index: 99998;
+            }
+
+            .menu-top-bar:hover .btn-action[title="Sair do Sistema"],
+            .menu-top-bar:hover .btn-action[onclick="logout()"] {
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: translateY(0) scale(1) !important;
+            }
+            
+            .menu-top-bar:hover .btn-action[title="Sair do Sistema"]:hover,
+            .menu-top-bar:hover .btn-action[onclick="logout()"]:hover {
+                transform: translateY(0) scale(1.05) !important;
+            }
+        }
+
+        /* Ajuste para topo fixo removido - Garantindo que o conteﾃｺdo ocupe melhor a tela */
         .dashboard-screen {
-            padding-top: 70px;
-            /* Mesma altura que o .top-bar */
+            padding-top: 0 !important; /* Removido 70px */
             box-sizing: border-box;
             height: 100dvh;
             display: flex;
@@ -697,47 +791,27 @@
             display: flex;
             flex-direction: column;
             min-height: 0;
-            overflow: hidden;
+            overflow: auto; /* Permite scroll no container se necessário */
             width: 100%;
             max-width: none;
-            padding: 0;
+            padding: 20px !important; /* Adicionado respiro de 20px */
             margin: 0;
         }
+        
+        @media (max-width: 767px) {
+            .dashboard-screen .container {
+                padding-top: 70px !important; /* Evita sobreposição com os botões no mobile */
+                padding-bottom: 20px !important;
+            }
+        }
 
-
-        /* Internal screens - white top bar */
+        /* Internal screens - white top bar override */
         .dashboard-screen.internal .top-bar,
         .dashboard-screen.product-detail .top-bar {
-            background: #FFFFFF;
-            color: #101018;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            background: transparent !important;
+            border-bottom: none !important;
         }
 
-        .dashboard-screen.internal .top-bar .user-name,
-        .dashboard-screen.internal .top-bar span,
-        .dashboard-screen.internal .top-bar button {
-            filter: invert(1);
-        }
-
-        .dashboard-screen.internal .top-bar .top-bar-logo-img {
-            filter: none;
-        }
-
-        .dashboard-screen.internal #statusConexao {
-            color: #101018;
-        }
-
-        .dashboard-screen.internal .btn-sync-header {
-            color: #E30613 !important;
-        }
-
-        .dashboard-screen.internal #pendentesSync {
-            color: #101018;
-        }
-
-        .top-bar-title-section {
-            display: none;
-        }
 
         .top-bar-logo-img {
             filter: none;
@@ -1085,19 +1159,17 @@
         }
 
         .product-search-bar {
-            margin: 100px auto 0;
-            /* Google style spacing */
+            margin: 40px auto 20px;
             width: 100%;
             max-width: 900px;
-            height: 64px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 32px;
-            /* Google rounded style */
+            height: 56px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 28px;
             display: flex;
             align-items: center;
-            padding: 0 24px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 0 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
         }
 
@@ -1112,12 +1184,12 @@
             background: transparent;
             border: none;
             outline: none;
-            font-size: 17px;
-            color: #ffffff;
+            font-size: 16px;
+            color: #101018;
         }
 
         .product-search-input::placeholder {
-            color: rgba(255, 255, 255, 0.4);
+            color: rgba(0, 0, 0, 0.4);
         }
 
         .product-search-icon-btn,
@@ -4847,12 +4919,12 @@
             .channel-card svg,
             .channel-card .icon-box,
             .menu-card .icon {
-                width: 80px !important;
-                height: 80px !important;
-                min-width: 80px !important;
-                max-width: 80px !important;
-                min-height: 80px !important;
-                max-height: 80px !important;
+                width: 72px !important;
+                height: 72px !important;
+                min-width: 72px !important;
+                max-width: 72px !important;
+                min-height: 72px !important;
+                max-height: 72px !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
@@ -5264,12 +5336,12 @@
                 justify-content: center !important;
                 text-align: center !important;
                 float: none !important;
-                width: 85px !important;
-                height: 85px !important;
-                min-width: 85px !important;
-                min-height: 85px !important;
-                max-width: 85px !important;
-                max-height: 85px !important;
+                width: 76px !important;
+                height: 76px !important;
+                min-width: 76px !important;
+                min-height: 76px !important;
+                max-width: 76px !important;
+                max-height: 76px !important;
                 background: transparent !important;
                 box-shadow: none !important;
             }
@@ -5283,7 +5355,7 @@
             .menu-option .material-symbols-rounded,
             .card-content .material-symbols-rounded,
             .op-card .material-symbols-rounded {
-                font-size: 40px !important;
+                font-size: 36px !important;
                 margin: 0 auto !important;
                 display: block !important;
             }
@@ -5530,9 +5602,409 @@
 
 /* Grid Desktop standardization for Minimal Picking */
 @media (min-width: 1024px) {
-    .picking-active-minimal .menu-grid {
-        grid-template-columns: repeat(4, 1fr) !important;
-        gap: 20px !important;
-        padding: 20px !important;
+/* ===================================================
+   MENU PRINCIPAL - AJUSTE CIRÚRGICO PREMIUM (FIX)
+   =================================================== */
+
+/* Ajuste Geral da Tela de Menu */
+.dashboard-screen.menu-screen {
+    position: relative !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important; /* Evita scroll na tela inteira */
+    padding-top: 90px !important; /* Espaço para o topo no Desktop */
+    padding-bottom: 0 !important;
+    background: #F5F5F7 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+@media (max-width: 1023px) {
+    .dashboard-screen.menu-screen {
+        padding-top: 76px !important; /* Espaço para o topo no Mobile */
     }
 }
+
+/* Área Central de Conteúdo */
+.dashboard-screen.menu-screen .container {
+    flex: 1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-y: auto !important; /* Permite scroll somente aqui */
+    -webkit-overflow-scrolling: touch;
+    z-index: 1 !important;
+}
+
+/* Garante que o grid tenha espaço no final no mobile */
+@media (max-width: 1023px) {
+    .dashboard-screen.menu-screen .menu-grid {
+        padding-bottom: 90px !important;
+    }
+}
+
+/* TOPO MENU PRINCIPAL */
+.menu-screen .menu-top-bar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 64px !important;
+    background: #000000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 20px !important;
+    z-index: 10000 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+@media (min-width: 1024px) {
+    .menu-screen .menu-top-bar {
+        height: 72px !important;
+        padding: 0 32px !important;
+    }
+}
+
+/* Status Conexão */
+.menu-screen .connection-status-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 6px 14px;
+    border-radius: 20px;
+}
+
+/* RODAPÉ MENU PRINCIPAL */
+.menu-screen .menu-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 68px !important;
+    background: var(--primary) !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.15) !important;
+    border-top-left-radius: 24px !important;
+    border-top-right-radius: 24px !important;
+}
+
+/* REMOVIDO CONFORME SOLICITADO: Rodapé e Menu-footer */
+.menu-footer,
+.menu-footer-visible,
+.menu-footer-hover-zone,
+.menu-screen .menu-footer {
+    display: none !important;
+}
+
+/* Conteúdo do Rodapé: 5 ÁREAS IGUAIS */
+.menu-screen .menu-footer-content {
+    display: none !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 800px !important;
+    height: 100% !important;
+    position: relative !important;
+}
+
+.menu-screen .menu-footer-item {
+    flex: 1 !important; /* 5 áreas iguais */
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    gap: 2px !important;
+    height: 100% !important;
+}
+
+.menu-screen .menu-footer-item .icon {
+    font-size: 24px !important;
+}
+
+.menu-screen .menu-footer-item span:not(.icon) {
+    font-size: 9px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+}
+
+.menu-screen .menu-footer-item:hover {
+    color: #ffffff !important;
+}
+
+/* Botão Central Elevado */
+.menu-screen .menu-footer-action {
+    flex: 1 !important; /* Parte do 5 áreas iguais */
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    height: 100% !important;
+}
+
+.menu-screen .menu-footer-action .btn-plus-circle {
+    position: absolute !important;
+    top: -28px !important;
+    width: 64px !important;
+    height: 64px !important;
+    background: #000000 !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: white !important;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4) !important;
+    cursor: pointer !important;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    z-index: 100 !important;
+}
+
+@media (min-width: 1024px) {
+    .menu-screen .menu-footer-action .btn-plus-circle {
+        width: 72px !important;
+        height: 72px !important;
+        top: -32px !important;
+    }
+}
+
+.menu-screen .menu-footer-action .btn-plus-circle:active {
+    transform: scale(0.9) !important;
+}
+
+/* Recorte suave (Vale) no rodapé */
+.menu-screen .menu-footer::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -22px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 110px !important;
+    height: 44px !important;
+    background: transparent !important;
+    border-bottom-left-radius: 55px !important;
+    border-bottom-right-radius: 55px !important;
+    box-shadow: 0 22px 0 0 var(--primary) !important;
+    pointer-events: none !important;
+}
+
+/* ===================================================
+   ISOLAMENTO VISUAL - MENU PRINCIPAL E ENTRADA NF
+   =================================================== */
+
+/* Menu Principal - Reset */
+.dashboard-screen.menu-screen {
+    padding-top: 0 !important;
+}
+
+/* Entrada NF - Reset */
+.entrada-nf-screen {
+    padding-top: 70px !important;
+}
+
+/* Garantir que o texto apareça em preto nas telas internas (fundo claro) */
+.internal .label,
+.internal-screen .label {
+    color: #101018 !important;
+}
+
+/* Prioridade para Botao do Usuario */
+.user-badge,
+.user-avatar,
+.user-avatar-box-small,
+.top-bar .user-badge {
+  position: relative !important;
+  z-index: 99999 !important;
+  pointer-events: auto !important;
+}
+
+.menu-top-trigger-area {
+    pointer-events: none !important;
+}
+
+.menu-floating-top-actions {
+    z-index: 99999 !important;
+    pointer-events: auto !important;
+}
+
+/* CÓDIGO OBRIGATÓRIO DE REMOÇÃO DE TARJAS */
+.top-bar,
+.app-header,
+header.top-bar,
+.menu-footer,
+.app-footer,
+.bottom-nav,
+.menu-bottom-nav,
+.menu-footer-hover-zone,
+.menu-top-trigger-area,
+.top-trigger-area {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+body,
+html,
+#app,
+.dashboard-screen,
+.menu-screen,
+.internal-screen,
+.fullscreen-screen {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+body::before,
+body::after,
+#app::before,
+#app::after,
+.dashboard-screen::before,
+.dashboard-screen::after,
+.menu-screen::before,
+.menu-screen::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* CSS OBRIGATORIO MENU PRINCIPAL EXTREMO */
+.dashboard-screen.menu-screen,
+.dashboard-screen.menu-screen * {
+  box-shadow: none !important;
+}
+
+.dashboard-screen.menu-screen .top-bar,
+.dashboard-screen.menu-screen .menu-top-trigger-area,
+.dashboard-screen.menu-screen .btn-action,
+.dashboard-screen.menu-screen .btn-back-top,
+.dashboard-screen.menu-screen .btn-exit-floating,
+.dashboard-screen.menu-screen .btn-fullscreen,
+.dashboard-screen.menu-screen .menu-footer,
+.dashboard-screen.menu-screen .menu-footer-hover-zone {
+  display: none !important;
+}
+
+.dashboard-screen.menu-screen {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  background: #fff !important;
+}
+
+/* NOVO PADRÃO DE BOTÕES FLUTUANTES CIRCULARES PRETOS */
+.btn-floating-app {
+  position: fixed !important;
+  top: 56px !important;
+  width: 46px !important;
+  height: 46px !important;
+  border-radius: 50% !important;
+  background: rgba(35, 38, 45, 0.92) !important;
+  color: #fff !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.18) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  transition: background 180ms ease, transform 180ms ease, opacity 180ms ease !important;
+  padding: 0 !important;
+}
+
+.btn-floating-app:hover {
+  background: #f04444 !important;
+  transform: translateY(-2px) scale(1.04) !important;
+  color: #fff !important;
+}
+
+.btn-floating-app span {
+  font-size: 22px !important;
+  color: #ffffff !important;
+}
+
+.btn-voltar {
+  left: 100px !important;
+}
+
+.btn-sair {
+  right: 100px !important;
+}
+
+.btn-tela-cheia {
+  right: 100px !important;
+}
+
+/* Esconder completamente em tela cheia */
+body.fullscreen-mode .btn-tela-cheia {
+  display: none !important;
+}
+
+/* ZONA INVISÍVEL DE HOVER PARA BOTÕES FLUTUANTES */
+.top-hover-zone {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 70px !important;
+  z-index: 99990 !important;
+  pointer-events: auto !important;
+  background: transparent !important;
+}
+
+@media (min-width: 1024px) {
+  .top-hover-zone .btn-floating-app {
+    opacity: 0 !important;
+    transform: translateY(-18px) !important;
+    pointer-events: none !important;
+  }
+  
+  .top-hover-zone:hover .btn-floating-app,
+  .btn-floating-app:hover {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    pointer-events: auto !important;
+  }
+
+  .top-hover-zone:hover .btn-floating-app:hover {
+    transform: translateY(-2px) scale(1.04) !important;
+  }
+}
+
+/* DESTRUIÇÃO DE REGRAS DUPLICADAS ANTIGAS */
+.btn-back-top,
+.btn-action,
+.btn-exit-floating,
+.btn-fullscreen,
+.btn-tela-cheia {
+  top: 56px !important;
+  background: rgba(35, 38, 45, 0.92) !important;
+  color: #fff !important;
+}
+
+.btn-back-top:hover,
+.btn-action:hover,
+.btn-exit-floating:hover,
+.btn-fullscreen:hover,
+.btn-tela-cheia:hover {
+  background: #f04444 !important;
+}
+
+
