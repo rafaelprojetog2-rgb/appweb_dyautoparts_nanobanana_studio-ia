@@ -828,6 +828,7 @@ function criarStatusConexao() {
 // ==== CONFIGURACAO APP (GLOBAL) ====
 const DEFAULT_APP_CONFIG = {
     permitir_saida_estoque_zero: false,
+    permitir_estoque_negativo: false,
     modo_rapido: false
 };
 
@@ -1211,13 +1212,115 @@ function isModoRapidoAtivo() {
 }
 
 function isSaidaEstoqueZeroPermitida() {
-    return getAppConfig().permitir_saida_estoque_zero === true;
+    const config = getAppConfig();
+    const allowed = config.permitir_saida_estoque_zero === true || config.permitir_estoque_negativo === true;
+    console.log('[SEPARACAO_ESTOQUE_NEGATIVO] configuracao atual', {
+        permitir_saida_estoque_zero: config.permitir_saida_estoque_zero === true,
+        permitir_estoque_negativo: config.permitir_estoque_negativo === true,
+        permitido: allowed
+    });
+    return allowed;
 }
 
 function canAllowStockExit(produto, quantidade) {
     const estoqueAtual = parseFloat(produto.estoque_atual || 0);
     if (estoqueAtual >= quantidade) return true;
     return isSaidaEstoqueZeroPermitida();
+}
+
+function getPickStockEntries(productId) {
+    return (appData.estoque || []).filter(entry =>
+        String(entry.id_interno || entry.col_a || entry.id || '') === String(productId || '')
+    );
+}
+
+function getPickAvailableStock(productId) {
+    return getPickStockEntries(productId)
+        .filter(item => LOCAIS_SAIDA.includes(normalizarLocal(item.local)))
+        .reduce((total, item) => {
+            const qtd = parseFloat(String(item.saldo_disponivel ?? item.saldo_total ?? item.saldo ?? 0).replace(',', '.'));
+            return total + (Number.isFinite(qtd) ? qtd : 0);
+        }, 0);
+}
+
+function getPickGroupedItemsForStock(items = []) {
+    return Object.values((items || []).reduce((acc, item) => {
+        const productId = getPickingProductId(item);
+        if (!productId) return acc;
+        if (!acc[productId]) {
+            acc[productId] = {
+                ...item,
+                id_interno: productId,
+                qty: 0
+            };
+        }
+        acc[productId].qty += Number(item.qty || item.qtd_conferida || item.qtd_separada || 1) || 0;
+        return acc;
+    }, {}));
+}
+
+function validatePickingStockForExit(items = [], point = 'separacao') {
+    const allowNegative = isSaidaEstoqueZeroPermitida();
+    const grouped = getPickGroupedItemsForStock(items);
+    const issues = grouped.map(item => {
+        const productId = getPickingProductId(item);
+        const requested = Number(item.qty || 0);
+        const available = getPickAvailableStock(productId);
+        const missing = Math.max(0, requested - available);
+        const result = {
+            productId,
+            descricao: getPickItemTitle(item),
+            estoqueAtual: available,
+            quantidadeSolicitada: requested,
+            faltante: missing
+        };
+        console.log('[SEPARACAO_ESTOQUE_NEGATIVO] produto validado', {
+            ponto: point,
+            permitir_estoque_negativo: allowNegative,
+            ...result,
+            decisao: missing > 0 ? (allowNegative ? 'permitiu_com_alerta' : 'bloqueou') : 'permitiu'
+        });
+        return result;
+    }).filter(item => item.faltante > 0);
+
+    return {
+        allowed: allowNegative || issues.length === 0,
+        allowNegative,
+        issues,
+        grouped
+    };
+}
+
+function formatPickingStockIssueMessage(validation) {
+    const first = validation?.issues?.[0];
+    if (!first) return '';
+    const suffix = validation.issues.length > 1 ? ` Outros ${validation.issues.length - 1} item(ns) também estão insuficientes.` : '';
+    return `${first.descricao || first.productId}: solicitado ${first.quantidadeSolicitada}, disponível ${first.estoqueAtual}, faltam ${first.faltante}.${suffix}`;
+}
+
+async function confirmPickingNegativeStockIfNeeded(validation, point = 'separacao') {
+    if (!validation?.issues?.length) return true;
+    if (!validation.allowNegative) {
+        await showAppModal({
+            type: 'error',
+            title: 'Estoque insuficiente',
+            message: 'Estoque insuficiente para finalizar a separação. Ative “Permitir estoque negativo” em Configurações ou ajuste a quantidade.',
+            detail: formatPickingStockIssueMessage(validation),
+            confirmText: 'Entendi'
+        });
+        console.log('[SEPARACAO_ESTOQUE_NEGATIVO] bloqueado', { ponto: point, issues: validation.issues });
+        return false;
+    }
+
+    console.log('[SEPARACAO_ESTOQUE_NEGATIVO] permitido com confirmacao', { ponto: point, issues: validation.issues });
+    return showAppModal({
+        type: 'warning',
+        title: 'Estoque negativo permitido',
+        message: 'Estoque insuficiente, mas a configuração permite estoque negativo. A separação será finalizada e o produto ficará com saldo negativo.',
+        detail: formatPickingStockIssueMessage(validation),
+        confirmText: 'Finalizar mesmo assim',
+        cancelText: 'Revisar itens'
+    });
 }
 
 window.getAppConfig = getAppConfig;
@@ -4831,42 +4934,76 @@ function closeNovaMovimentacaoModal(event) {
     }
 }
 
-function showAppConfirm({ title = 'Confirmar acao', message = '', detail = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false } = {}) {
+function showAppModal({
+    type = 'info',
+    title = 'Aviso',
+    message = '',
+    detail = '',
+    confirmText = 'OK',
+    cancelText = '',
+    onConfirm = null,
+    onCancel = null,
+    closeOnBackdrop = true
+} = {}) {
     return new Promise(resolve => {
         const existing = document.getElementById('app-confirm-modal');
         if (existing) existing.remove();
+        document.getElementById('app-alert-modal')?.remove();
+
+        const isConfirm = !!cancelText;
+        const normalizedType = ['success', 'error', 'warning', 'confirm', 'info'].includes(type) ? type : 'info';
+        const iconMap = {
+            success: 'check_circle',
+            error: 'error',
+            warning: 'warning',
+            confirm: 'help',
+            info: 'info'
+        };
+        console.log('[APP_MODAL_ALERTS] exibindo modal', { type: normalizedType, title, isConfirm });
 
         const overlay = document.createElement('div');
         overlay.id = 'app-confirm-modal';
-        overlay.className = 'app-confirm-overlay';
+        overlay.className = `app-confirm-overlay app-standard-modal modal-${normalizedType}`;
         overlay.innerHTML = `
             <div class="app-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="app-confirm-title">
-                <div class="app-confirm-icon ${danger ? 'danger' : ''}">
-                    <span class="material-symbols-rounded">${danger ? 'delete' : 'help'}</span>
+                <button type="button" class="app-modal-x" data-action="cancel" aria-label="Fechar">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+                <div class="app-confirm-icon ${normalizedType}">
+                    <span class="material-symbols-rounded">${iconMap[normalizedType]}</span>
                 </div>
                 <h3 id="app-confirm-title">${escapeKitAttribute(title)}</h3>
                 <p>${escapeKitAttribute(message)}</p>
                 ${detail ? `<small>${escapeKitAttribute(detail)}</small>` : ''}
-                <div class="app-confirm-actions">
-                    <button type="button" class="app-confirm-btn cancel" data-action="cancel">${escapeKitAttribute(cancelLabel)}</button>
-                    <button type="button" class="app-confirm-btn confirm ${danger ? 'danger' : ''}" data-action="confirm">${escapeKitAttribute(confirmLabel)}</button>
+                <div class="app-confirm-actions ${isConfirm ? '' : 'app-alert-actions'}">
+                    ${isConfirm ? `<button type="button" class="app-confirm-btn cancel" data-action="cancel">${escapeKitAttribute(cancelText)}</button>` : ''}
+                    <button type="button" class="app-confirm-btn confirm ${normalizedType}" data-action="confirm">${escapeKitAttribute(confirmText)}</button>
                 </div>
             </div>
         `;
 
         let settled = false;
-        const close = (confirmed) => {
+        const close = async (confirmed) => {
             if (settled) return;
             settled = true;
             document.removeEventListener('keydown', onKeyDown);
+            try {
+                if (confirmed && typeof onConfirm === 'function') await onConfirm();
+                if (!confirmed && typeof onCancel === 'function') await onCancel();
+            } catch (error) {
+                console.error('[APP_MODAL_ALERTS] erro no callback do modal', error);
+            }
             overlay.classList.add('closing');
             setTimeout(() => overlay.remove(), 160);
             resolve(confirmed);
         };
 
         overlay.addEventListener('click', event => {
-            if (event.target === overlay || event.target?.dataset?.action === 'cancel') close(false);
-            if (event.target?.dataset?.action === 'confirm') close(true);
+            const actionEl = event.target?.closest?.('[data-action]');
+            const action = actionEl?.dataset?.action;
+            if (event.target === overlay && closeOnBackdrop && !isConfirm) close(false);
+            if (action === 'cancel') close(false);
+            if (action === 'confirm') close(true);
         });
 
         const onKeyDown = event => {
@@ -4874,7 +5011,7 @@ function showAppConfirm({ title = 'Confirmar acao', message = '', detail = '', c
                 document.removeEventListener('keydown', onKeyDown);
                 return;
             }
-            if (event.key === 'Escape') close(false);
+            if (event.key === 'Escape' && (!isConfirm || closeOnBackdrop)) close(false);
             if (event.key === 'Enter') close(true);
         };
         document.addEventListener('keydown', onKeyDown);
@@ -4885,57 +5022,27 @@ function showAppConfirm({ title = 'Confirmar acao', message = '', detail = '', c
     });
 }
 
+function showAppConfirm({ title = 'Confirmar acao', message = '', detail = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false } = {}) {
+    return showAppModal({
+        type: danger ? 'error' : 'confirm',
+        title,
+        message,
+        detail,
+        confirmText: confirmLabel,
+        cancelText: cancelLabel,
+        closeOnBackdrop: false
+    });
+}
+
 function showAppAlert({ title = 'Aviso', message = '', detail = '', buttonLabel = 'OK', danger = false, icon = null } = {}) {
-    return new Promise(resolve => {
-        const existing = document.getElementById('app-alert-modal');
-        if (existing) existing.remove();
-
-        const overlay = document.createElement('div');
-        overlay.id = 'app-alert-modal';
-        overlay.className = 'app-confirm-overlay app-alert-overlay';
-        const iconName = icon || (danger ? 'error' : 'info');
-        const alertSound = danger || iconName === 'error' ? 'error' : 'warning';
-        playFeedbackSound(alertSound);
-        overlay.innerHTML = `
-            <div class="app-confirm-dialog app-alert-dialog" role="alertdialog" aria-modal="true" aria-labelledby="app-alert-title">
-                <div class="app-confirm-icon ${danger ? 'danger' : ''}">
-                    <span class="material-symbols-rounded">${iconName}</span>
-                </div>
-                <h3 id="app-alert-title">${escapeKitAttribute(title)}</h3>
-                <p>${escapeKitAttribute(message)}</p>
-                ${detail ? `<small>${escapeKitAttribute(detail)}</small>` : ''}
-                <div class="app-confirm-actions app-alert-actions">
-                    <button type="button" class="app-confirm-btn confirm ${danger ? 'danger' : ''}" data-action="confirm">${escapeKitAttribute(buttonLabel)}</button>
-                </div>
-            </div>
-        `;
-
-        let settled = false;
-        const close = () => {
-            if (settled) return;
-            settled = true;
-            document.removeEventListener('keydown', onKeyDown);
-            overlay.classList.add('closing');
-            setTimeout(() => overlay.remove(), 160);
-            resolve(true);
-        };
-
-        overlay.addEventListener('click', event => {
-            if (event.target === overlay || event.target?.dataset?.action === 'confirm') close();
-        });
-
-        const onKeyDown = event => {
-            if (!document.body.contains(overlay)) {
-                document.removeEventListener('keydown', onKeyDown);
-                return;
-            }
-            if (event.key === 'Escape' || event.key === 'Enter') close();
-        };
-        document.addEventListener('keydown', onKeyDown);
-
-        document.body.appendChild(overlay);
-        requestAnimationFrame(() => overlay.classList.add('open'));
-        overlay.querySelector('[data-action="confirm"]')?.focus();
+    const iconType = danger || icon === 'error' ? 'error' : (icon === 'check_circle' ? 'success' : (icon === 'warning' ? 'warning' : 'info'));
+    playFeedbackSound(iconType === 'error' ? 'error' : 'warning');
+    return showAppModal({
+        type: iconType,
+        title,
+        message,
+        detail,
+        confirmText: buttonLabel
     });
 }
 
@@ -7713,6 +7820,25 @@ async function addInventoryItem(scannedEan = null) {
         applyInventoryCostToItem(itemToSave);
         appData.currentInventory.items.unshift(itemToSave);
     }
+
+    if ((Number(itemToSave.qty || 0) === HIGH_QTY_THRESHOLD) && !itemToSave.high_qty_prompted) {
+        itemToSave.high_qty_prompted = true;
+        await openHighQtyModal({
+            item: itemToSave,
+            currentQty: itemToSave.qty,
+            flow: 'inventory',
+            reason: 'quantidade_alta',
+            onConfirm: async (nextQty, reason) => {
+                const previous = Number(itemToSave.qty || 0);
+                Object.assign(itemToSave, getManualQtyAuditPatch(previous, nextQty, reason));
+                itemToSave.qty = nextQty;
+                applyInventoryCostToItem(itemToSave);
+                appData.currentInventory.items = groupInventoryItemsByProduct(appData.currentInventory.items || []);
+                updateInventoryItemsList();
+                showToast('Quantidade atualizada.', 'success');
+            }
+        });
+    }
     
     if(eanInput) eanInput.value = ''; 
     if(eanInput) eanInput.focus(); 
@@ -8077,8 +8203,14 @@ async function setInventoryQty(index, value) {
         updateInventoryItemsList();
         return;
     }
+    if (!confirm(`Confirmar alteração para ${normalized} unidades?`)) {
+        updateInventoryItemsList();
+        setTimeout(() => document.getElementById('inv-ean-input')?.focus(), 80);
+        return;
+    }
 
     const previousQty = Number(item.qty || 0);
+    Object.assign(item, getManualQtyAuditPatch(previousQty, normalized, 'edicao_manual'));
     item.qty = normalized;
     updateInventoryItemsList();
     let saved = false;
@@ -10786,15 +10918,15 @@ function renderAddProduct(initialEan = '') {
                     <div class="form-section-title">Preços e Estoque</div>
                     <div class="input-group">
                         <label>Preço de Custo (R$)</label>
-                        <input type="number" id="add-custo" step="0.01" class="input-field" placeholder="0,00">
+                        <input type="text" inputmode="decimal" id="add-custo" class="input-field money-input" placeholder="0,00" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Preço Varejo (R$)</label>
-                        <input type="number" id="add-varejo" step="0.01" class="input-field" placeholder="0,00">
+                        <input type="text" inputmode="decimal" id="add-varejo" class="input-field money-input" placeholder="0,00" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Preço Atacado (R$)</label>
-                        <input type="number" id="add-atacado" step="0.01" class="input-field" placeholder="0,00">
+                        <input type="text" inputmode="decimal" id="add-atacado" class="input-field money-input" placeholder="0,00" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Estoque Mínimo</label>
@@ -10905,9 +11037,9 @@ async function saveNewProduct() {
         unidade: document.getElementById('add-uni').value.trim(),
         quantidade_embalagem: parseInt(document.getElementById('add-qtd-emb').value) || 1,
         qtd_por_caixa: qtdPorCaixa,
-        preco_custo: parseFloat(document.getElementById('add-custo').value) || 0,
-        preco_varejo: parseFloat(document.getElementById('add-varejo').value) || 0,
-        preco_atacado: parseFloat(document.getElementById('add-atacado').value) || 0,
+        preco_custo: parseMoneyInputValue(document.getElementById('add-custo').value),
+        preco_varejo: parseMoneyInputValue(document.getElementById('add-varejo').value),
+        preco_atacado: parseMoneyInputValue(document.getElementById('add-atacado').value),
         estoque_minimo: parseInt(document.getElementById('add-min').value) || 0,
         qtd_minima_atacado: parseInt(document.getElementById('add-min-at').value) || 1,
         status: document.getElementById('add-status').value,
@@ -11064,9 +11196,9 @@ async function saveEditProduct(originalId) {
         unidade: document.getElementById('edit-uni').value.trim(),
         quantidade_embalagem: parseInt(document.getElementById('edit-qtd-emb').value) || 1,
         qtd_por_caixa: qtdPorCaixa,
-        preco_custo: parseFloat(document.getElementById('edit-custo').value) || 0,
-        preco_varejo: parseFloat(document.getElementById('edit-varejo').value) || 0,
-        preco_atacado: parseFloat(document.getElementById('edit-atacado').value) || 0,
+        preco_custo: parseMoneyInputValue(document.getElementById('edit-custo').value),
+        preco_varejo: parseMoneyInputValue(document.getElementById('edit-varejo').value),
+        preco_atacado: parseMoneyInputValue(document.getElementById('edit-atacado').value),
         estoque_minimo: parseInt(document.getElementById('edit-min').value) || 0,
         qtd_minima_atacado: parseInt(document.getElementById('edit-min-at').value) || 1,
         status: document.getElementById('edit-status').value,
@@ -11339,15 +11471,15 @@ function renderEditProductForm(p) {
                     <div class="form-section-title">Preços e Estoque</div>
                     <div class="input-group">
                         <label>Preço de Custo (R$)</label>
-                        <input type="number" id="edit-custo" step="0.01" class="input-field" value="${p.preco_custo || ''}">
+                        <input type="text" inputmode="decimal" id="edit-custo" class="input-field money-input" value="${formatMoneyInputValue(p.preco_custo || 0)}" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Preço Varejo (R$)</label>
-                        <input type="number" id="edit-varejo" step="0.01" class="input-field" value="${p.preco_varejo || ''}">
+                        <input type="text" inputmode="decimal" id="edit-varejo" class="input-field money-input" value="${formatMoneyInputValue(p.preco_varejo || 0)}" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Preço Atacado (R$)</label>
-                        <input type="number" id="edit-atacado" step="0.01" class="input-field" value="${p.preco_atacado || ''}">
+                        <input type="text" inputmode="decimal" id="edit-atacado" class="input-field money-input" value="${formatMoneyInputValue(p.preco_atacado || 0)}" onfocus="this.select()" onblur="normalizeMoneyInputElement(this)">
                     </div>
                     <div class="input-group">
                         <label>Estoque Mínimo</label>
@@ -11970,6 +12102,96 @@ function getSeparationItemCount(session) {
     return count || Number(session.total_itens || session.qtd_itens || session.itens || 0) || 0;
 }
 
+function isDraftPickStatus(status) {
+    return ['em_separacao', 'rascunho', 'draft'].includes(String(status || '').toLowerCase());
+}
+
+function getDraftPickSessionsFromCache() {
+    return (appData.separacao || [])
+        .filter(session => isDraftPickStatus(session.status))
+        .sort((a, b) => new Date(b.atualizado_em || b.criado_em || 0) - new Date(a.atualizado_em || a.criado_em || 0));
+}
+
+function hydratePickItemsFromSavedSession(sessionId) {
+    const savedItems = (appData.separacao_itens || [])
+        .filter(item => String(item.separacao_id || item.codigo_separacao || '') === String(sessionId));
+
+    return savedItems.map(item => {
+        const productId = item.id_interno || item.col_a || item.col_A || '';
+        const product = (appData.products || []).find(p => String(p.id_interno || p.col_a || p.col_A || '') === String(productId)) || {};
+        const qty = Number(item.qtd_separada || item.quantidade || item.qty || item.qtd_solicitada || 1) || 1;
+        return {
+            ...product,
+            ...item,
+            id_interno: productId,
+            ean: item.ean || product.ean || '',
+            descricao_base: product.descricao_base || item.descricao || item.descricao_base || '',
+            descricao_completa: product.descricao_completa || item.descricao || item.descricao_completa || '',
+            qty,
+            scanTime: formatTimeBR()
+        };
+    });
+}
+
+async function resumePickingDraftFromServer(sessionId) {
+    const session = (appData.separacao || []).find(row => String(row.separacao_id || row.id || row.col_a || '') === String(sessionId));
+    if (!session) {
+        showToast('Separacao nao encontrada para retomar.', 'warning');
+        return;
+    }
+
+    const channelLabel = session.canal_nome || session.canal || session.col_c || '';
+    const channelId = session.canal_id || channelLabel || '';
+    const channelColor = getChannelConfig(channelLabel).color || 'pdv';
+
+    try {
+        const productData = await DataClient.loadModule('produtos');
+        if (productData) {
+            appData.products = productData.products || appData.products || [];
+            appData.estoque = productData.estoque || appData.estoque || [];
+        }
+    } catch (error) {
+        console.warn('[SEP] Falha ao carregar produtos para retomar rascunho:', error);
+    }
+
+    const items = hydratePickItemsFromSavedSession(sessionId);
+
+    currentSessionItems = items;
+    currentPickingContext = {
+        sessionId,
+        channelId,
+        channelLabel,
+        channelColor,
+        executionId: generateExecutionId(),
+        createdAt: session.criado_em || session.data_separacao || getDataHoraBrasil()
+    };
+    saveDraftPickSession({
+        sessionId,
+        channelId,
+        channelLabel,
+        channelColor,
+        items,
+        status: PICK_STATUS_DRAFT,
+        operatorId: localStorage.getItem('currentUser'),
+        createdAt: currentPickingContext.createdAt,
+        executionId: currentPickingContext.executionId,
+        saveStatus: 'synced'
+    });
+
+    renderPickingScreen(sessionId, channelId, channelLabel, channelColor);
+    if (!items.length) {
+        showToast('Separacao retomada sem itens carregados. Confira antes de finalizar.', 'warning');
+    }
+}
+
+async function confirmDiscardSavedPickingDraft(sessionId) {
+    if (!confirm(`Excluir o rascunho da separacao ${sessionId}?\n\nOs produtos bipados nesse rascunho serao removidos.`)) {
+        return;
+    }
+    await discardPickingDraft(sessionId);
+    renderPickMenu();
+}
+
 async function renderPickMenu() {
     if (isModoRapidoAtivo()) {
         showToast("Modo rápido ativo. Use Conferência/Saída direta.", "info");
@@ -11980,6 +12202,16 @@ async function renderPickMenu() {
     
     // Garantir carregamento real do Supabase
     await ensureCanaisLoaded();
+    try {
+        const data = await DataClient.loadModule('separacao', true);
+        if (data) {
+            appData.channels = data.channels || appData.channels || [];
+            appData.separacao = data.separacao || appData.separacao || [];
+            appData.separacao_itens = data.separacao_itens || appData.separacao_itens || [];
+        }
+    } catch (error) {
+        console.warn('[SEP] Falha ao atualizar separacoes do Supabase:', error);
+    }
     
     console.log(`[CANAIS DEBUG] renderizando canais: ${(appData.channels || []).length} registros`);
 
@@ -12001,6 +12233,7 @@ async function renderPickMenu() {
     channels = channels.filter(c => !String(c.label).toUpperCase().includes('FULL'));
 
     const channelCards = buildPickChannelCards(channels);
+    const draftSessions = getDraftPickSessionsFromCache();
 
     app.innerHTML = `
                 <div class="dashboard-screen internal fade-in picking-screen module-screen standard-card-menu-screen">
@@ -12008,6 +12241,49 @@ async function renderPickMenu() {
                     ${getModuleSidebarHTML('pick')}
 
                     <main class="container">
+                        ${draftSessions.length ? `
+                            <div class="operational-counter-row">
+                                <span class="operational-counter-pill">
+                                    <span class="material-symbols-rounded">pending_actions</span>
+                                    Separacoes em andamento: <strong>${draftSessions.length}</strong>
+                                </span>
+                            </div>
+                            <div class="standard-module-card-grid operational-card-grid operational-conference-grid" style="margin-bottom: 18px;">
+                                ${draftSessions.map(session => {
+                                    const sessionId = getPackSeparationSessionId(session);
+                                    const channelName = session.canal_nome || session.canal || session.col_c || 'Canal nao informado';
+                                    const config = getChannelConfig(channelName);
+                                    const createdAt = formatPackSeparationDate(session.criado_em || session.data_separacao || session.col_b);
+                                    const itemCount = getSeparationItemCount(session);
+                                    return `
+                                        <article class="standard-module-card operational-menu-card operational-conference-card" style="cursor: default;">
+                                            <span class="standard-module-card-icon">${config.svgIcon || `<span class="material-symbols-rounded">${config.icon}</span>`}</span>
+                                            <span class="standard-module-card-copy operational-conference-copy">
+                                                <strong>${escapeKitAttribute(sessionId)}</strong>
+                                                <small>${escapeKitAttribute(channelName)}</small>
+                                                <span class="operational-card-meta">
+                                                    <em>${escapeKitAttribute(createdAt)}</em>
+                                                    <em>${itemCount ? `${itemCount} item(ns)` : 'Sem itens carregados'}</em>
+                                                    <b>Em separacao</b>
+                                                </span>
+                                                <span class="operational-open-indicator">
+                                                    <span class="material-symbols-rounded">sync</span>
+                                                    Rascunho salvo
+                                                </span>
+                                            </span>
+                                            <button class="pack-session-action" type="button" onclick="resumePickingDraftFromServer(${quotePackInlineArg(sessionId)})" title="Retomar separacao">
+                                                <span class="material-symbols-rounded">play_arrow</span>
+                                                <span>Retomar</span>
+                                            </button>
+                                            <button class="pack-session-action" type="button" onclick="event.stopPropagation(); confirmDiscardSavedPickingDraft(${quotePackInlineArg(sessionId)})" title="Excluir rascunho">
+                                                <span class="material-symbols-rounded">delete</span>
+                                                <span>Excluir</span>
+                                            </button>
+                                        </article>
+                                    `;
+                                }).join('')}
+                            </div>
+                        ` : ''}
                         <div class="standard-module-card-grid operational-card-grid">
                             ${channelCards.map(item => `
                                 <button type="button" class="standard-module-card operational-menu-card" onclick="startPickingSession(${quotePackInlineArg(item.id)}, ${quotePackInlineArg(item.actualLabel)}, ${quotePackInlineArg(item.color)})">
@@ -12279,27 +12555,97 @@ function getPickingProductId(item) {
 
 function showPickScanCenterToast(item = null, quantity = 1) {
     clearTimeout(scanCenterToastTimeout);
-    document.querySelectorAll('.scan-center-toast').forEach(el => el.remove());
+    document.querySelectorAll('.scan-center-toast, .pick-feedback-toast').forEach(el => el.remove());
 
     const title = item ? getPickItemTitle(item) : 'Produto bipado';
-    const id = item ? (getPickingProductId(item) || item.id_interno || item.col_a || '-') : '-';
-    const ean = item ? (item.ean || item.codigo_barras || '-') : '-';
-    const brand = item ? (getPickItemBrand(item) || '') : '';
+    const sku = item ? getPickItemSku(item) : '-';
+    const ean = item ? getPickItemEan(item) : '-';
+    const color = item ? getPickItemColor(item) : '-';
+    const image = item ? getPickProductImage(item) : '';
+    const currentQty = Number(item?.qty || item?.qtd_separada || quantity || 1) || 1;
 
     const toastEl = document.createElement('div');
-    toastEl.className = 'scan-center-toast';
+    toastEl.className = 'pick-feedback-toast is-add';
     toastEl.innerHTML = `
-        <small>Produto bipado</small>
-        <strong>${escapeKitAttribute(title)}</strong>
-        ${brand ? `<em>${escapeKitAttribute(brand)}</em>` : ''}
-        <span>+${quantity} unidade adicionada</span>
+        <button class="pick-feedback-close" type="button" aria-label="Fechar" onclick="this.closest('.pick-feedback-toast')?.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+        <div class="pick-feedback-icon"><span class="material-symbols-rounded">check</span></div>
+        <strong class="pick-feedback-title">PRODUTO ADICIONADO</strong>
+        <div class="pick-feedback-body">
+            <div class="pick-feedback-image">
+                ${image ? `<img src="${escapeKitAttribute(image)}" alt="${escapeKitAttribute(title)}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'material-symbols-rounded\\'>inventory_2</span>'">` : `<span class="material-symbols-rounded">inventory_2</span>`}
+            </div>
+            <div class="pick-feedback-copy">
+                <b>${escapeKitAttribute(title)}</b>
+                <div class="pick-feedback-meta">
+                    <span>SKU: ${escapeKitAttribute(sku)}</span>
+                    <span>EAN: ${escapeKitAttribute(ean)}</span>
+                    <span>COR: ${escapeKitAttribute(color)}</span>
+                </div>
+            </div>
+        </div>
+        <div class="pick-feedback-footer">
+            <div>
+                <span>Quantidade atual</span>
+                <strong>${currentQty}<small> un</small></strong>
+            </div>
+            <em><span class="material-symbols-rounded">check_circle</span>Adicionado à separação</em>
+        </div>
     `;
     document.body.appendChild(toastEl);
 
     scanCenterToastTimeout = setTimeout(() => {
         toastEl.classList.add('is-hiding');
-        setTimeout(() => toastEl.remove(), 220);
-    }, 1800);
+        setTimeout(() => toastEl.remove(), 260);
+    }, 2600);
+}
+
+function showPickRemovalFeedbackToast(item = null, quantity = 1) {
+    clearTimeout(scanCenterToastTimeout);
+    document.querySelectorAll('.scan-center-toast, .pick-feedback-toast').forEach(el => el.remove());
+
+    const title = item ? getPickItemTitle(item) : 'Produto removido';
+    const sku = item ? getPickItemSku(item) : '-';
+    const ean = item ? getPickItemEan(item) : '-';
+    const color = item ? getPickItemColor(item) : '-';
+    const image = item ? getPickProductImage(item) : '';
+
+    const toastEl = document.createElement('div');
+    toastEl.className = 'pick-feedback-toast is-remove';
+    toastEl.innerHTML = `
+        <button class="pick-feedback-close" type="button" aria-label="Fechar" onclick="this.closest('.pick-feedback-toast')?.remove()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+        <div class="pick-feedback-icon"><span class="material-symbols-rounded">remove</span></div>
+        <strong class="pick-feedback-title">PRODUTO REMOVIDO</strong>
+        <div class="pick-feedback-body">
+            <div class="pick-feedback-image">
+                ${image ? `<img src="${escapeKitAttribute(image)}" alt="${escapeKitAttribute(title)}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'material-symbols-rounded\\'>inventory_2</span>'">` : `<span class="material-symbols-rounded">inventory_2</span>`}
+            </div>
+            <div class="pick-feedback-copy">
+                <b>${escapeKitAttribute(title)}</b>
+                <div class="pick-feedback-meta">
+                    <span>SKU: ${escapeKitAttribute(sku)}</span>
+                    <span>EAN: ${escapeKitAttribute(ean)}</span>
+                    <span>COR: ${escapeKitAttribute(color)}</span>
+                </div>
+            </div>
+        </div>
+        <div class="pick-feedback-footer">
+            <div>
+                <span>Quantidade removida</span>
+                <strong>${Number(quantity || 1)}<small> un</small></strong>
+            </div>
+            <em><span class="material-symbols-rounded">check_circle</span>${Number(quantity || 1)} ${Number(quantity || 1) === 1 ? 'unidade removida' : 'unidades removidas'} da separação</em>
+        </div>
+    `;
+    document.body.appendChild(toastEl);
+
+    scanCenterToastTimeout = setTimeout(() => {
+        toastEl.classList.add('is-hiding');
+        setTimeout(() => toastEl.remove(), 260);
+    }, 2600);
 }
 
 function triggerScanSuccessGlow() {
@@ -12579,6 +12925,167 @@ function getPickMainCode(item) {
     return item?.id_interno || item?.col_a || item?.col_A || item?.ean || item?.sku_fornecedor || item?.sku || '-';
 }
 
+function getPickItemSku(item) {
+    return item?.sku_fornecedor || item?.sku || item?.codigo_sku || '-';
+}
+
+function getPickItemEan(item) {
+    return item?.ean || item?.codigo_barras || item?.gtin || '-';
+}
+
+function getPickItemColor(item) {
+    return item?.cor || item?.color || item?.colour || item?.col_h || item?.col_H || '-';
+}
+
+const HIGH_QTY_THRESHOLD = 15;
+
+function getHighQtyProductInfo(item = {}) {
+    const productId = item.id_interno || item.col_a || item.col_A || '';
+    const product = productId
+        ? (appData.products || []).find(p => String(p.id_interno || p.col_a || p.col_A || '') === String(productId))
+        : null;
+    const merged = { ...(product || {}), ...(item || {}) };
+    return {
+        title: getPickItemTitle(merged),
+        sku: getPickItemSku(merged),
+        ean: getPickItemEan(merged),
+        color: getPickItemColor(merged),
+        image: getPickProductImage(merged)
+    };
+}
+
+function getManualQtyAuditPatch(previousQty, nextQty, reason) {
+    return {
+        ajuste_manual: true,
+        quantidade_anterior: previousQty,
+        quantidade_nova: nextQty,
+        ajustado_por: localStorage.getItem('currentUser') || 'N/A',
+        ajustado_em: getDataHoraBrasil(),
+        motivo: reason
+    };
+}
+
+function focusFlowScanInput(flow) {
+    const inputId = flow === 'pack' ? 'pack-ean-input' : flow === 'inventory' ? 'inv-ean-input' : 'pick-ean-input';
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = '';
+    setTimeout(() => input.focus(), 80);
+}
+
+function closeHighQtyModal() {
+    document.getElementById('high-qty-modal')?.remove();
+}
+
+function openHighQtyModal({ item, currentQty, flow = 'pick', reason = 'quantidade_alta', operation = 'add', summaryLabel = 'Atual', directInput = false, onConfirm }) {
+    return new Promise(resolve => {
+        closeHighQtyModal();
+        const info = getHighQtyProductInfo(item);
+        const isRemove = operation === 'remove';
+        const overlay = document.createElement('div');
+        overlay.id = 'high-qty-modal';
+        overlay.className = 'high-qty-modal-backdrop';
+
+        const renderInputStep = (error = '') => {
+            overlay.querySelector('.high-qty-card').innerHTML = `
+                <button class="high-qty-close" type="button" aria-label="Fechar"><span class="material-symbols-rounded">close</span></button>
+                <div class="high-qty-icon"><span class="material-symbols-rounded">edit_square</span></div>
+                <h2>${isRemove ? 'INFORMAR QUANTIDADE PARA REMOVER' : 'INFORMAR QUANTIDADE TOTAL'}</h2>
+                <p>${isRemove ? 'Digite a quantidade total que deve ser removida deste produto.' : 'Digite a quantidade final deste produto.'}</p>
+                ${renderHighQtyProductSummary(info, currentQty, summaryLabel)}
+                <label class="high-qty-input-label">
+                    <span>${isRemove ? 'Quantidade para remover' : 'Quantidade total'}</span>
+                    <input id="high-qty-input" type="number" inputmode="numeric" min="1" step="1" value="${Number(currentQty || 1)}">
+                </label>
+                ${error ? `<div class="high-qty-error">${escapeKitAttribute(error)}</div>` : ''}
+                <div class="high-qty-actions">
+                    <button type="button" class="high-qty-secondary" data-action="cancel">Cancelar</button>
+                    <button type="button" class="high-qty-confirm" data-action="confirm">Confirmar quantidade</button>
+                </div>
+            `;
+            bindInputStep();
+            setTimeout(() => document.getElementById('high-qty-input')?.select(), 60);
+        };
+
+        const finish = (value = null) => {
+            closeHighQtyModal();
+            focusFlowScanInput(flow);
+            resolve(value);
+        };
+
+        const bindInputStep = () => {
+            overlay.querySelector('.high-qty-close')?.addEventListener('click', () => finish(null));
+            overlay.querySelector('[data-action="cancel"]')?.addEventListener('click', () => finish(null));
+            overlay.querySelector('[data-action="confirm"]')?.addEventListener('click', async () => {
+                const input = document.getElementById('high-qty-input');
+                const nextQty = Math.floor(Number(String(input?.value || '').replace(',', '.')));
+                if (!Number.isFinite(nextQty) || nextQty < 1) {
+                    renderInputStep('Informe uma quantidade válida.');
+                    return;
+                }
+                if (!confirm(isRemove ? `Confirmar remoção de ${nextQty} unidades?` : `Confirmar alteração para ${nextQty} unidades?`)) return;
+                try {
+                    await onConfirm?.(nextQty, reason);
+                    finish(nextQty);
+                } catch (error) {
+                    console.error('[HIGH_QTY] erro ao confirmar quantidade:', error);
+                    renderInputStep(error?.message || 'Erro ao confirmar quantidade.');
+                }
+            });
+            overlay.querySelector('#high-qty-input')?.addEventListener('keydown', event => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    overlay.querySelector('[data-action="confirm"]')?.click();
+                }
+            });
+        };
+
+        overlay.innerHTML = `
+            <div class="high-qty-card" role="dialog" aria-modal="true" aria-label="Quantidade alta detectada">
+                <button class="high-qty-close" type="button" aria-label="Fechar"><span class="material-symbols-rounded">close</span></button>
+                <div class="high-qty-icon"><span class="material-symbols-rounded">priority_high</span></div>
+                <h2>QUANTIDADE ALTA DETECTADA</h2>
+                <p>${isRemove ? `Você já bipou ${HIGH_QTY_THRESHOLD} unidades para remover deste produto.` : `Você já bipou ${HIGH_QTY_THRESHOLD} unidades deste produto.`}</p>
+                ${renderHighQtyProductSummary(info, currentQty, summaryLabel)}
+                <div class="high-qty-actions">
+                    <button type="button" class="high-qty-secondary" data-action="continue">${isRemove ? 'Continuar removendo' : 'Continuar bipando'}</button>
+                    <button type="button" class="high-qty-primary" data-action="input">${isRemove ? 'Informar quantidade para remover' : 'Informar quantidade total'}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        if (directInput) {
+            renderInputStep();
+            return;
+        }
+
+        overlay.querySelector('.high-qty-close')?.addEventListener('click', () => finish(null));
+        overlay.querySelector('[data-action="continue"]')?.addEventListener('click', () => finish(null));
+        overlay.querySelector('[data-action="input"]')?.addEventListener('click', () => renderInputStep());
+    });
+}
+
+function renderHighQtyProductSummary(info, currentQty, summaryLabel = 'Atual') {
+    return `
+        <div class="high-qty-product">
+            <div class="high-qty-image">
+                ${info.image ? `<img src="${escapeKitAttribute(info.image)}" alt="${escapeKitAttribute(info.title)}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'material-symbols-rounded\\'>inventory_2</span>'">` : `<span class="material-symbols-rounded">inventory_2</span>`}
+            </div>
+            <div class="high-qty-copy">
+                <strong>${escapeKitAttribute(info.title)}</strong>
+                <span>SKU: ${escapeKitAttribute(info.sku)}</span>
+                <span>EAN: ${escapeKitAttribute(info.ean)}</span>
+                <span>COR: ${escapeKitAttribute(info.color)}</span>
+            </div>
+            <div class="high-qty-current">
+                <span>${escapeKitAttribute(summaryLabel)}</span>
+                <strong>${Number(currentQty || 0)}<small> un</small></strong>
+            </div>
+        </div>
+    `;
+}
+
 function getPickItemStockInfoHTML(item) {
     const productId = getPickingProductId(item);
     if (!productId || !Array.isArray(appData.estoque)) {
@@ -12678,14 +13185,9 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                         <span class="pick-title-icon">${channelIcon}</span>
                         <div>
                             <h1>SEPARAÇÃO (PICK)</h1>
-                            <p>Escaneie o produto para adicionar</p>
                         </div>
                     </div>
 
-                    <button class="pick-manual-code-btn" type="button" onclick="focusPickManualInput()">
-                        <span class="material-symbols-rounded">keyboard</span>
-                        Informar Codigo
-                    </button>
                 </header>
 
                 <section class="pick-scan-panel">
@@ -12693,16 +13195,12 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                         <div class="pick-scan-field">
                             <span class="material-symbols-rounded">search</span>
                             <input type="text" id="pick-ean-input" class="product-search-input" 
-                                   placeholder="Escaneie o produto (EAN, SKU ou código interno)" 
+                                   placeholder="Bipe o produto (EAN, SKU ou código interno)"
                                    onkeydown="if(event.key === 'Enter'){ event.preventDefault(); addPickItem(); }" autocomplete="off" autofocus>
                             <button class="pick-scanner-btn" onclick="startScanner(true)" title="Abrir Scanner" type="button">
                                 <span class="material-symbols-rounded">qr_code_scanner</span>
                             </button>
                         </div>
-                        <button id="pick-remove-scan-toggle" class="pick-remove-scan-btn" type="button" onclick="togglePickRemovalMode()">
-                            <span class="material-symbols-rounded">remove_circle</span>
-                            <span id="pick-remove-scan-label">Remover por bipagem</span>
-                        </button>
                     </div>
                     <div id="pick-removal-badge" class="pick-removal-badge hidden">
                         <span class="material-symbols-rounded">warning</span>
@@ -12715,17 +13213,14 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                     <article class="pick-info-card">
                         <span>CANAL</span>
                         <strong>${escapeKitAttribute(channelLabel || '-')}</strong>
-                        <small>${escapeKitAttribute(getPickChannelSubtitle(channelLabel))}</small>
                     </article>
                     <article class="pick-info-card">
                         <span>ID DA SEPARACAO</span>
                         <strong>${escapeKitAttribute(sessionId)}</strong>
-                        <small>Em andamento</small>
                     </article>
                     <article class="pick-info-card">
                         <span>OPERADOR</span>
                         <strong>${escapeKitAttribute(currentUser || '-')}</strong>
-                        <small>${escapeKitAttribute(operatorInitials)}</small>
                     </article>
                 </section>
 
@@ -12748,8 +13243,6 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
 
                         <div class="pick-table-head">
                             <span>Produto</span>
-                            <span>Codigo</span>
-                            <span>Estoque / Local</span>
                             <span>Quantidade bipada</span>
                             <span>Acoes</span>
                         </div>
@@ -12762,17 +13255,17 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                         <div class="pick-summary-metrics">
                             <div><span>Itens</span><strong id="pick-summary-items">${currentSessionItems.length}</strong></div>
                             <div><span>Unidades totais</span><strong id="pick-summary-qty">${getPickTotalQuantity()}</strong></div>
-                            <div><span>Progresso</span><strong id="pick-summary-progress">${currentSessionItems.length ? '100%' : '0%'}</strong></div>
                         </div>
                         <div class="pick-summary-actions">
+                            <button id="pick-remove-scan-toggle" class="pick-remove-scan-btn" type="button" onclick="togglePickRemovalMode()">
+                                <span class="material-symbols-rounded">remove_circle</span>
+                                <span id="pick-remove-scan-label">Remover por bipagem</span>
+                            </button>
                             <button class="pick-finish-btn" type="button" onclick="finishPickingSession(${quotePackInlineArg(sessionId)}, ${quotePackInlineArg(channelId)}, ${quotePackInlineArg(channelLabel)}, ${quotePackInlineArg(channelColor)})">
                                 FINALIZAR SEPARACAO
                             </button>
                             <button class="pick-pause-btn" type="button" onclick="pausePickingSession(${quotePackInlineArg(sessionId)}, ${quotePackInlineArg(channelId)}, ${quotePackInlineArg(channelLabel)}, ${quotePackInlineArg(channelColor)})">
                                 PAUSAR SEPARACAO
-                            </button>
-                            <button class="pick-cancel-draft-btn" type="button" onclick="confirmDiscardPickingDraft(${quotePackInlineArg(sessionId)}, ${quotePackInlineArg(channelId)}, ${quotePackInlineArg(channelLabel)}, ${quotePackInlineArg(channelColor)})">
-                                CANCELAR RASCUNHO
                             </button>
                         </div>
                     </aside>
@@ -12827,7 +13320,7 @@ function normalizePickCode(rawValue) {
 function getPickScanInputPlaceholder() {
     return pickRemovalModeActive
         ? 'Bipe o produto para remover 1 unidade'
-        : 'Escaneie o produto (EAN, SKU ou código interno)';
+        : 'Bipe o produto (EAN, SKU ou código interno)';
 }
 
 function updatePickRemovalModeUI() {
@@ -13021,8 +13514,11 @@ async function removePickItemByScan(cleanCode, input) {
 
     const item = currentSessionItems[existingIndex];
     const productKey = getPickingProductId(item);
-    const nextQty = Math.max(0, (Number(item.qty) || Number(item.qtd_separada) || 1) - 1);
-    const removedAll = nextQty <= 0;
+    const currentQty = Number(item.qty) || Number(item.qtd_separada) || 1;
+    if (!item.remove_scan_count) item.remove_scan_origin_qty = currentQty;
+    const nextQty = Math.max(0, currentQty - 1);
+    let removedAll = nextQty <= 0;
+    let removedFeedbackQty = 1;
 
     playBeep('success');
     lastScannedPickItemKey = productKey;
@@ -13032,10 +13528,45 @@ async function removePickItemByScan(cleanCode, input) {
     currentSessionItems.splice(existingIndex, 1);
     if (!removedAll) {
         item.qty = nextQty;
+        item.remove_scan_count = Number(item.remove_scan_count || 0) + 1;
         item.scanTime = formatTimeBR();
         item.lastRemovedAt = Date.now();
         item.lastAddedAt = 0;
         currentSessionItems.unshift(item);
+    }
+
+    if (!removedAll && Number(item.remove_scan_count || 0) === HIGH_QTY_THRESHOLD && !item.high_remove_qty_prompted) {
+        item.high_remove_qty_prompted = true;
+        await openHighQtyModal({
+            item,
+            currentQty: item.remove_scan_count,
+            flow: 'pick',
+            reason: 'quantidade_alta',
+            operation: 'remove',
+            summaryLabel: 'Removidas por bipagem',
+            onConfirm: async (totalToRemove, reason) => {
+                const removedByScan = Number(item.remove_scan_count || 0);
+                const originQty = Number(item.remove_scan_origin_qty || (Number(item.qty || 0) + removedByScan));
+                if (totalToRemove < removedByScan) {
+                    throw new Error(`Informe uma quantidade igual ou maior que ${removedByScan}.`);
+                }
+                const finalQty = Math.max(0, originQty - totalToRemove);
+                Object.assign(item, getManualQtyAuditPatch(originQty, finalQty, reason));
+                item.qty = finalQty;
+                item.remove_scan_count = totalToRemove;
+                removedFeedbackQty = Math.min(totalToRemove, originQty);
+                item.scanTime = formatTimeBR();
+                item.lastRemovedAt = Date.now();
+                lastScannedPickItemKey = productKey;
+                lastPickScanAction = 'remove';
+                const currentIndex = currentSessionItems.indexOf(item);
+                if (currentIndex >= 0) currentSessionItems.splice(currentIndex, 1);
+                if (finalQty > 0) currentSessionItems.unshift(item);
+                updatePickItemsList();
+                showToast(finalQty > 0 ? 'Quantidade removida atualizada.' : 'Produto removido da separação', 'success');
+            }
+        });
+        removedAll = !currentSessionItems.includes(item) || Number(item.qty || 0) <= 0;
     }
 
     const draft = getCurrentPickDraftForUpdate('saving');
@@ -13050,7 +13581,8 @@ async function removePickItemByScan(cleanCode, input) {
     try {
         const result = await persistPickingItemRemoval(draft, item, removedAll);
         if (result?.queued) showToast('Remoção salva localmente para sincronizar.');
-        else showToast(removedAll ? 'Produto removido da separação' : '1 unidade removida');
+        else showToast(removedAll ? 'Produto removido da separação' : `${removedFeedbackQty} ${removedFeedbackQty === 1 ? 'unidade removida' : 'unidades removidas'}`);
+        showPickRemovalFeedbackToast(item, removedFeedbackQty);
     } catch (error) {
         markDraftPickSaveStatus('failed', error);
         console.error('[SEP] erro ao remover item por bipagem', error);
@@ -13091,15 +13623,30 @@ async function addPickItem(scannedEan = null) {
         }
 
         const allowNegative = isSaidaEstoqueZeroPermitida();
-        const stockEntries = (appData.estoque || []).filter(e => String(e.id_interno || e.col_a || e.id || '') === String(product.id_interno || product.col_a || ''));
-        const stock = calcularEstoqueDisponivel(stockEntries);
+        const stock = getPickAvailableStock(productId);
         const existingItemForQty = currentSessionItems.find(item => getPickingProductId(item) === productId);
         const currentDraftQty = existingItemForQty ? existingItemForQty.qty : 0;
 
         if (stock < (currentDraftQty + 1)) {
+            console.log('[SEPARACAO_ESTOQUE_NEGATIVO] validacao bipagem', {
+                permitir_estoque_negativo: allowNegative,
+                produto: productId,
+                descricao: getPickItemTitle(product),
+                estoque_atual: stock,
+                quantidade_solicitada: currentDraftQty + 1,
+                faltante: (currentDraftQty + 1) - stock,
+                ponto: 'bipagem',
+                decisao: allowNegative ? 'permitiu_com_alerta' : 'bloqueou'
+            });
             if (!allowNegative) {
                 showScanFeedback('error', 'Estoque insuficiente');
-                showToast(`ESTOQUE INSUFICIENTE para ${product.descricao_base || 'este item'}`);
+                await showAppModal({
+                    type: 'error',
+                    title: 'Estoque insuficiente',
+                    message: 'Estoque insuficiente para finalizar a separação. Ative “Permitir estoque negativo” em Configurações ou ajuste a quantidade.',
+                    detail: `${getPickItemTitle(product)}: disponível ${stock}, solicitado ${currentDraftQty + 1}.`,
+                    confirmText: 'Entendi'
+                });
                 input.value = '';
                 showInputFeedback('pick-ean-input', 'error');
                 return;
@@ -13108,7 +13655,7 @@ async function addPickItem(scannedEan = null) {
                 const warningKey = `${currentPickSession?.id || currentPickSession?.channelId || 'pick'}:${product.id_interno || product.ean || ean}`;
                 if (!window.pickNegativeStockWarnings.has(warningKey)) {
                     window.pickNegativeStockWarnings.add(warningKey);
-                    showToast(`AVISO: Estoque negativo para ${product.descricao_base || 'este item'}`);
+                    showToast(`Estoque insuficiente, mas permitido: ${getPickItemTitle(product)}`);
                 }
             }
         }
@@ -13140,6 +13687,28 @@ async function addPickItem(scannedEan = null) {
         lastPickScanAction = 'add';
         expandedPickItemKey = null;
         addPickScanHistory('add', currentSessionItems[0] || product);
+        const scannedPickItem = currentSessionItems[0];
+
+        if ((Number(scannedPickItem?.qty || 0) === HIGH_QTY_THRESHOLD) && !scannedPickItem.high_qty_prompted) {
+            scannedPickItem.high_qty_prompted = true;
+            await openHighQtyModal({
+                item: scannedPickItem,
+                currentQty: scannedPickItem.qty,
+                flow: 'pick',
+                reason: 'quantidade_alta',
+                onConfirm: async (nextQty, reason) => {
+                    const previousQty = Number(scannedPickItem.qty || 0);
+                    Object.assign(scannedPickItem, getManualQtyAuditPatch(previousQty, nextQty, reason));
+                    scannedPickItem.qty = nextQty;
+                    scannedPickItem.scanTime = formatTimeBR();
+                    scannedPickItem.lastAddedAt = Date.now();
+                    lastScannedPickItemKey = productId;
+                    lastPickScanAction = 'add';
+                    updatePickItemsList();
+                    showToast('Quantidade atualizada.', 'success');
+                }
+            });
+        }
 
         const draftStr = localStorage.getItem('draft_pick_session');
         let draft;
@@ -13194,7 +13763,7 @@ async function addPickItem(scannedEan = null) {
         }
 
         if (!pickPersistFailed) {
-            showPickScanCenterToast(product);
+            showPickScanCenterToast(currentSessionItems.find(item => getPickingProductId(item) === productId) || product);
             triggerScanSuccessGlow();
         }
         if (currentPackSession) {
@@ -13203,7 +13772,12 @@ async function addPickItem(scannedEan = null) {
         }
     } else {
         showScanFeedback('warning', 'Produto não cadastrado');
-        showToast(`PRODUTO NÃO CADASTRADO: ${ean}`);
+        await showAppModal({
+            type: 'warning',
+            title: 'Produto não encontrado',
+            message: `Produto não cadastrado para o código ${ean}.`,
+            confirmText: 'OK'
+        });
     }
 
     input.value = '';
@@ -13237,21 +13811,20 @@ function updatePickItemsList() {
         const addedRecently = Date.now() - Number(item.lastAddedAt || 0) < 4500;
         const removedRecently = Date.now() - Number(item.lastRemovedAt || 0) < 4500;
         return `
-        <article class="pick-product-row separacao-item-card fade-in ${isLastScanned ? 'is-last-scanned' : ''} ${isLastRemoval ? 'is-last-removed' : ''} ${addedRecently ? 'recently-added' : ''} ${removedRecently ? 'recently-removed' : ''} ${isExpanded ? 'is-expanded' : ''}" onclick="togglePickItemExpanded(${quotePackInlineArg(productKey)})" role="button" tabindex="0" onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); togglePickItemExpanded(${quotePackInlineArg(productKey)}); }">
+        <article class="pick-product-row separacao-item-card fade-in ${isLastScanned ? 'is-last-scanned' : ''} ${isLastRemoval ? 'is-last-removed' : ''} ${addedRecently ? 'recently-added' : ''} ${removedRecently ? 'recently-removed' : ''}">
             <div class="pick-product-main" data-label="Produto">
                 <div class="pick-product-image">
                     ${getPickProductImage(item) ? `<img src="${escapeKitAttribute(getPickProductImage(item))}" alt="${escapeKitAttribute(getPickItemTitle(item))}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'material-symbols-rounded\\'>inventory_2</span>'">` : `<span class="material-symbols-rounded">inventory_2</span>`}
                 </div>
                 <div>
                     <strong>${escapeKitAttribute(getPickItemTitle(item))}</strong>
-                    <small>${escapeKitAttribute(getPickItemBrand(item))}</small>
+                    <div class="pick-product-meta">
+                        <span>SKU: ${escapeKitAttribute(getPickItemSku(item))}</span>
+                        <span>EAN: ${escapeKitAttribute(getPickItemEan(item))}</span>
+                        <span>COR: ${escapeKitAttribute(getPickItemColor(item))}</span>
+                    </div>
                 </div>
             </div>
-            <div class="pick-product-code" data-label="Codigo">
-                <strong>${escapeKitAttribute(getPickMainCode(item))}</strong>
-                <small>EAN ${escapeKitAttribute(item.ean || '-')} • SKU ${escapeKitAttribute(item.sku_fornecedor || item.sku || '-')}</small>
-            </div>
-            ${getPickItemStockInfoHTML(item)}
             <div class="pick-product-qty" data-label="Quantidade bipada">
                 <span class="pick-qty-number">${Number(item.qty) || 0}</span>
                 <span class="pick-qty-unit">un</span>
@@ -13263,14 +13836,6 @@ function updatePickItemsList() {
                 <div class="pick-added-now ${isLastRemoval ? 'is-remove' : ''}">
                     <span class="material-symbols-rounded">${isLastRemoval ? 'remove_done' : 'check'}</span>
                     ${isLastRemoval ? '1 unidade removida' : 'Adicionado agora'}
-                </div>
-            ` : ''}
-            ${isExpanded ? `
-                <div class="pick-product-details">
-                    <div><span>Marca</span><strong>${escapeKitAttribute(getPickItemBrand(item) || '-')}</strong></div>
-                    <div><span>Adicionado em</span><strong>${escapeKitAttribute(item.scanTime || '-')}</strong></div>
-                    <div><span>EAN</span><strong>${escapeKitAttribute(item.ean || '-')}</strong></div>
-                    <div><span>SKU</span><strong>${escapeKitAttribute(item.sku_fornecedor || item.sku || '-')}</strong></div>
                 </div>
             ` : ''}
         </article>
@@ -13334,7 +13899,12 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
 
     try {
         if (currentSessionItems.length === 0) {
-            showToast("Adicione pelo menos um item para finalizar.");
+            await showAppModal({
+                type: 'warning',
+                title: 'Separação vazia',
+                message: 'Adicione pelo menos um item para finalizar.',
+                confirmText: 'OK'
+            });
             return;
         }
 
@@ -13396,7 +13966,12 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
 
     } catch (error) {
         console.error("Error preparing picking result:", error);
-        showToast("Erro ao processar separação!");
+        await showAppModal({
+            type: 'error',
+            title: 'Erro ao processar separação',
+            message: error?.message || 'Erro ao processar separação.',
+            confirmText: 'Entendi'
+        });
     } finally {
         isFinalizing = false;
         const submitBtn = document.querySelector(`button[onclick^="finishPickingSession"]`);
@@ -13573,9 +14148,19 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
 
     try {
         if (!currentPickSession?.items || currentPickSession.items.length === 0) {
-            showToast("Adicione pelo menos um item para finalizar.");
+            await showAppModal({
+                type: 'warning',
+                title: 'Separação vazia',
+                message: 'Adicione pelo menos um item para finalizar.',
+                confirmText: 'OK'
+            });
             return;
         }
+
+        await ensureProdutosLoaded(true);
+        const stockValidation = validatePickingStockForExit(currentPickSession.items, 'finalizar_separacao');
+        const canContinueStock = await confirmPickingNegativeStockIfNeeded(stockValidation, 'finalizar_separacao');
+        if (!canContinueStock) return;
 
         const now = getDataHoraBrasil();
         const draft = getDraftPickSession() || {
@@ -13638,9 +14223,14 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
         setActivePickSessions(activeSessions);
 
         localStorage.removeItem('draft_pick_session');
-        showToast(finalResult?.queued
-            ? `Separacao ${sessionId} salva localmente para sincronizar.`
-            : `Separacao ${sessionId} enviada para conferencia!`);
+        await showAppModal({
+            type: 'success',
+            title: 'Separação finalizada',
+            message: finalResult?.queued
+                ? `Separação ${sessionId} salva localmente para sincronizar.`
+                : `Separação ${sessionId} enviada para conferência.`,
+            confirmText: 'OK'
+        });
         renderMenu();
     } catch (e) {
         console.error('[SEP] erro ao finalizar separacao', {
@@ -13652,7 +14242,12 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             channelId,
             channelLabel
         });
-        showToast(`Erro ao salvar finalizacao: ${e?.message || e}`);
+        await showAppModal({
+            type: 'error',
+            title: 'Erro ao finalizar separação',
+            message: e?.message || String(e),
+            confirmText: 'Entendi'
+        });
     } finally {
         isFinalizing = false;
     }
@@ -14361,6 +14956,29 @@ function adjustConferenceRowDirect(index, delta) {
     document.getElementById('pack-items-list').innerHTML = renderPackItemsListHTML();
 }
 
+function updateConferenceRowDivergence(row) {
+    if (row.qtd_conferida === row.qtd_separada) {
+        row.divergencia = 'OK';
+    } else if (row.qtd_conferida > row.qtd_separada) {
+        row.divergencia = 'SOBRA';
+    } else {
+        row.divergencia = 'FALTA';
+    }
+}
+
+function persistPackSessionCache() {
+    try {
+        if (!currentPackSession?.id) return;
+        const sessions = getActivePickSessions();
+        const idx = sessions.findIndex(s => String(s.id) === String(currentPackSession.id));
+        if (idx >= 0) sessions[idx] = currentPackSession;
+        else sessions.unshift(currentPackSession);
+        setActivePickSessions(sessions);
+    } catch (error) {
+        console.warn('[PACK] nao foi possivel atualizar cache local:', error);
+    }
+}
+
 /**
  * Fun?o Compartilhada para Busca Manual de Produto
  */
@@ -14455,7 +15073,7 @@ function manualAddItemToConference(product) {
 
 
 
-function addPackScan(scannedEan = null) {
+async function addPackScan(scannedEan = null) {
     const input = document.getElementById('pack-ean-input');
     const ean = (scannedEan || input.value.trim()).toString();
     if (!ean) return;
@@ -14471,14 +15089,7 @@ function addPackScan(scannedEan = null) {
         console.log(`[BIP CONTINUO DEBUG] produto adicionado (conferência): ${row.id_interno || ean}`);
         row.qtd_conferida++;
 
-        // Update divergence
-        if (row.qtd_conferida === row.qtd_separada) {
-            row.divergencia = 'OK';
-        } else if (row.qtd_conferida > row.qtd_separada) {
-            row.divergencia = 'SOBRA';
-        } else {
-            row.divergencia = 'FALTA';
-        }
+        updateConferenceRowDivergence(row);
         showToast("Produto conferido.");
     } else {
         // Item scanned but not in picking session (SOBRA)
@@ -14505,6 +15116,30 @@ function addPackScan(scannedEan = null) {
             conferido_em: ''
         };
         currentPackSession.conferenceRows.push(row);
+    }
+
+    if ((Number(row.qtd_conferida || 0) === HIGH_QTY_THRESHOLD) && !row.high_qty_prompted) {
+        row.high_qty_prompted = true;
+        await openHighQtyModal({
+            item: row,
+            currentQty: row.qtd_conferida,
+            flow: 'pack',
+            reason: 'quantidade_alta',
+            onConfirm: async (nextQty, reason) => {
+                const previousQty = Number(row.qtd_conferida || 0);
+                Object.assign(row, getManualQtyAuditPatch(previousQty, nextQty, reason));
+                row.qtd_conferida = nextQty;
+                updateConferenceRowDivergence(row);
+                const idx = currentPackSession.conferenceRows.indexOf(row);
+                if (idx > 0) {
+                    currentPackSession.conferenceRows.splice(idx, 1);
+                    currentPackSession.conferenceRows.unshift(row);
+                }
+                document.getElementById('pack-items-list').innerHTML = renderPackItemsListHTML();
+                persistPackSessionCache();
+                showToast('Quantidade atualizada.', 'success');
+            }
+        });
     }
 
     input.value = '';
@@ -14710,7 +15345,14 @@ async function finishConferenceSession() {
         renderConferenceCorrection();
     } else {
         // Se bater 100%, já oferece finalizar
-        if (confirm("Conferência perfeita! Deseja finalizar e dar baixa no estoque agora?")) {
+        const confirmed = await showAppModal({
+            type: 'confirm',
+            title: 'Conferência perfeita',
+            message: 'Deseja finalizar e dar baixa no estoque agora?',
+            confirmText: 'Finalizar',
+            cancelText: 'Revisar'
+        });
+        if (confirmed) {
             await confirmFinishConference();
         } else {
             renderConferenceCorrection(); // Mostra o resumo mesmo assim
@@ -14768,6 +15410,20 @@ async function submitConferenceFinalization(payload) {
     }
 
     try {
+        await ensureProdutosLoaded(true);
+        const stockValidation = validatePickingStockForExit(mapConferenceRowsToPickItems(payload.rows), 'finalizar_conferencia');
+        if (stockValidation.issues.length) {
+            const confirmed = await confirmPickingNegativeStockIfNeeded(stockValidation, 'finalizar_conferencia');
+            if (!confirmed) throw new Error('Finalização cancelada para revisar estoque insuficiente.');
+            if (stockValidation.allowNegative) {
+                return {
+                    synced: true,
+                    data: await finalizeConferenceAllowingNegativeStock(payload, stockValidation),
+                    negativeStockAllowed: true
+                };
+            }
+        }
+
         const data = await withTimeout(
             DataClient.finalizarConferenciaSupabase(payload),
             25000,
@@ -14775,6 +15431,15 @@ async function submitConferenceFinalization(payload) {
         );
         return { synced: true, data };
     } catch (error) {
+        if (isStockInsufficientError(error) && isSaidaEstoqueZeroPermitida()) {
+            console.warn('[SEPARACAO_ESTOQUE_NEGATIVO] RPC bloqueou por saldo, usando finalizacao direta permitida', error);
+            return {
+                synced: true,
+                data: await finalizeConferenceAllowingNegativeStock(payload),
+                negativeStockAllowed: true
+            };
+        }
+
         if (isRetryableConferenceSyncError(error)) {
             console.error('[CONFERENCIA] Falha de rede, mantendo operacao na outbox:', error);
             await queueOperation('supabase_rpc', payload, {
@@ -14816,6 +15481,169 @@ function formatConferenceFinalizationError(error) {
     return message || 'Erro desconhecido ao finalizar conferencia.';
 }
 
+function isStockInsufficientError(error) {
+    return String(error?.message || error || '').toLowerCase().includes('estoque insuficiente');
+}
+
+function mapConferenceRowsToPickItems(rows = []) {
+    return (rows || []).map(row => ({
+        id_interno: row.id_interno,
+        ean: row.ean,
+        descricao_base: row.descricao,
+        descricao_completa: row.descricao,
+        qty: Number(row.qtd_conferida || row.qtd_separada || 0)
+    }));
+}
+
+async function finalizeConferenceAllowingNegativeStock(payload, validation = null) {
+    const client = window.supabaseClient;
+    if (!client) throw new Error('Supabase client nao encontrado');
+
+    const now = getDataHoraBrasil();
+    const executionId = payload.executionId || generateExecutionId();
+    const conferenciaId = `CONF-${executionId}`;
+    const rows = Object.values((payload.rows || []).filter(row => row?.id_interno && Number(row.qtd_conferida || 0) > 0).reduce((acc, row) => {
+        const key = row.id_interno;
+        if (!acc[key]) {
+            acc[key] = {
+                ...row,
+                qtd_separada: 0,
+                qtd_conferida: 0
+            };
+        }
+        acc[key].qtd_separada += Number(row.qtd_separada || row.qtd_conferida || 0);
+        acc[key].qtd_conferida += Number(row.qtd_conferida || 0);
+        return acc;
+    }, {}));
+    if (!rows.length) throw new Error('Nenhum item valido para finalizar.');
+
+    console.log('[SEPARACAO_ESTOQUE_NEGATIVO] finalizacao direta iniciada', {
+        sessionId: payload.sessionId,
+        executionId,
+        validation
+    });
+
+    const existingByExecution = await client
+        .from('conferencia')
+        .select('conferencia_id')
+        .eq('conferencia_id', conferenciaId)
+        .maybeSingle();
+    if (existingByExecution.error && existingByExecution.error.code !== 'PGRST116') throw existingByExecution.error;
+
+    const existingBySession = await client
+        .from('conferencia')
+        .select('conferencia_id')
+        .eq('separacao_id', payload.sessionId)
+        .in('status', ['conferido', 'finalizada'])
+        .maybeSingle();
+    if (existingBySession.error && existingBySession.error.code !== 'PGRST116') throw existingBySession.error;
+
+    const existingConferenciaId = existingByExecution.data?.conferencia_id || existingBySession.data?.conferencia_id;
+    if (existingConferenciaId) {
+        return {
+            ok: true,
+            status: 'already_processed',
+            conferencia_id: existingConferenciaId,
+            separacao_id: payload.sessionId,
+            execution_id: executionId,
+            negative_stock_allowed: true
+        };
+    }
+
+    const { error: confError } = await client.from('conferencia').insert([{
+        conferencia_id: conferenciaId,
+        separacao_id: payload.sessionId,
+        status: 'conferido',
+        conferido_por: payload.user,
+        conferido_em: now,
+        atualizado_em: now
+    }]);
+    if (confError) throw confError;
+
+    const itensPayload = rows.map(row => ({
+        conferencia_id: conferenciaId,
+        separacao_id: payload.sessionId,
+        id_interno: row.id_interno,
+        ean: row.ean || '',
+        descricao: row.descricao || '',
+        qtd_separada: Number(row.qtd_separada || row.qtd_conferida || 0),
+        qtd_conferida: Number(row.qtd_conferida || 0),
+        divergencia: row.divergencia || null
+    }));
+    const { error: itensError } = await client.from('conferencia_itens').insert(itensPayload);
+    if (itensError) throw itensError;
+
+    let movimentos = 0;
+    for (const row of rows) {
+        let needed = Number(row.qtd_conferida || 0);
+        const locais = ['TERREO', 'MOSTRUARIO'];
+        for (const local of locais) {
+            if (needed <= 0) break;
+            const stockRows = (appData.estoque || [])
+                .filter(stock => String(stock.id_interno || stock.col_a || '') === String(row.id_interno) && normalizarLocal(stock.local) === local)
+                .sort((a, b) => Number(b.saldo_disponivel ?? b.saldo_total ?? 0) - Number(a.saldo_disponivel ?? a.saldo_total ?? 0));
+            const available = stockRows.reduce((sum, stock) => sum + Math.max(0, Number(stock.saldo_disponivel ?? stock.saldo_total ?? stock.saldo ?? 0) || 0), 0);
+            const take = Math.min(available, needed);
+            if (take <= 0) continue;
+            const ok = await DataClient.updateEstoqueSupabase(row.id_interno, local, 'subtrai', take);
+            if (!ok) throw new Error(`Falha ao baixar estoque do produto ${row.id_interno}`);
+            await DataClient.saveMovimentoSupabase({
+                tipo: 'saida',
+                id_interno: row.id_interno,
+                local_origem: local,
+                local_destino: null,
+                quantidade: take,
+                usuario: payload.user,
+                origem: 'conferencia',
+                observacao: `Baixa automatica da conferencia ${payload.sessionId}`
+            });
+            movimentos += 1;
+            needed -= take;
+        }
+
+        if (needed > 0) {
+            const ok = await DataClient.updateEstoqueSupabase(row.id_interno, 'TERREO', 'subtrai', needed);
+            if (!ok) throw new Error(`Falha ao gerar estoque negativo do produto ${row.id_interno}`);
+            await DataClient.saveMovimentoSupabase({
+                tipo: 'saida',
+                id_interno: row.id_interno,
+                local_origem: 'TERREO',
+                local_destino: null,
+                quantidade: needed,
+                usuario: payload.user,
+                origem: 'conferencia',
+                observacao: `Baixa da conferencia ${payload.sessionId} com estoque negativo permitido. Produto ficou com saldo negativo.`
+            });
+            console.warn('[SEPARACAO_ESTOQUE_NEGATIVO] movimento gerou saldo negativo', {
+                sessionId: payload.sessionId,
+                produto: row.id_interno,
+                quantidade_negativa: needed
+            });
+            movimentos += 1;
+        }
+    }
+
+    await client
+        .from('separacao')
+        .update({ status: 'finalizada', atualizado_em: now, finalizado_em: now })
+        .eq('separacao_id', payload.sessionId);
+
+    DataClient.invalidateCache?.('produtos');
+    DataClient.invalidateCache?.('movimentos');
+    DataClient.invalidateCache?.('conferencia');
+    DataClient.invalidateCache?.('separacao');
+
+    return {
+        ok: true,
+        status: 'finalized_negative_allowed',
+        conferencia_id: conferenciaId,
+        separacao_id: payload.sessionId,
+        execution_id: executionId,
+        movimentos,
+        negative_stock_allowed: true
+    };
+}
+
 async function confirmFinishConference() {
     if (isFinalizing) return;
     isFinalizing = true;
@@ -14850,7 +15678,16 @@ async function confirmFinishConference() {
             executionId
         });
 
-        showToast(finalizationResult.queued ? "Conferencia salva localmente para sincronizar." : "Conferencia finalizada e estoque baixado!");
+        await showAppModal({
+            type: 'success',
+            title: 'Conferência finalizada',
+            message: finalizationResult.queued
+                ? 'Conferência salva localmente para sincronizar.'
+                : (finalizationResult.negativeStockAllowed
+                    ? 'Conferência finalizada e estoque baixado. Um ou mais produtos ficaram com saldo negativo conforme configuração.'
+                    : 'Conferência finalizada e estoque baixado.'),
+            confirmText: 'OK'
+        });
         playBeep('success');
 
         // Limpar sessões locais e cache
@@ -14868,7 +15705,12 @@ async function confirmFinishConference() {
         renderMenu();
     } catch (err) {
         console.error("Erro na finalizacao:", err);
-        showToast("Erro: " + formatConferenceFinalizationError(err));
+        await showAppModal({
+            type: 'error',
+            title: 'Erro ao finalizar conferência',
+            message: formatConferenceFinalizationError(err),
+            confirmText: 'Entendi'
+        });
     } finally {
         isFinalizing = false;
         if (btn) { btn.disabled = false; btn.innerHTML = originalHTML; }
@@ -18825,6 +19667,11 @@ function renderConfigSubMenu() {
 function toggleConfig(key, value) {
     const config = getAppConfig();
     config[key] = value;
+    if (key === 'permitir_saida_estoque_zero' || key === 'permitir_estoque_negativo') {
+        config.permitir_saida_estoque_zero = value;
+        config.permitir_estoque_negativo = value;
+        console.log('[SEPARACAO_ESTOQUE_NEGATIVO] configuracao alterada', { permitir_estoque_negativo: value });
+    }
     setAppConfig(config);
     showToast(`Configuração atualizada`, 'success');
     
@@ -19336,16 +20183,6 @@ function renderNFSubMenu() {
         { id: 'nf_abertas', label: 'NOTAS EM ABERTO', icon: 'abertas', onclick: 'renderNFAbertasList()', description: 'Continuar notas importadas, pendentes de vínculo ou conferência.' },
         { id: 'nf_historico', label: 'HIST\u00d3RICO DE ENTRADAS', icon: 'historico', onclick: 'renderHistoricoEntradasNF()', description: 'Consultar entradas concluídas, financeiras ou canceladas.' }
     ];
-    if (hasEntradaNFXMLDraft()) {
-        const draft = getEntradaNFXMLDraft();
-        subItems.unshift({
-            id: 'nf_draft',
-            label: 'CONTINUAR RASCUNHO',
-            icon: 'xml',
-            onclick: 'resumeEntradaNFXMLDraft()',
-            description: `Retomar NF ${draft.numero_nf || '-'} de ${draft.fornecedor?.razao_social || 'fornecedor não informado'}.`
-        });
-    }
     
     app.innerHTML = `
         <div class="dashboard-screen internal fade-in nf-submenu-screen entrada-nf-screen module-screen standard-card-menu-screen">
@@ -19361,6 +20198,7 @@ function renderNFSubMenu() {
 
 let entradaNfXmlState = null;
 const ENTRADA_NF_XML_DRAFT_KEY = 'entrada_nf_xml_draft';
+const ENTRADA_NF_XML_DRAFT_BANNER_HIDDEN_KEY = 'entrada_nf_xml_draft_banner_hidden';
 
 const NF_XML_WIZARD_STEPS = [
     { id: 'xml', label: 'XML' },
@@ -19403,6 +20241,21 @@ function nfXmlFormatMoneyInput(value) {
     return nfXmlMoney(value).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function formatMoneyInputValue(value) {
+    return nfXmlFormatMoneyInput(value);
+}
+
+function parseMoneyInputValue(value) {
+    return nfXmlMoney(value);
+}
+
+function normalizeMoneyInputElement(input) {
+    if (!input) return 0;
+    const value = parseMoneyInputValue(input.value);
+    input.value = formatMoneyInputValue(value);
+    return value;
+}
+
 function getEntradaNFXMLDraft() {
     try {
         const draft = JSON.parse(localStorage.getItem(ENTRADA_NF_XML_DRAFT_KEY) || 'null');
@@ -19416,6 +20269,7 @@ function getEntradaNFXMLDraft() {
 
 function saveEntradaNFXMLDraft() {
     if (!entradaNfXmlState?.chave_acesso || entradaNfXmlState.savedEntradaId) return;
+    recalcularCustosReaisEntradaNFXML();
     const draft = {
         ...entradaNfXmlState,
         draftSavedAt: getDataHoraBrasil()
@@ -19430,6 +20284,22 @@ function clearEntradaNFXMLDraft(chaveAcesso = entradaNfXmlState?.chave_acesso) {
     }
 }
 
+function resetEntradaNFXMLLocalFlow() {
+    try {
+        localStorage.removeItem(ENTRADA_NF_XML_DRAFT_KEY);
+        localStorage.removeItem('entrada_nf_historico_cache');
+        sessionStorage.removeItem(ENTRADA_NF_XML_DRAFT_BANNER_HIDDEN_KEY);
+    } catch (error) {
+        console.warn('[ENTRADA_NF_RASCUNHO_XML] nao foi possivel limpar cache local da entrada nf', error);
+    }
+    entradaNfXmlState = null;
+    appData.historicoEntradasNFLoaded = false;
+    DataClient.invalidateCache?.('nf');
+    console.log('[ENTRADA_NF_RASCUNHO_XML] fluxo local limpo para nova importacao');
+    showToast('Rascunho/cache local da Entrada NF limpo. Importe o XML novamente.', 'success');
+    renderNFXmlUploadScreen();
+}
+
 function hasEntradaNFXMLDraft() {
     const draft = getEntradaNFXMLDraft();
     return !!(draft?.chave_acesso && !draft.savedEntradaId);
@@ -19441,8 +20311,92 @@ function resumeEntradaNFXMLDraft() {
         showToast('Nenhum rascunho de NF encontrado.', 'warning');
         return;
     }
+    console.log('[ENTRADA_NF_RASCUNHO_XML] continuar rascunho', {
+        chave_acesso: draft.chave_acesso,
+        numero_nf: draft.numero_nf || null,
+        fornecedor: draft.fornecedor?.razao_social || draft.fornecedor?.cnpj || null
+    });
     entradaNfXmlState = draft;
     renderNFXmlWizardScreen();
+}
+
+function getEntradaNFXMLDraftProgress(draft) {
+    const itens = Array.isArray(draft?.itens) ? draft.itens : [];
+    const vinculados = itens.filter(item => item.id_interno || item.produto_id || String(item.status_vinculo || '').includes('vinculado')).length;
+    return { vinculados, total: itens.length };
+}
+
+function getEntradaNFXMLDraftStatusLabel(draft) {
+    if (!draft?.chave_acesso) return 'Sem rascunho';
+    if (draft.savedEntradaId) return 'Salvo';
+    const step = NF_XML_WIZARD_STEPS.find(item => item.id === draft.currentStep)?.label;
+    return step ? `Em edição - ${step}` : 'Em edição';
+}
+
+function getEntradaNFXMLDraftTypeLabel(draft) {
+    return getNFXmlTipoConfig(draft?.tipo_lancamento)?.label || 'Entrada normal';
+}
+
+function getEntradaNFXMLDraftUpdatedLabel(draft) {
+    return formatDateTimeBR(draft?.draftSavedAt || draft?.updated_at || draft?.atualizado_em || getDataHoraBrasil(), { fallback: 'Agora' });
+}
+
+function isEntradaNFXMLDraftBannerHidden(draft) {
+    try {
+        return !!draft?.chave_acesso && sessionStorage.getItem(ENTRADA_NF_XML_DRAFT_BANNER_HIDDEN_KEY) === draft.chave_acesso;
+    } catch (error) {
+        return false;
+    }
+}
+
+function hideEntradaNFXMLDraftBanner(chaveAcesso = '') {
+    try {
+        if (chaveAcesso) sessionStorage.setItem(ENTRADA_NF_XML_DRAFT_BANNER_HIDDEN_KEY, chaveAcesso);
+    } catch (error) {
+        console.warn('[ENTRADA_NF_RASCUNHO_XML] nao foi possivel ocultar aviso na sessao', error);
+    }
+    console.log('[ENTRADA_NF_RASCUNHO_XML] aviso ocultado na sessao', { chave_acesso: chaveAcesso || null });
+    document.getElementById('nfxml-draft-banner')?.remove();
+}
+
+function renderEntradaNFXMLDraftBanner(draft) {
+    if (!draft?.chave_acesso || draft.savedEntradaId || isEntradaNFXMLDraftBannerHidden(draft)) return '';
+    const progress = getEntradaNFXMLDraftProgress(draft);
+    const fornecedor = draft.fornecedor?.razao_social || draft.fornecedor?.nome_fantasia || draft.fornecedor?.cnpj || 'Fornecedor não informado';
+    const statusLabel = getEntradaNFXMLDraftStatusLabel(draft);
+    const tipoLabel = getEntradaNFXMLDraftTypeLabel(draft);
+    console.log('[ENTRADA_NF_RASCUNHO_XML] banner exibido', {
+        chave_acesso: draft.chave_acesso,
+        numero_nf: draft.numero_nf || null,
+        fornecedor,
+        progresso: `${progress.vinculados}/${progress.total}`,
+        tipo: tipoLabel
+    });
+    return `
+        <section id="nfxml-draft-banner" class="nfxml-draft-banner" aria-label="Rascunho disponível para entrada NF XML">
+            <div class="nfxml-draft-banner-icon">
+                <span class="material-symbols-rounded">description</span>
+            </div>
+            <div class="nfxml-draft-banner-main">
+                <strong>RASCUNHO DISPONÍVEL</strong>
+                <h2>NF ${escapeKitAttribute(draft.numero_nf || '-')} • ${escapeKitAttribute(fornecedor)}</h2>
+                <p>Última alteração: ${escapeKitAttribute(getEntradaNFXMLDraftUpdatedLabel(draft))} • ${escapeKitAttribute(statusLabel)}</p>
+            </div>
+            <div class="nfxml-draft-banner-meta">
+                <span><b>Progresso</b>${progress.vinculados} de ${progress.total} itens vinculados</span>
+                <span><b>Tipo de entrada</b><em>${escapeKitAttribute(tipoLabel)}</em></span>
+            </div>
+            <div class="nfxml-draft-banner-actions">
+                <button type="button" class="nfxml-draft-continue" onclick="resumeEntradaNFXMLDraft()">
+                    <span class="material-symbols-rounded">restore</span>
+                    Continuar rascunho
+                </button>
+                <button type="button" class="nfxml-draft-close" onclick="hideEntradaNFXMLDraftBanner('${escapeKitAttribute(draft.chave_acesso)}')" aria-label="Ocultar aviso de rascunho">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </div>
+        </section>
+    `;
 }
 
 function nfXmlText(node, tagName) {
@@ -19548,19 +20502,17 @@ function calcularRateioCustosNF(nota, itens) {
     return rateiosPorItem;
 }
 
-function calcularCustoRealItem(item, rateios = {}) {
+function calcularCustoRealItem(item, rateios = {}, contexto = {}) {
     const quantidade = nfXmlMoney(item.quantidade);
     const custoNotaTotal = nfXmlMoney(item.valor_total);
-    const valorIcms = nfXmlMoney(item.valor_icms);
-    const custoRealTotal =
-        custoNotaTotal +
-        nfXmlMoney(item.valor_ipi) +
-        nfXmlMoney(item.valor_icms_st) +
-        nfXmlMoney(rateios.valor_frete_rateado) +
-        nfXmlMoney(rateios.valor_seguro_rateado) +
-        nfXmlMoney(rateios.valor_outras_despesas_rateado) +
-        (NF_XML_CUSTO_CONFIG.incluir_icms_no_custo ? valorIcms : 0) -
-        nfXmlMoney(rateios.valor_desconto_rateado);
+    const totalProdutosNF = nfXmlMoney(contexto.totalProdutosNF);
+    const totalFinanceiroPrevisto = nfXmlMoney(contexto.totalFinanceiroPrevisto);
+    const participacaoItem = totalProdutosNF > 0 ? custoNotaTotal / totalProdutosNF : 0;
+    const custoRealTotal = totalFinanceiroPrevisto > 0
+        ? totalFinanceiroPrevisto * participacaoItem
+        : custoNotaTotal;
+    const custoRealUnitario = quantidade > 0 ? custoRealTotal / quantidade : 0;
+    const complementoRateadoTotal = custoRealTotal - custoNotaTotal;
 
     return {
         custo_nota_unitario: nfXmlRoundMoney(nfXmlMoney(item.valor_unitario)),
@@ -19569,18 +20521,53 @@ function calcularCustoRealItem(item, rateios = {}) {
         valor_seguro_rateado: nfXmlRoundMoney(rateios.valor_seguro_rateado),
         valor_outras_despesas_rateado: nfXmlRoundMoney(rateios.valor_outras_despesas_rateado),
         valor_desconto_rateado: nfXmlRoundMoney(rateios.valor_desconto_rateado),
+        participacao_item: nfXmlRoundMoney(participacaoItem, 10),
+        complemento_rateado_total: nfXmlRoundMoney(complementoRateadoTotal),
+        complemento_rateado_unitario: quantidade > 0 ? nfXmlRoundMoney(complementoRateadoTotal / quantidade) : 0,
         custo_real_total: nfXmlRoundMoney(custoRealTotal),
-        custo_real_unitario: quantidade > 0 ? nfXmlRoundMoney(custoRealTotal / quantidade) : 0
+        custo_real_unitario: nfXmlRoundMoney(custoRealUnitario)
     };
 }
 
-function aplicarCustosReaisNF(nota) {
+function aplicarCustosReaisNF(nota, options = {}) {
     const rateios = calcularRateioCustosNF(nota, nota.itens);
+    const totalProdutosNF = nfXmlMoney(nota?.totais?.valor_produtos) ||
+        (nota.itens || []).reduce((sum, item) => sum + nfXmlMoney(item.valor_total), 0);
+    const totalFinanceiroPrevisto = nfXmlMoney(options.totalFinanceiroPrevisto) || nfXmlMoney(nota?.totais?.valor_total) || totalProdutosNF;
     nota.itens = (nota.itens || []).map(item => {
-        const resumo = calcularCustoRealItem(item, rateios[item.numero_item] || {});
+        const resumo = calcularCustoRealItem(item, rateios[item.numero_item] || {}, {
+            totalProdutosNF,
+            totalFinanceiroPrevisto
+        });
         return { ...item, ...resumo };
     });
     return nota;
+}
+
+function recalcularCustosReaisEntradaNFXML({ log = false } = {}) {
+    const state = entradaNfXmlState;
+    if (!state?.itens?.length) return state;
+    const totals = getNFXmlFinanceTotals();
+    aplicarCustosReaisNF(state, { totalFinanceiroPrevisto: totals.totalPrevisto });
+    if (log) {
+        console.log('[ENTRADA_NF_CUSTO_REAL]', {
+            numero_nf: state.numero_nf,
+            valor_oficial_nf: totals.totalNf,
+            total_complementares: totals.totalComplementares,
+            total_financeiro_previsto: totals.totalPrevisto,
+            total_produtos_nf: state.totais?.valor_produtos,
+            itens: state.itens.map(item => ({
+                numero_item: item.numero_item,
+                id_interno: item.id_interno || null,
+                participacao_item: item.participacao_item,
+                quantidade: item.quantidade,
+                custo_unitario_nf: item.custo_nota_unitario,
+                custo_real_unitario: item.custo_real_unitario,
+                complemento_rateado_unitario: item.complemento_rateado_unitario
+            }))
+        });
+    }
+    return state;
 }
 
 function formatarResumoCustoReal(item) {
@@ -19593,6 +20580,7 @@ function formatarResumoCustoReal(item) {
         icmsSt: nfXmlFormatMoney(item.valor_icms_st),
         despesasRateadas: nfXmlFormatMoney(despesas),
         desconto: nfXmlFormatMoney(item.valor_desconto_rateado),
+        complementoRateado: nfXmlFormatMoney(item.complemento_rateado_unitario ?? (nfXmlMoney(item.custo_real_unitario) - nfXmlMoney(item.custo_nota_unitario ?? item.valor_unitario))),
         custoRealUnitario: nfXmlFormatMoney(item.custo_real_unitario),
         custoRealTotal: nfXmlFormatMoney(item.custo_real_total)
     };
@@ -19824,18 +20812,7 @@ async function renderNFXmlUploadScreen() {
                     <span>ENTRADA NF - XML</span>
                 </div>
                 <div id="nfxml-wizard-root">
-                    ${draft?.chave_acesso ? `
-                        <div class="nfxml-draft-banner">
-                            <div>
-                                <strong>Rascunho disponível</strong>
-                                <span>NF ${escapeKitAttribute(draft.numero_nf || '-')} • ${escapeKitAttribute(draft.fornecedor?.razao_social || draft.fornecedor?.cnpj || 'Fornecedor não informado')}</span>
-                            </div>
-                            <button type="button" class="btn-action" onclick="resumeEntradaNFXMLDraft()">
-                                <span class="material-symbols-rounded">restore</span>
-                                Continuar rascunho
-                            </button>
-                        </div>
-                    ` : ''}
+                    ${renderEntradaNFXMLDraftBanner(draft)}
                     ${renderNFXmlWizardHTML()}
                 </div>
             </main>
@@ -19907,6 +20884,7 @@ function renderNFXmlStepper() {
 }
 
 function renderNFXmlWizardHTML() {
+    recalcularCustosReaisEntradaNFXML();
     const currentStep = getNFXmlCurrentStep();
     return `
         <section class="nfxml-workspace nfxml-wizard-workspace">
@@ -19939,10 +20917,18 @@ function renderNFXmlStepXml() {
                         <h2 class="nfxml-title">RECEBER POR XML</h2>
                         <p class="nfxml-text">Importe o XML da NF-e, confira os vínculos e salve a entrada.</p>
                     </div>
-                    <span class="nfxml-status-pill positive">
-                        <span class="material-symbols-rounded">verified</span>
-                        Pré-cadastro sem atualizar estoque
-                    </span>
+                    <div class="nfxml-upload-head-actions">
+                        <span class="nfxml-status-pill positive">
+                            <span class="material-symbols-rounded">verified</span>
+                            Pré-cadastro sem atualizar estoque
+                        </span>
+                        ${entradaNfXmlState ? `
+                            <button type="button" class="nfxml-reset-flow-btn" onclick="resetEntradaNFXMLLocalFlow()">
+                                <span class="material-symbols-rounded">restart_alt</span>
+                                Nova importação
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
                 <label for="nf-xml-file" class="nfxml-file-drop">
                     <span class="material-symbols-rounded">upload_file</span>
@@ -20021,17 +21007,20 @@ function updateNFXmlFornecedorDraftField(key, value) {
 function renderNFXmlStepProdutos() {
     const state = entradaNfXmlState;
     const missingLinks = state.itens.filter(item => !item.id_interno).length;
+    const isSomenteFinanceiro = state.tipo_lancamento === 'somente_financeiro';
     return `
         <section class="nfxml-card nfxml-products-card">
             <div class="nfxml-section-head">
                 <div>
                     <h3 class="nfxml-title small">PRODUTOS DA NOTA</h3>
-                    <p class="nfxml-text">Confira vínculos, custo NF, impostos, despesas e custo real. Lotes de estoque serão preparados a partir destes itens.</p>
+                    <p class="nfxml-text">${isSomenteFinanceiro
+                        ? 'Confira os itens apenas como referência da NF. Não será exigido vínculo e não haverá movimentação de estoque.'
+                        : 'Confira vínculos, custo NF, impostos, despesas e custo real. Lotes de estoque serão preparados a partir destes itens.'}</p>
                 </div>
-                <span class="nfxml-status-pill ${missingLinks ? 'warning' : 'positive'}">${missingLinks ? `${missingLinks} pendente(s)` : 'Produtos vinculados'}</span>
+                <span class="nfxml-status-pill ${isSomenteFinanceiro || !missingLinks ? 'positive' : 'warning'}">${isSomenteFinanceiro ? 'Sem estoque' : (missingLinks ? `${missingLinks} pendente(s)` : 'Produtos vinculados')}</span>
             </div>
             <div style="display:flex; flex-direction:column; gap:12px;">
-                ${state.itens.map(item => renderNFXmlItemCard(item, state.tipo_lancamento === 'entrada_normal')).join('')}
+                ${state.itens.map(item => renderNFXmlItemCard(item, !isSomenteFinanceiro)).join('')}
             </div>
         </section>
     `;
@@ -20061,7 +21050,7 @@ function renderNFXmlStepRevisao() {
                 <div><span>Parcelas da nota</span><strong>${nfXmlFormatMoney(totals.totalParcelasNota)}</strong><small>Diferença: ${nfXmlFormatMoney(totals.diferencaParcelas)}</small></div>
                 <div><span>Complementares</span><strong>${nfXmlFormatMoney(totals.totalComplementares)}</strong><small>Vinculados à NF no financeiro</small></div>
                 <div><span>Total financeiro previsto</span><strong>${nfXmlFormatMoney(totals.totalPrevisto)}</strong><small>NF oficial + complementares</small></div>
-                <div><span>Produtos</span><strong>${state.itens.length}</strong><small>${state.itens.length - missingLinks} vinculados / ${missingLinks} pendentes</small></div>
+                <div><span>Produtos</span><strong>${state.itens.length}</strong><small>${state.tipo_lancamento === 'somente_financeiro' ? 'Vínculo não exigido / sem estoque' : `${state.itens.length - missingLinks} vinculados / ${missingLinks} pendentes`}</small></div>
                 <div><span>Total produtos</span><strong>${nfXmlFormatMoney(state.totais.valor_produtos)}</strong></div>
                 <div><span>Total NF</span><strong>${nfXmlFormatMoney(state.totais.valor_total)}</strong></div>
             </div>
@@ -20629,7 +21618,7 @@ function updateNFXmlFinanceOption(mode) {
     renderNFXmlPreview();
 }
 
-function updateNFXmlFinanceParcelField(id, field, value) {
+function updateNFXmlFinanceParcelField(id, field, value, rerender = true) {
     const fin = entradaNfXmlState?.financeiro;
     if (!fin) return;
     const parcela = (fin.parcelasEditaveis || []).find(item => item.id === id);
@@ -20638,7 +21627,7 @@ function updateNFXmlFinanceParcelField(id, field, value) {
     if (field === 'pago') parcela.status = value ? 'pago' : 'pendente';
     fin.confirmarDiferenca = false;
     saveEntradaNFXMLDraft();
-    renderNFXmlFinanceBlockOnly();
+    if (rerender) renderNFXmlFinanceBlockOnly();
 }
 
 function setNFXmlFinanceParcelCount(count) {
@@ -20930,7 +21919,7 @@ function renderNFXmlFinanceBlock() {
                         </label>
                         <label>
                             <span>Valor</span>
-                            <input type="number" step="0.01" value="${nfXmlMoney(item.valor)}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'valor', this.value)"` : 'readonly'}>
+                            <input class="money-input nfxml-money-input" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${nfXmlFormatMoneyInput(item.valor)}" ${editableParcelas ? `onfocus="this.select()" oninput="updateNFXmlFinanceParcelField('${item.id}', 'valor', this.value, false)" onblur="normalizeMoneyInputElement(this); updateNFXmlFinanceParcelField('${item.id}', 'valor', this.value)"` : 'readonly'}>
                         </label>
                         <label>
                             <span>Vencimento</span>
@@ -20978,7 +21967,7 @@ function renderNFXmlFinanceBlock() {
                                 </label>
                                 <label>
                                     <span>Valor</span>
-                                    <input type="text" inputmode="decimal" value="${nfXmlFormatMoneyInput(item.valor)}" oninput="updateNFXmlComplementarField('${item.id}', 'valor', this.value, false)" onblur="this.value = nfXmlFormatMoneyInput(this.value); updateNFXmlComplementarField('${item.id}', 'valor', this.value)">
+                                    <input class="money-input nfxml-money-input" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${nfXmlFormatMoneyInput(item.valor)}" onfocus="this.select()" oninput="updateNFXmlComplementarField('${item.id}', 'valor', this.value, false)" onblur="normalizeMoneyInputElement(this); updateNFXmlComplementarField('${item.id}', 'valor', this.value)">
                                 </label>
                                 <label>
                                     <span>Vencimento</span>
@@ -21027,6 +22016,7 @@ function renderNFXmlFinanceBlock() {
 
 function renderNFXmlPreview() {
     const state = entradaNfXmlState;
+    recalcularCustosReaisEntradaNFXML();
     if (document.getElementById('nfxml-wizard-root')) {
         refreshNFXmlWizard();
         return;
@@ -21141,12 +22131,13 @@ function renderNFXmlItemCard(item, allowLink = true) {
                         <span>CFOP ${escapeKitAttribute(item.cfop || '-')}</span>
                     </div>
                     <div class="nf-cost-summary">
-                        <span>Custo NF: <strong>${custo.custoNota}</strong></span>
+                        <span>Custo unitário NF: <strong>${custo.custoNota}</strong></span>
                         <span>IPI: <strong>${custo.ipi}</strong></span>
                         <span>ICMS ST: <strong>${custo.icmsSt}</strong></span>
                         <span>Frete/Despesas: <strong>${custo.despesasRateadas}</strong></span>
                         <span>Desconto: <strong>${custo.desconto}</strong></span>
-                        <span class="nf-cost-real">Custo real: <strong>${custo.custoRealUnitario}</strong></span>
+                        <span>Complemento rateado: <strong>${custo.complementoRateado}</strong></span>
+                        <span class="nf-cost-real">Custo real unitário: <strong>${custo.custoRealUnitario}</strong></span>
                     </div>
                 </div>
                 ${allowLink ? `
@@ -21225,6 +22216,7 @@ async function salvarEntradaNFXml() {
     try {
         console.log('[ENTRADA_NF_XML] salvando entrada');
         console.log('[ENTRADA_NF_TIPO_LANCAMENTO] salvando como', state.tipo_lancamento);
+        recalcularCustosReaisEntradaNFXML({ log: true });
         const tipoConfig = getNFXmlTipoConfig(state.tipo_lancamento);
         let status = 'importada';
         if (state.tipo_lancamento === 'entrada_normal') {
@@ -21452,6 +22444,7 @@ async function finalizarEntradaNFXmlConfirmado() {
 
     try {
         console.log('[ENTRADA_NF_XML] finalizando entrada', state.savedEntradaId);
+        recalcularCustosReaisEntradaNFXML({ log: true });
         for (const item of state.itens) {
             const ok = await DataClient.updateEstoqueSupabase(item.id_interno, 'TERREO', 'soma', item.quantidade);
             if (!ok) throw new Error(`Falha ao atualizar estoque do item ${item.id_interno}`);
@@ -21463,7 +22456,7 @@ async function finalizarEntradaNFXmlConfirmado() {
                 quantidade: item.quantidade,
                 usuario: localStorage.getItem('currentUser'),
                 origem: 'ENTRADA_NF_XML',
-                observacao: `NF ${state.numero_nf} - ${state.chave_acesso}`
+                observacao: `NF ${state.numero_nf} - ${state.chave_acesso} | custo_real_unit=${nfXmlFormatMoney(item.custo_real_unitario)} | custo_real_total=${nfXmlFormatMoney(item.custo_real_total)}`
             });
         }
 
@@ -21562,6 +22555,19 @@ async function finalizarEntradaNFAberta(entradaId) {
         if (!itens.length) throw new Error('Nenhum item encontrado para finalizar.');
         const pendentes = itens.filter(item => !item.id_interno || parseDecimal(item.quantidade) <= 0);
         if (pendentes.length) throw new Error('Existem itens sem vínculo interno ou quantidade válida.');
+        console.log('[ENTRADA_NF_CUSTO_REAL]', {
+            numero_nf: entrada.numero_nf,
+            valor_oficial_nf: entrada.valor_total,
+            origem: 'nf_aberta',
+            itens: itens.map(item => ({
+                numero_item: item.numero_item,
+                id_interno: item.id_interno,
+                quantidade: item.quantidade,
+                custo_unitario_nf: item.custo_nota_unitario ?? item.valor_unitario,
+                custo_real_unitario: item.custo_real_unitario,
+                custo_real_total: item.custo_real_total
+            }))
+        });
 
         for (const item of itens) {
             const ok = await DataClient.updateEstoqueSupabase(item.id_interno, 'TERREO', 'soma', item.quantidade);
@@ -21574,7 +22580,7 @@ async function finalizarEntradaNFAberta(entradaId) {
                 quantidade: item.quantidade,
                 usuario: localStorage.getItem('currentUser'),
                 origem: 'ENTRADA_NF_XML',
-                observacao: `NF ${entrada.numero_nf || '-'} - ${entrada.chave_acesso || entrada.id}`
+                observacao: `NF ${entrada.numero_nf || '-'} - ${entrada.chave_acesso || entrada.id} | custo_real_unit=${nfXmlFormatMoney(item.custo_real_unitario)} | custo_real_total=${nfXmlFormatMoney(item.custo_real_total)}`
             });
             if (!savedMov) throw new Error(`Falha ao registrar movimento do item ${item.id_interno}`);
         }
@@ -22200,6 +23206,7 @@ async function renderDetalheEntradaNF(entradaId) {
                                         <span><b>Qtd</b>${Number(item.quantidade || 0).toLocaleString('pt-BR')}</span>
                                         <span><b>Custo NF</b>${getEntradaNFMoney(item.custo_nota_unitario ?? item.valor_unitario)}</span>
                                         <span><b>Custo real un.</b>${getEntradaNFMoney(item.custo_real_unitario ?? item.valor_unitario)}</span>
+                                        <span><b>Complemento rateado</b>${getEntradaNFMoney(Number(item.custo_real_unitario ?? item.valor_unitario) - Number(item.custo_nota_unitario ?? item.valor_unitario))}</span>
                                         <span><b>Custo real total</b>${getEntradaNFMoney(item.custo_real_total ?? item.valor_total)}</span>
                                         <span><b>Local</b>${escapeKitAttribute(item.local_entrada || item.local || 'TERREO')}</span>
                                         <span><b>Status</b>${escapeKitAttribute(item.status_vinculo || item.status || '-')}</span>
