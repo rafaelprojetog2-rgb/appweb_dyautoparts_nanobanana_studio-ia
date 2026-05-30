@@ -1,14 +1,20 @@
-const CACHE_NAME = 'dy-autoparts-v99';
+const CACHE_NAME = 'dy-autoparts-v100';
+
+// Pre-cache SEM query strings — o match usa ignoreSearch para funcionar
+// independentemente da versao usada pelo index.html
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
-  '/app.js?v=2.25.14',
+  '/app.js',
   '/dataClient.js',
   '/supabaseClient.js',
-  '/src/index.css?v=1.2.101',
-  '/assets/images/login-bg-desktop.png?v=20260523-red',
-  '/assets/images/login-bg-mobile.png?v=20260523-red',
-  '/imagens/icon-512-black.png',
+  '/timeUtils.js',
+  '/src/index.css',
+  '/assets/images/login-bg-desktop-claro.png',
+  '/assets/images/login-bg-desktop-escuro.png',
+  '/assets/images/login-bg-mobile-claro.png',
+  '/assets/images/login-bg-mobile-escuro.png',
+  '/assets/images/logo/icon-500x200-white.png',
   'https://unpkg.com/html5-qrcode',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap',
@@ -50,39 +56,43 @@ self.addEventListener('fetch', (event) => {
   const url = event.request.url;
   const requestUrl = new URL(url);
 
+  // Bypass total para desenvolvimento local
   if (requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1') {
     event.respondWith(fetch(event.request));
     return;
   }
-  
+
+  // Bypass total para APIs externas (Google Sheets, Supabase)
   if (url.includes('google.com') || url.includes('googleusercontent.com') || url.includes('supabase')) {
     return;
   }
 
+  // Network-first para navegacao (HTML)
   if (event.request.mode === 'navigate' || requestUrl.pathname === '/') {
     event.respondWith(
       fetch(event.request).then((response) => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
-      }).catch(() => caches.match(event.request))
+      }).catch(() => caches.match(event.request, { ignoreSearch: true }))
     );
     return;
   }
-  
-  if (url.includes('/app.js') || url.includes('/dataClient.js') || url.includes('/supabaseClient.js') || url.includes('/index.css') || url.includes('index.html')) {
+
+  // Network-first para arquivos principais da aplicacao
+  if (url.includes('/app.js') || url.includes('/dataClient.js') || url.includes('/supabaseClient.js') || url.includes('/timeUtils.js') || url.includes('/index.css') || url.includes('index.html')) {
     event.respondWith(
       fetch(event.request).then((response) => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         return response;
-      }).catch(() => caches.match(event.request))
+      }).catch(() => caches.match(event.request, { ignoreSearch: true }))
     );
     return;
   }
-  
+
+  // Cache-first para demais recursos (imagens, fontes, libs)
   event.respondWith(
-    caches.match(event.request).then((response) => response || fetch(event.request))
+    caches.match(event.request, { ignoreSearch: true }).then((response) => response || fetch(event.request))
   );
 });
-
