@@ -996,6 +996,8 @@ const DataClient = (function () {
             criado_em: session.criado_em || now,
             atualizado_em: now,
             finalizado_em: session.finalizado_em || null,
+            total_produtos_separados: Number(session.total_produtos_separados || 0),
+            total_pacotes_montados: Number(session.total_pacotes_montados || 0),
             observacao: session.observacao || null
         };
 
@@ -1086,7 +1088,9 @@ const DataClient = (function () {
         const updatePayload = {
             status: payload.status || 'aberta',
             atualizado_em: now,
-            finalizado_em: now
+            finalizado_em: now,
+            total_produtos_separados: Number(payload.total_produtos_separados || 0),
+            total_pacotes_montados: Number(payload.total_pacotes_montados || 0)
         };
 
         console.log('[SEP] finalizando separacao', { sessionId, payload: updatePayload });
@@ -1431,7 +1435,7 @@ const DataClient = (function () {
         const { data, error } = await client
             .from('entradas_nf')
             .select('*')
-            .not('status', 'in', '("finalizada", "cancelada", "entrada_confirmada")')
+            .not('status', 'in', '("finalizada", "cancelada", "entrada_confirmada", "financeiro_lancado")')
             .order('created_at', { ascending: false });
 
         if (error) {

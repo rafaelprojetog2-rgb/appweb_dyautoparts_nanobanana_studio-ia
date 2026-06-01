@@ -335,7 +335,7 @@ function renderScreenByName(name, push = true) {
 }
 
 // ==== MODO TELA LIMPA (LÓGICA OPERACIONAL) ====
-window.handleUserClick = function(e) {
+window.handleUserClick = async function(e) {
     if(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -347,7 +347,7 @@ window.handleUserClick = function(e) {
     if (typeof renderConfigSubMenu === 'function') {
         renderConfigSubMenu();
     } else {
-        alert('CLICK USUARIO OK');
+        await showAppAlert({ title: 'Aviso', message: 'CLICK USUARIO OK', buttonLabel: 'OK' });
     }
 };
 
@@ -464,9 +464,15 @@ if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(reg => {
             reg.addEventListener('updatefound', () => {
                 const newWorker = reg.installing;
-                newWorker.addEventListener('statechange', () => {
+                newWorker.addEventListener('statechange', async () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        if (confirm('Nova versão disponível. Atualizar?')) {
+                        const shouldUpdate = await showAppConfirm({
+                            title: 'Nova versão disponível',
+                            message: 'Nova versão disponível. Atualizar?',
+                            confirmLabel: 'Atualizar',
+                            cancelLabel: 'Depois'
+                        });
+                        if (shouldUpdate) {
                             newWorker.postMessage({action: 'skipWaiting'});
                             window.location.reload();
                         }
@@ -930,7 +936,16 @@ function setImportantStyle(element, styles = {}) {
 
 function applyPremiumMobileLoginLayout() {
     const loginScreen = document.getElementById('login-screen');
-    if (!loginScreen || window.innerWidth >= 768) return;
+    if (!loginScreen || window.innerWidth > 900) return;
+
+    setImportantStyle(loginScreen, {
+        'height': 'auto',
+        'max-height': 'none',
+        'min-height': '100dvh',
+        'overflow-x': 'hidden',
+        'overflow-y': 'auto'
+    });
+    return;
 
     const isLightTheme = getResolvedTheme(getStoredTheme()) === 'light';
     const viewportHeight = Math.max(window.innerHeight || 0, 360);
@@ -1330,35 +1345,39 @@ window.isSaidaEstoqueZeroPermitida = isSaidaEstoqueZeroPermitida;
 window.canAllowStockExit = canAllowStockExit;
 
 // URLs das imagens locais
-const LOGO_DARK_BG = '/assets/images/logo/icon-512-black.png';
-const LOGO_LIGHT_BG = '/assets/images/logo/icon-512-white.png';
+const LOGO_DARK_BG = '/assets/images/logo/logo_dybranco_app.png';
+const LOGO_LIGHT_BG = '/assets/images/logo/logo_dypreto_app.png';
+const LOGO_DARK_BG_FALLBACK = LOGO_DARK_BG;
+const LOGO_LIGHT_BG_FALLBACK = LOGO_LIGHT_BG;
+const LOGO_MOBILE_DARK_BG = LOGO_DARK_BG;
+const LOGO_MOBILE_LIGHT_BG = LOGO_LIGHT_BG;
 const LOGO_URL = LOGO_DARK_BG;
 const LOGO_SMALL_URL = LOGO_DARK_BG;
 const LOGO_BLACK = LOGO_DARK_BG;
 const LOGO_WHITE = LOGO_LIGHT_BG;
 
 // Função para selecionar o logo baseado na cor do topo/header (REALIDADE VISUAL)
-// Fundo PRETO/ESCURO -> logo icon-512-black.png (contém texto BRANCO)
-// Fundo BRANCO/CLARO -> logo icon-512-white.png (contém texto PRETO)
+// Fundo PRETO/ESCURO -> logo branco
+// Fundo BRANCO/CLARO -> logo preto
 function getLogoForHeader(headerBgColor) {
     if (!headerBgColor) {
-        return LOGO_WHITE; // Padrão agora é o white (que é dark) para fundo claro
+        return LOGO_LIGHT_BG;
     }
     
     const bg = headerBgColor.toLowerCase().trim();
     
-    // Fundo escuro (preto) -> usar asset 'black' (pois ele é a versão Light/texto branco)
+    // Fundo escuro
     if (bg === '#101018' || bg === '#000000' || bg === 'transparent' || bg.startsWith('rgba(16,')) {
-        return LOGO_BLACK;
+        return LOGO_DARK_BG;
     }
     
-    // Fundo claro (branco) -> usar asset 'white' (pois ele é a versão Dark/texto preto)
+    // Fundo claro
     if (bg === '#ffffff' || bg === '#fff' || bg.startsWith('rgba(255,')) {
-        return LOGO_WHITE;
+        return LOGO_LIGHT_BG;
     }
     
     // Padrão
-    return LOGO_WHITE;
+    return LOGO_LIGHT_BG;
 }
 
 
@@ -1486,7 +1505,7 @@ function formatUnityWithQty(unidade, qtdEmbalagem) {
 
 function handleImageError(img, fallbackIcon = 'directions_car') {
     img.onerror = null; // Prevent infinite loops
-    img.src = LOGO_DARK_BG; // Use logo as immediate fallback
+    img.src = LOGO_DARK_BG_FALLBACK; // Use logo as immediate fallback
     // Or if you want to replace with an icon:
     const parent = img.parentElement;
     if (parent) {
@@ -1748,6 +1767,15 @@ async function initApp() {
 
         atualizarStatusConexao();
 
+        const deviceStatus = await ensureCurrentDeviceRegistered({ silent: true, source: 'bootstrap', logUpdate: true });
+        if (deviceStatus.allowed === false) {
+            clearTimeout(totalTimeout);
+            bootstrapState.completed = true;
+            bootstrapState.running = false;
+            return;
+        }
+        startSecurityDeviceWatch();
+
         // 6. CARREGAR USUÁRIOS COM TIMEOUT E FALLBACK ÚNICO
         console.log('[BOOT] Carregando usuários...');
         const usersLoaded = await loadUsersWithFallback();
@@ -1963,6 +1991,14 @@ async function refreshOutboxPendingCount() {
 async function executeQueuedOperation(operation) {
     if (operation.type === 'supabase_rpc' && operation.meta?.rpcName === 'finalizar_conferencia') {
         return DataClient.finalizarConferenciaSupabase(operation.payload);
+    }
+
+    if (operation.type === 'supabase_pick_fast_finalize') {
+        return finalizeFastPickingWithoutConference(operation.payload);
+    }
+
+    if (operation.type === 'supabase_pick_create_conference') {
+        return createPickingConferenceWithoutStock(operation.payload);
     }
 
     if (operation.type === 'supabase_pick_draft') {
@@ -2348,7 +2384,12 @@ function getModuleSidebarHTML(moduleKey) {
 }
 
 function getLoginLogoSrc() {
-    return getResolvedTheme(getStoredTheme()) === 'light' ? LOGO_LIGHT_BG : LOGO_DARK_BG;
+    const isMobileLogin = window.innerWidth <= 900;
+    const isLightTheme = getResolvedTheme(getStoredTheme()) === 'light';
+    if (isMobileLogin) {
+        return isLightTheme ? LOGO_MOBILE_LIGHT_BG : LOGO_MOBILE_DARK_BG;
+    }
+    return isLightTheme ? LOGO_LIGHT_BG : LOGO_DARK_BG;
 }
 
 function getStandardScreenTitleHTML(title, iconHTML) {
@@ -2676,7 +2717,7 @@ function renderLoading(progress = 0, message = "Sincronizando Dados") {
     app.innerHTML = `
                 <div class="login-screen fade-in" style="justify-content: center; background: var(--bg);">
                     <div class="login-logo-container" style="min-height: auto; margin-bottom: 40px; display: flex; justify-content: center; width: 100%;">
-                        <img src="${LOGO_URL}" alt="DY AutoParts" class="login-logo-img dy-app-logo" onerror="this.onerror=null; this.src='${LOGO_DARK_BG}';">
+                        <img src="${LOGO_URL}" alt="DY AutoParts" class="login-logo-img dy-app-logo" onerror="this.onerror=null; this.src='${LOGO_DARK_BG_FALLBACK}';">
                     </div>
                     <div style="text-align: center; width: 100%; max-width: 320px; padding: 0 20px;">
                         <p style="margin-bottom: 20px; font-weight: 700; color: var(--muted); letter-spacing: 0.2em; font-size: 0.7rem; text-transform: uppercase;">${message}</p>
@@ -2780,6 +2821,10 @@ async function setUser(userName, userId, userProfile) {
         localStorage.setItem('currentUser', userName);
         localStorage.setItem('currentUserId', userId || '');
         localStorage.setItem('currentUserProfile', userProfile || 'Operador');
+
+        const deviceStatus = await ensureCurrentDeviceRegistered({ userName, userId, silent: false, source: 'login_rapido', logUpdate: true });
+        if (deviceStatus.allowed === false) return;
+        startSecurityDeviceWatch();
 
         // Entrada INSTANTANEA no menu
         renderMenu();
@@ -2956,14 +3001,15 @@ function renderLogin(push = true) {
         return (first + last).toUpperCase();
     };
 
-    // Stable color function (Deterministic based on ID or Name)
-    const getUserColorClass = (id, name) => {
-        const seed = id || name || 'default';
-        let hash = 0;
-        for (let i = 0; i < seed.length; i++) {
-            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        return `avatar-color-${Math.abs(hash + seed.length) % 6}`;
+    const getLoginAutomotiveIcon = (initials, index) => {
+        const iconByInitials = {
+            AK: 'lightbulb',
+            DY: 'airline_seat_recline_normal',
+            FK: 'directions_car',
+            RC: 'graphic_eq'
+        };
+        const fallbackIcons = ['lightbulb', 'airline_seat_recline_normal', 'directions_car', 'graphic_eq', 'speed'];
+        return iconByInitials[initials] || fallbackIcons[index % fallbackIcons.length];
     };
 
     // Fallback visual do login acompanha o tema, sem tocar no fluxo operacional.
@@ -2973,16 +3019,29 @@ function renderLogin(push = true) {
     const userGridHTML = usersToRender.map((u, index) => {
         const initials = getUserInitials(u.nome);
         const nameParts = (u.nome || '').trim().split(/\s+/).filter(Boolean);
-        const formattedName = nameParts.length > 1
-            ? `${nameParts.slice(0, -1).join(' ')}<br>${nameParts[nameParts.length - 1]}`
-            : (u.nome || '');
+        const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : (nameParts[0] || u.nome || '');
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+        const safeName = escapeKitAttribute(u.nome || '');
+        const safeFirstName = escapeKitAttribute(firstName);
+        const safeLastName = escapeKitAttribute(lastName);
+        const safeInitials = escapeKitAttribute(initials);
+        const automotiveIcon = getLoginAutomotiveIcon(initials, index);
         
         return `
                 <div class="user-card login-user-card" onclick="window.playLoginSound(${index}); setUser('${u.nome}', '${u.id}', '${u.perfil}')">
+                    <span class="login-card-glow login-card-glow-top" aria-hidden="true"></span>
+                    <span class="login-card-glow login-card-glow-bottom" aria-hidden="true"></span>
                     <div class="user-avatar-box">
-                        <span class="user-initials">${initials}</span>
+                        <span class="material-symbols-rounded login-user-auto-icon" aria-hidden="true">${automotiveIcon}</span>
                     </div>
-                    <span class="name" data-full-name="${escapeKitAttribute(u.nome || '')}" style="display: block;">${formattedName}</span>
+                    <div class="login-user-content">
+                        <span class="user-initials">${safeInitials}</span>
+                        <span class="name" data-full-name="${safeName}" style="display: block;">
+                            <span class="login-user-first-name">${safeFirstName}</span>
+                            ${safeLastName ? `<span class="login-user-last-name">${safeLastName}</span>` : ''}
+                        </span>
+                        <span class="login-user-red-line" aria-hidden="true"></span>
+                    </div>
                 </div>
             `;
     }).join('');
@@ -3000,7 +3059,7 @@ function renderLogin(push = true) {
                     <img src="/assets/icons/fullscreen.svg" alt="" aria-hidden="true">
                 </button>
             </div>
-            <img src="${getLoginLogoSrc()}" alt="DY AutoParts" class="login-logo dy-app-logo" onerror="this.onerror=null; this.src='${LOGO_DARK_BG}';">
+            <img src="${getLoginLogoSrc()}" alt="DY AutoParts" class="login-logo dy-app-logo" onerror="this.onerror=null; this.src='${getResolvedTheme(getStoredTheme()) === 'light' ? LOGO_LIGHT_BG_FALLBACK : LOGO_DARK_BG_FALLBACK}';">
             <div class="user-grid login-user-grid">
                 ${userGridHTML}
             </div>
@@ -3265,37 +3324,60 @@ function getQuickActionsHTML(modoRapidoAtivo) {
     const fastTone = modoRapidoAtivo ? 'is-on' : 'is-off';
     const fastModeIcon = modoRapidoAtivo ? 'assets/icons/modo-rapido-on.png' : 'assets/icons/modo-rapido-off.png';
     const fastModeAlt = modoRapidoAtivo ? 'Modo rápido ativado' : 'Modo rápido desativado';
+    let pendingSeparationsCount = 0;
+    try {
+        pendingSeparationsCount = getDraftPickSessionsWithLocalDraft().length;
+    } catch (error) {
+        pendingSeparationsCount = 0;
+    }
+    const pendingSeparationsBadge = pendingSeparationsCount > 0
+        ? `<span class="quick-action-pending-badge" aria-label="${pendingSeparationsCount} separações pendentes">${pendingSeparationsCount}</span>`
+        : '';
+    const pendingSeparationsClass = pendingSeparationsCount > 0 ? 'has-pending' : '';
     return `
         <div id="quick-actions-overlay" class="quick-actions-overlay hidden" onclick="toggleQuickActions()" aria-hidden="true"></div>
         <div id="quick-actions-menu" class="quick-actions-menu quick-actions-sheet hidden" role="menu" aria-label="Ações rápidas">
             <span class="quick-sheet-grabber" aria-hidden="true"></span>
-            <button class="quick-action-item quick-action-card quick-action-fast ${fastTone}" type="button" role="menuitem" onclick="quickActionToggleFastMode()">
-                <span class="quick-action-icon quick-action-icon-fast material-symbols-rounded" aria-hidden="true">bolt</span>
-                <span class="quick-action-label">MODO RÁPIDO</span>
-                <span class="quick-action-toggle ${modoRapidoAtivo ? 'on' : 'off'}" aria-hidden="true">
-                    <span></span>
-                </span>
-            </button>
-            <button class="quick-action-item quick-action-card quick-action-labels" type="button" role="menuitem" onclick="quickActionGerarEtiquetas()">
-                <span class="quick-action-icon quick-action-icon-labels material-symbols-rounded">barcode_scanner</span>
-                <span class="quick-action-label">GERAR ETIQUETAS</span>
-                <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
-            </button>
-            <button class="quick-action-item quick-action-card quick-action-quote" type="button" role="menuitem" onclick="quickActionOrcamentoCliente()">
-                <span class="quick-action-icon quick-action-icon-quote material-symbols-rounded">request_quote</span>
-                <span class="quick-action-label">ORÇAMENTO CLIENTE</span>
-                <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
-            </button>
-            <button class="quick-action-item quick-action-card quick-action-commission" type="button" role="menuitem" onclick="quickActionComissoes()">
-                <span class="quick-action-icon quick-action-icon-commission material-symbols-rounded">percent</span>
-                <span class="quick-action-label">COMISSÕES</span>
-                <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
-            </button>
-            <button class="quick-action-item quick-action-card quick-action-replacement" type="button" role="menuitem" onclick="quickActionReposicao()">
-                <span class="quick-action-icon quick-action-icon-replacement material-symbols-rounded">local_shipping</span>
-                <span class="quick-action-label">REPOSIÇÃO</span>
-                <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
-            </button>
+            <div class="quick-actions-list" role="none">
+                <button class="quick-action-item quick-action-card quick-action-priority quick-action-fast ${fastTone}" type="button" role="menuitem" onclick="quickActionToggleFastMode()">
+                    <span class="quick-action-icon quick-action-icon-fast material-symbols-rounded" aria-hidden="true">bolt</span>
+                    <span class="quick-action-label">MODO RÁPIDO</span>
+                    <span class="quick-action-toggle ${modoRapidoAtivo ? 'on' : 'off'}" aria-hidden="true">
+                        <span></span>
+                    </span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-priority quick-action-picking-drafts ${pendingSeparationsClass}" type="button" role="menuitem" onclick="quickActionSeparacoesAndamento()">
+                    <span class="quick-action-icon quick-action-icon-picking-drafts material-symbols-rounded">folder_open</span>
+                    <span class="quick-action-label">SEPARAÇÕES</span>
+                    ${pendingSeparationsBadge}
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-priority quick-action-romaneio" type="button" role="menuitem" onclick="quickActionGerarRomaneio()">
+                    <span class="quick-action-icon quick-action-icon-romaneio material-symbols-rounded">assignment</span>
+                    <span class="quick-action-label">ROMANEIOS</span>
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-replacement" type="button" role="menuitem" onclick="quickActionReposicao()">
+                    <span class="quick-action-icon quick-action-icon-replacement material-symbols-rounded">local_shipping</span>
+                    <span class="quick-action-label">REPOSIÇÃO</span>
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-commission" type="button" role="menuitem" onclick="quickActionComissoes()">
+                    <span class="quick-action-icon quick-action-icon-commission material-symbols-rounded">percent</span>
+                    <span class="quick-action-label">COMISSÕES</span>
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-labels" type="button" role="menuitem" onclick="quickActionGerarEtiquetas()">
+                    <span class="quick-action-icon quick-action-icon-labels material-symbols-rounded">barcode_scanner</span>
+                    <span class="quick-action-label">GERAR ETIQUETAS</span>
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+                <button class="quick-action-item quick-action-card quick-action-quote" type="button" role="menuitem" onclick="quickActionOrcamentoCliente()">
+                    <span class="quick-action-icon quick-action-icon-quote material-symbols-rounded">request_quote</span>
+                    <span class="quick-action-label">ORÇAMENTO CLIENTE</span>
+                    <span class="quick-action-arrow material-symbols-rounded" aria-hidden="true">chevron_right</span>
+                </button>
+            </div>
         </div>
         
         <button class="quick-action-fab fab-icon-btn fab-funcoes ${modoRapidoAtivo ? 'fast-mode' : ''}" type="button" onclick="toggleQuickActions()" aria-label="Funções rápidas" title="Funções rápidas">
@@ -4939,8 +5021,14 @@ function showAppModal({
     title = 'Aviso',
     message = '',
     detail = '',
+    summary = '',
     confirmText = 'OK',
     cancelText = '',
+    prompt = false,
+    promptLabel = '',
+    promptValue = '',
+    promptPlaceholder = '',
+    inputType = 'text',
     onConfirm = null,
     onCancel = null,
     closeOnBackdrop = true
@@ -4950,7 +5038,7 @@ function showAppModal({
         if (existing) existing.remove();
         document.getElementById('app-alert-modal')?.remove();
 
-        const isConfirm = !!cancelText;
+        const isConfirm = !!cancelText || !!prompt;
         const normalizedType = ['success', 'error', 'warning', 'confirm', 'info'].includes(type) ? type : 'info';
         const iconMap = {
             success: 'check_circle',
@@ -4960,6 +5048,18 @@ function showAppModal({
             info: 'info'
         };
         console.log('[APP_MODAL_ALERTS] exibindo modal', { type: normalizedType, title, isConfirm });
+        const detailHtml = detail
+            ? `<div class="app-confirm-detail">${String(detail).split('\n').filter(Boolean).map(line => `<span>${escapeKitAttribute(line)}</span>`).join('')}</div>`
+            : '';
+        const summaryHtml = summary
+            ? `<div class="app-confirm-summary">${String(summary).split('\n').filter(Boolean).map(line => `<span>${escapeKitAttribute(line)}</span>`).join('')}</div>`
+            : '';
+        const promptHtml = prompt
+            ? `<label class="app-confirm-prompt">
+                    ${promptLabel ? `<span>${escapeKitAttribute(promptLabel)}</span>` : ''}
+                    <input id="app-confirm-prompt-input" type="${escapeKitAttribute(inputType)}" value="${escapeKitAttribute(promptValue)}" placeholder="${escapeKitAttribute(promptPlaceholder)}" autocomplete="off">
+               </label>`
+            : '';
 
         const overlay = document.createElement('div');
         overlay.id = 'app-confirm-modal';
@@ -4973,8 +5073,10 @@ function showAppModal({
                     <span class="material-symbols-rounded">${iconMap[normalizedType]}</span>
                 </div>
                 <h3 id="app-confirm-title">${escapeKitAttribute(title)}</h3>
-                <p>${escapeKitAttribute(message)}</p>
-                ${detail ? `<small>${escapeKitAttribute(detail)}</small>` : ''}
+                ${message ? `<p>${escapeKitAttribute(message)}</p>` : ''}
+                ${detailHtml}
+                ${summaryHtml}
+                ${promptHtml}
                 <div class="app-confirm-actions ${isConfirm ? '' : 'app-alert-actions'}">
                     ${isConfirm ? `<button type="button" class="app-confirm-btn cancel" data-action="cancel">${escapeKitAttribute(cancelText)}</button>` : ''}
                     <button type="button" class="app-confirm-btn confirm ${normalizedType}" data-action="confirm">${escapeKitAttribute(confirmText)}</button>
@@ -4987,15 +5089,16 @@ function showAppModal({
             if (settled) return;
             settled = true;
             document.removeEventListener('keydown', onKeyDown);
+            const promptValueResult = prompt ? (overlay.querySelector('#app-confirm-prompt-input')?.value || '') : '';
             try {
-                if (confirmed && typeof onConfirm === 'function') await onConfirm();
+                if (confirmed && typeof onConfirm === 'function') await onConfirm(promptValueResult);
                 if (!confirmed && typeof onCancel === 'function') await onCancel();
             } catch (error) {
                 console.error('[APP_MODAL_ALERTS] erro no callback do modal', error);
             }
             overlay.classList.add('closing');
             setTimeout(() => overlay.remove(), 160);
-            resolve(confirmed);
+            resolve(prompt ? (confirmed ? promptValueResult : null) : confirmed);
         };
 
         overlay.addEventListener('click', event => {
@@ -5011,30 +5114,33 @@ function showAppModal({
                 document.removeEventListener('keydown', onKeyDown);
                 return;
             }
-            if (event.key === 'Escape' && (!isConfirm || closeOnBackdrop)) close(false);
+            if (event.key === 'Escape') close(false);
             if (event.key === 'Enter') close(true);
         };
         document.addEventListener('keydown', onKeyDown);
 
         document.body.appendChild(overlay);
         requestAnimationFrame(() => overlay.classList.add('open'));
-        overlay.querySelector('[data-action="confirm"]')?.focus();
+        const promptInput = overlay.querySelector('#app-confirm-prompt-input');
+        if (promptInput) setTimeout(() => promptInput.focus(), 30);
+        else overlay.querySelector('[data-action="confirm"]')?.focus();
     });
 }
 
-function showAppConfirm({ title = 'Confirmar acao', message = '', detail = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false } = {}) {
+function showAppConfirm({ title = 'Confirmar ação', message = '', detail = '', summary = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', danger = false } = {}) {
     return showAppModal({
         type: danger ? 'error' : 'confirm',
         title,
         message,
         detail,
+        summary,
         confirmText: confirmLabel,
         cancelText: cancelLabel,
         closeOnBackdrop: false
     });
 }
 
-function showAppAlert({ title = 'Aviso', message = '', detail = '', buttonLabel = 'OK', danger = false, icon = null } = {}) {
+function showAppAlert({ title = 'Aviso', message = '', detail = '', summary = '', buttonLabel = 'OK', danger = false, icon = null } = {}) {
     const iconType = danger || icon === 'error' ? 'error' : (icon === 'check_circle' ? 'success' : (icon === 'warning' ? 'warning' : 'info'));
     playFeedbackSound(iconType === 'error' ? 'error' : 'warning');
     return showAppModal({
@@ -5042,8 +5148,355 @@ function showAppAlert({ title = 'Aviso', message = '', detail = '', buttonLabel 
         title,
         message,
         detail,
+        summary,
         confirmText: buttonLabel
     });
+}
+
+function showAppPrompt({ title = 'Informar dado', message = '', detail = '', label = '', defaultValue = '', placeholder = '', confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', inputType = 'text' } = {}) {
+    return showAppModal({
+        type: 'confirm',
+        title,
+        message,
+        detail,
+        prompt: true,
+        promptLabel: label,
+        promptValue: defaultValue,
+        promptPlaceholder: placeholder,
+        inputType,
+        confirmText: confirmLabel,
+        cancelText: cancelLabel,
+        closeOnBackdrop: false
+    });
+}
+
+const SECURITY_DEVICE_ID_KEY = 'dy_security_device_id';
+const SECURITY_PIN_SESSION_KEY = 'dy_security_pin_valid_until';
+const SECURITY_PIN_TTL_MS = 5 * 60 * 1000;
+let securityDeviceCheckTimer = null;
+
+function getSecurityClient() {
+    return window.supabaseClient || null;
+}
+
+function getSecurityTimestamp() {
+    return new Date().toISOString();
+}
+
+function getOrCreateDeviceId() {
+    let deviceId = localStorage.getItem(SECURITY_DEVICE_ID_KEY);
+    if (!deviceId) {
+        deviceId = crypto?.randomUUID ? crypto.randomUUID() : `device-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        localStorage.setItem(SECURITY_DEVICE_ID_KEY, deviceId);
+        console.log('[SECURITY] device_id gerado', deviceId);
+    }
+    return deviceId;
+}
+
+function getFriendlyDeviceName() {
+    const ua = navigator.userAgent || '';
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+    const browser = /Edg/i.test(ua) ? 'Edge' : /Chrome/i.test(ua) ? 'Chrome' : /Firefox/i.test(ua) ? 'Firefox' : /Safari/i.test(ua) ? 'Safari' : 'Navegador';
+    const type = isMobile ? 'Celular' : 'Desktop';
+    const user = localStorage.getItem('currentUser');
+    return user ? `${type} ${user}` : `${type} ${browser}`;
+}
+
+async function logSecurityEvent(acao, detalhes = '', deviceIdAfetado = null) {
+    const client = getSecurityClient();
+    if (!client) return;
+    try {
+        await client.from('logs_seguranca').insert([{
+            acao,
+            usuario_responsavel: localStorage.getItem('currentUser') || 'Sistema',
+            device_id_afetado: deviceIdAfetado || getOrCreateDeviceId(),
+            detalhes
+        }]);
+    } catch (error) {
+        console.warn('[SEGURANCA] falha ao registrar log:', error);
+    }
+}
+
+function logSecurityError(label, error, context = {}) {
+    console.group(label);
+    console.log('error:', error);
+    console.log('code:', error?.code);
+    console.log('message:', error?.message);
+    console.log('details:', error?.details);
+    console.log('hint:', error?.hint);
+    if (Object.prototype.hasOwnProperty.call(context, 'payload')) console.log('payload:', context.payload);
+    if (Object.prototype.hasOwnProperty.call(context, 'deviceId')) console.log('device_id:', context.deviceId);
+    if (Object.prototype.hasOwnProperty.call(context, 'source')) console.log('source:', context.source);
+    console.groupEnd();
+}
+
+function isMissingSecurityTableError(error) {
+    const message = String(error?.message || '').toLowerCase();
+    return error?.code === '42P01'
+        || error?.code === '42883'
+        || message.includes('does not exist')
+        || message.includes('schema cache')
+        || message.includes('could not find the function');
+}
+
+async function verifySecurityInstalled() {
+    const client = getSecurityClient();
+    if (!client) return { installed: false, configured: false, error: new Error('Supabase indisponível.') };
+
+    const { data, error } = await client.rpc('pin_mestre_configurado');
+    if (error) {
+        logSecurityError('[SECURITY] erro ao verificar instalação', error);
+        if (isMissingSecurityTableError(error)) {
+            return { installed: false, configured: false, error };
+        }
+        return { installed: true, configured: false, error };
+    }
+
+    return { installed: true, configured: data === true, error: null };
+}
+
+async function ensureCurrentDeviceRegistered({
+    userName = localStorage.getItem('currentUser'),
+    userId = localStorage.getItem('currentUserId'),
+    silent = true,
+    source = 'app',
+    logUpdate = true
+} = {}) {
+    const client = getSecurityClient();
+    const deviceId = getOrCreateDeviceId();
+    if (!client) return { allowed: true, deviceId, degraded: true };
+    console.log('[SECURITY] device_id', deviceId);
+
+    try {
+        const securityStatus = await verifySecurityInstalled();
+        if (!securityStatus.installed) {
+            if (!silent) showToast('Tabelas de segurança ainda não aplicadas no Supabase.', 'warning');
+            return { allowed: true, deviceId, degraded: true, error: securityStatus.error };
+        }
+
+        const { data: existingDevice, error: findError } = await client
+            .from('dispositivos_autorizados')
+            .select('*')
+            .eq('device_id', deviceId)
+            .maybeSingle();
+
+        if (findError) {
+            logSecurityError('[SECURITY] select dispositivo', findError, { deviceId, source });
+            throw findError;
+        }
+
+        if (existingDevice && existingDevice.ativo === false) {
+            console.log('[SECURITY] dispositivo encontrado', { deviceId, ativo: false, source });
+            await logSecurityEvent('tentativa_dispositivo_bloqueado', 'Tentativa de acesso por dispositivo removido.', deviceId);
+            renderBlockedDeviceScreen();
+            return { allowed: false, deviceId, row: existingDevice };
+        }
+
+        if (existingDevice) {
+            console.log('[SECURITY] dispositivo encontrado', { deviceId, source });
+        }
+
+        const payload = {
+            usuario_id: userId || existingDevice?.usuario_id || null,
+            nome_usuario: userName || existingDevice?.nome_usuario || 'Aguardando login',
+            device_id: deviceId,
+            nome_dispositivo: existingDevice?.nome_dispositivo || getFriendlyDeviceName(),
+            ativo: true,
+            ultimo_acesso: new Date().toISOString()
+        };
+
+        console.log('[SECURITY] payload dispositivo', payload);
+        console.log('[SECURITY] supabase url', typeof SUPABASE_URL !== 'undefined' ? SUPABASE_URL : '(SUPABASE_URL indisponível)');
+
+        const { data: savedDevice, error: upsertError } = await client
+            .from('dispositivos_autorizados')
+            .upsert(payload, { onConflict: 'device_id' })
+            .select('*')
+            .maybeSingle();
+
+        if (upsertError) {
+            logSecurityError('[SECURITY] insert/upsert dispositivo erro', upsertError, { payload, deviceId, source });
+            throw upsertError;
+        }
+
+        console.log('[SECURITY] dispositivo salvo com sucesso', savedDevice || payload);
+        if (existingDevice) {
+            console.log('[SECURITY] ultimo_acesso atualizado', { deviceId, ultimo_acesso: payload.ultimo_acesso, source });
+        } else {
+            console.log('[SECURITY] dispositivo criado', { deviceId, source });
+        }
+
+        if (logUpdate) {
+            await logSecurityEvent(
+                existingDevice ? 'dispositivo_atualizado' : 'dispositivo_cadastrado',
+                existingDevice
+                    ? `Dispositivo atualizado via ${source}.`
+                    : `Dispositivo cadastrado automaticamente: ${payload.nome_dispositivo}`,
+                deviceId
+            );
+        }
+
+        return { allowed: true, deviceId, row: savedDevice || payload };
+    } catch (error) {
+        logSecurityError('[SECURITY] update dispositivo', error, { deviceId, source });
+        if (isMissingSecurityTableError(error)) {
+            console.warn('[SEGURANCA] consulta de dispositivo falhou após RPC instalada; acesso liberado em modo compatibilidade.', error);
+            return { allowed: true, deviceId, degraded: true, error };
+        }
+        console.warn('[SEGURANCA] falha na validação do dispositivo:', error);
+        return { allowed: true, deviceId, degraded: true, error };
+    }
+}
+
+async function ensureAuthorizedDevice(options = {}) {
+    return ensureCurrentDeviceRegistered(options);
+}
+
+function renderBlockedDeviceScreen() {
+    hideSplash();
+    app.innerHTML = `
+        <div class="security-blocked-screen">
+            <div class="security-blocked-card">
+                <span class="material-symbols-rounded">phonelink_lock</span>
+                <h1>Dispositivo bloqueado</h1>
+                <p>Este dispositivo foi removido por segurança.</p>
+                <button type="button" onclick="location.reload()">Verificar novamente</button>
+            </div>
+        </div>
+    `;
+}
+
+function startSecurityDeviceWatch() {
+    if (securityDeviceCheckTimer) clearInterval(securityDeviceCheckTimer);
+    securityDeviceCheckTimer = setInterval(() => {
+        ensureCurrentDeviceRegistered({ silent: true, source: 'watch', logUpdate: false });
+    }, 60000);
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) ensureCurrentDeviceRegistered({ silent: true, source: 'visibility', logUpdate: false });
+});
+
+window.addEventListener('focus', () => ensureCurrentDeviceRegistered({ silent: true, source: 'focus', logUpdate: false }));
+
+async function isMasterPinConfigured() {
+    const status = await verifySecurityInstalled();
+    if (!status.installed) throw status.error || new Error('Segurança não instalada.');
+    if (status.error) throw status.error;
+    return status.configured === true;
+}
+
+async function saveMasterPin(pin) {
+    const client = getSecurityClient();
+    if (!client) throw new Error('Supabase indisponível.');
+    const cleanPin = String(pin || '').trim();
+    if (cleanPin.length < 4) throw new Error('PIN deve ter pelo menos 4 dígitos.');
+    const { error } = await client.rpc('set_pin_mestre', {
+        p_pin: cleanPin,
+        p_usuario: localStorage.getItem('currentUser') || 'Sistema'
+    });
+    if (error) throw error;
+    sessionStorage.setItem(SECURITY_PIN_SESSION_KEY, String(Date.now() + SECURITY_PIN_TTL_MS));
+    await logSecurityEvent('pin_mestre_alterado', 'PIN mestre atualizado.');
+}
+
+async function promptCreateMasterPin() {
+    const pin = await showAppPrompt({
+        title: 'Criar PIN mestre',
+        message: 'Defina um PIN mestre para proteger configurações sensíveis.',
+        detail: 'O PIN será salvo apenas como hash seguro. Não use PIN óbvio.',
+        label: 'Novo PIN',
+        inputType: 'password',
+        confirmLabel: 'Salvar PIN',
+        cancelLabel: 'Cancelar'
+    });
+    if (!pin) return false;
+    const confirmPin = await showAppPrompt({
+        title: 'Confirmar PIN mestre',
+        message: 'Digite o PIN novamente para confirmar.',
+        label: 'Confirmar PIN',
+        inputType: 'password',
+        confirmLabel: 'Confirmar',
+        cancelLabel: 'Cancelar'
+    });
+    if (!confirmPin) return false;
+    if (String(pin) !== String(confirmPin)) {
+        await showAppAlert({ title: 'PIN não confere', message: 'Os PINs informados são diferentes.', icon: 'warning' });
+        return false;
+    }
+    try {
+        await saveMasterPin(pin);
+        showToast('PIN mestre salvo.', 'success');
+        return true;
+    } catch (error) {
+        await showAppAlert({ title: 'Erro ao salvar PIN', message: error.message || String(error), danger: true, icon: 'error' });
+        return false;
+    }
+}
+
+async function requireMasterPin(reason = 'ação sensível') {
+    const deviceStatus = await ensureCurrentDeviceRegistered({ silent: true, source: 'acao_sensivel', logUpdate: false });
+    if (deviceStatus.allowed === false) return false;
+
+    const validUntil = Number(sessionStorage.getItem(SECURITY_PIN_SESSION_KEY) || 0);
+    if (validUntil > Date.now()) return true;
+
+    let pinConfigured = false;
+    try {
+        pinConfigured = await isMasterPinConfigured();
+    } catch (error) {
+        if (isMissingSecurityTableError(error)) {
+            await showAppAlert({
+                title: 'Segurança não configurada',
+                message: 'Aplique a migration de segurança no Supabase antes de acessar esta área.',
+                buttonLabel: 'OK',
+                icon: 'warning'
+            });
+            return false;
+        }
+        await showAppAlert({ title: 'Erro de segurança', message: error.message || String(error), danger: true, icon: 'error' });
+        return false;
+    }
+
+    if (!pinConfigured) {
+        await showAppAlert({
+            title: 'PIN mestre pendente',
+            message: 'O valor atual de segurança é temporário e será substituído por um hash seguro.',
+            detail: 'Crie um novo PIN mestre para continuar.',
+            buttonLabel: 'Criar PIN',
+            icon: 'warning'
+        });
+        return promptCreateMasterPin();
+    }
+
+    const pin = await showAppPrompt({
+        title: 'PIN mestre',
+        message: `Informe o PIN mestre para ${reason}.`,
+        label: 'PIN',
+        inputType: 'password',
+        confirmLabel: 'Validar',
+        cancelLabel: 'Cancelar'
+    });
+    if (!pin) return false;
+
+    let valid = false;
+    try {
+        const { data, error } = await getSecurityClient().rpc('validar_pin_mestre', { p_pin: String(pin).trim() });
+        if (error) throw error;
+        valid = data === true;
+    } catch (error) {
+        await showAppAlert({ title: 'Erro ao validar PIN', message: error.message || String(error), danger: true, icon: 'error' });
+        return false;
+    }
+    if (!valid) {
+        await logSecurityEvent('pin_incorreto', `PIN incorreto ao tentar ${reason}.`);
+        await showAppAlert({ title: 'PIN incorreto', message: 'O PIN informado não confere.', danger: true, icon: 'error' });
+        return false;
+    }
+
+    sessionStorage.setItem(SECURITY_PIN_SESSION_KEY, String(Date.now() + SECURITY_PIN_TTL_MS));
+    await logSecurityEvent('pin_validado', `PIN validado para ${reason}.`);
+    return true;
 }
 
 let selectedTipoMovimentacao = null;
@@ -6230,7 +6683,14 @@ async function confirmTransferencia() {
         console.error('[TRANSF-DIAG] Erro fatal na transferência:', err);
         showToast("ERRO: " + (err.message || "Falha no servidor"), "error");
         
-        alert("FALHA NA TRANSFERÊNCIA: \n" + err.message + "\n\nA operação foi enviada como transação única ao Supabase. Se falhou, nenhum débito/crédito parcial deve ter sido confirmado.");
+        await showAppAlert({
+            title: 'Falha na transferência',
+            message: err.message || 'Falha no servidor',
+            detail: 'A operação foi enviada como transação única ao Supabase. Se falhou, nenhum débito/crédito parcial deve ter sido confirmado.',
+            buttonLabel: 'OK',
+            danger: true,
+            icon: 'error'
+        });
     } finally {
         confirmBtn.disabled = false;
         confirmBtn.innerText = "CONFIRMAR TRANSFERÊNCIA";
@@ -7235,7 +7695,13 @@ async function createNewInventorySession(type) {
 
         const client = window.supabaseClient;
         if (!client) {
-            alert('Erro: Supabase não conectado');
+            await showAppAlert({
+                title: 'Erro',
+                message: 'Supabase não conectado',
+                buttonLabel: 'OK',
+                danger: true,
+                icon: 'error'
+            });
             return;
         }
 
@@ -8038,12 +8504,14 @@ window.finishInventorySession = async function () {
 
     const totalProdutos = appData.currentInventory.items.length;
     const totalUnidades = appData.currentInventory.items.reduce((acc, item) => acc + Number(item.qty || item.saldo_fisico || 0), 0);
-    const confirmed = confirm(
-        `Deseja realmente finalizar este inventário?\n\n` +
-        `Depois de finalizado, ele será fechado e o estoque será ajustado.\n\n` +
-        `Produtos diferentes: ${totalProdutos}\n` +
-        `Quantidade total contada: ${formatStockNumber(totalUnidades)} UN`
-    );
+    const confirmed = await showAppConfirm({
+        title: 'Confirmar finalização do inventário',
+        message: 'Deseja realmente finalizar este inventário?',
+        detail: 'Depois de finalizado, ele será fechado e o estoque será ajustado.',
+        summary: `Produtos diferentes: ${totalProdutos}\nQuantidade total contada: ${formatStockNumber(totalUnidades)} UN`,
+        confirmLabel: 'Finalizar inventário',
+        cancelLabel: 'Cancelar'
+    });
     if (!confirmed) return;
 
     isFinalizing = true;
@@ -8203,7 +8671,13 @@ async function setInventoryQty(index, value) {
         updateInventoryItemsList();
         return;
     }
-    if (!confirm(`Confirmar alteração para ${normalized} unidades?`)) {
+    const confirmed = await showAppConfirm({
+        title: 'Confirmar alteração',
+        message: `Confirmar alteração para ${normalized} unidades?`,
+        confirmLabel: 'Confirmar',
+        cancelLabel: 'Cancelar'
+    });
+    if (!confirmed) {
         updateInventoryItemsList();
         setTimeout(() => document.getElementById('inv-ean-input')?.focus(), 80);
         return;
@@ -8376,17 +8850,120 @@ function renderInventarioSubMenu() {
     `;
 }
 
+let inventoryHistoryFilter = 'todos';
+
+function setInventoryHistoryFilter(filter) {
+    inventoryHistoryFilter = filter || 'todos';
+    renderInventarioHistory();
+}
+
+function getFilteredInventoryHistory(history) {
+    const filter = inventoryHistoryFilter || 'todos';
+    return (history || []).filter(inv => {
+        const status = getInventoryStatus(inv);
+        if (filter === 'abertos') return isOpenInventoryStatus(status);
+        if (filter === 'fechados') return !isOpenInventoryStatus(status);
+        if (filter === 'meus') return isInventoryOwnedByCurrentUser(inv);
+        return true;
+    });
+}
+
+function renderInventoryHistoryFilters() {
+    const filters = [
+        { id: 'todos', label: 'Todos' },
+        { id: 'abertos', label: 'Abertos' },
+        { id: 'fechados', label: 'Fechados' },
+        { id: 'meus', label: 'Meus inventários' }
+    ];
+
+    return `
+        <div class="inventory-history-filters" aria-label="Filtros do histórico de inventário">
+            ${filters.map(filter => `
+                <button
+                    type="button"
+                    class="inventory-history-filter ${inventoryHistoryFilter === filter.id ? 'is-active' : ''}"
+                    onclick="setInventoryHistoryFilter('${filter.id}')"
+                >
+                    ${filter.label}
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function getInventoryHistorySummary(history) {
+    return {
+        todos: history.length,
+        abertos: history.filter(inv => isOpenInventoryStatus(getInventoryStatus(inv))).length,
+        fechados: history.filter(inv => !isOpenInventoryStatus(getInventoryStatus(inv))).length,
+        meus: history.filter(inv => isInventoryOwnedByCurrentUser(inv)).length
+    };
+}
+
+function renderInventoryHistorySummary(history) {
+    const summary = getInventoryHistorySummary(history || []);
+    const cards = [
+        { label: 'Todos', value: summary.todos, icon: 'inventory_2', tone: 'all' },
+        { label: 'Abertos', value: summary.abertos, icon: 'pending_actions', tone: 'open' },
+        { label: 'Fechados', value: summary.fechados, icon: 'task_alt', tone: 'closed' },
+        { label: 'Meus inventários', value: summary.meus, icon: 'person_check', tone: 'mine' }
+    ];
+
+    return `
+        <section class="inventory-history-summary-grid" aria-label="Resumo do histórico de inventário">
+            ${cards.map(card => `
+                <article class="inventory-history-summary-card tone-${card.tone}">
+                    <span class="material-symbols-rounded">${card.icon}</span>
+                    <div>
+                        <small>${card.label}</small>
+                        <strong>${card.value}</strong>
+                    </div>
+                </article>
+            `).join('')}
+        </section>
+    `;
+}
+
 function renderInventoryHistoryAction(inv) {
     const id = getInventoryId(inv);
     const status = getInventoryStatus(inv);
     const type = getInventoryTypeRaw(inv);
-    if (!isOpenInventoryStatus(status)) return '';
-
-    if (isInventoryOwnedByCurrentUser(inv)) {
-        return `<button onclick="event.stopPropagation(); resumeInventorySession('${id}', '${type}')" style="background: #4ade80; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; color: #111; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">CONTINUAR</button>`;
+    if (!isOpenInventoryStatus(status)) {
+        return `<button class="inventory-history-action inventory-history-action-secondary" onclick="event.stopPropagation(); viewClosedInventory('${id}')">VISUALIZAR</button>`;
     }
 
-    return `<button onclick="event.stopPropagation(); resumeInventorySession('${id}', '${type}', 'view')" style="background: transparent; border: 1px solid #3b82f6; padding: 8px 16px; border-radius: 8px; font-size: 0.75rem; font-weight: 800; cursor: pointer; color: #60a5fa; transition: transform 0.1s;" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">VISUALIZAR</button>`;
+    if (isInventoryOwnedByCurrentUser(inv)) {
+        return `<button class="inventory-history-action inventory-history-action-primary" onclick="event.stopPropagation(); resumeInventorySession('${id}', '${type}')">CONTINUAR</button>`;
+    }
+
+    return `<button class="inventory-history-action inventory-history-action-secondary" onclick="event.stopPropagation(); resumeInventorySession('${id}', '${type}', 'view')">VISUALIZAR</button>`;
+}
+
+function renderInventoryHistoryCard(inv, options = {}) {
+    const id = getInventoryId(inv);
+    const status = getInventoryStatus(inv);
+    const isClosed = status === 'FECHADO' || status === 'ANULADO';
+    const statusClass = status === 'ANULADO' ? 'canceled' : (isOpenInventoryStatus(status) ? 'open' : 'closed');
+    const ownerSuffix = isInventoryOwnedByCurrentUser(inv) ? ' (voce)' : '';
+    const featuredClass = options.featured ? 'is-featured' : '';
+
+    return `
+        <article class="inventory-history-card ${featuredClass} ${isClosed ? 'is-clickable' : ''}" onclick="${isClosed ? `viewClosedInventory('${id}')` : ''}">
+            <div class="inventory-history-card-top">
+                <strong class="inventory-history-code">${id}</strong>
+                <span class="inventory-history-status inventory-history-status-${statusClass}">${status || 'ABERTO'}</span>
+            </div>
+            <div class="inventory-history-meta">
+                <div><span>Tipo</span><strong>${getInventoryTypeLabel(getInventoryTypeRaw(inv))}</strong></div>
+                <div><span>Local</span><strong>${getInventoryLocalRaw(inv) || 'N/A'}</strong></div>
+                <div><span>Iniciado por</span><strong>${getInventoryStartedBy(inv)}${ownerSuffix}</strong></div>
+                <div><span>Data e horário</span><strong>${formatDateTimeBR(inv.data_inicio)}</strong></div>
+            </div>
+            <footer class="inventory-history-card-footer">
+                ${renderInventoryHistoryAction(inv)}
+            </footer>
+        </article>
+    `;
 }
 
 async function renderInventarioHistory() {
@@ -8394,12 +8971,14 @@ async function renderInventarioHistory() {
     
     // UI de Carregamento
     app.innerHTML = `
-        <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
+        <div class="dashboard-screen internal fade-in inventory-history-screen">
             ${getTopBarHTML(currentUser, 'renderInventarioSubMenu()')}
-            <div style="padding: 20px; width: min(92vw, 860px); max-width: 860px; margin: 0 auto; text-align: center; color: #777;">
-                <div class="loading-spinner" style="margin: 20px auto;"></div>
-                Carregando histórico...
-            </div>
+            <main class="inventory-history-shell">
+                <div class="inventory-history-loading">
+                    <div class="loading-spinner"></div>
+                    Carregando histórico...
+                </div>
+            </main>
         </div>
     `;
 
@@ -8418,32 +8997,48 @@ async function renderInventarioHistory() {
         console.log('[INV-DIAG] histórico inventarios encontrados:', appData.inventario.length);
 
         const history = appData.inventario;
+        const filteredHistory = getFilteredInventoryHistory(history);
+        const ownOpenInventories = filteredHistory.filter(inv => isOpenInventoryStatus(getInventoryStatus(inv)) && isInventoryOwnedByCurrentUser(inv));
+        const otherInventories = filteredHistory.filter(inv => !ownOpenInventories.includes(inv));
 
         app.innerHTML = `
-            <div class="dashboard-screen internal fade-in" style="background: #232323; min-height: 100vh;">
+            <div class="dashboard-screen internal fade-in inventory-history-screen">
                 ${getTopBarHTML(currentUser, 'renderInventarioSubMenu()')}
-                <div style="padding: 20px; width: min(92vw, 860px); max-width: 860px; margin: 0 auto;">
-                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
-                        ${history.length === 0 ? '<p style="color: #555; text-align: center; padding: 40px;">Nenhum registro encontrado.</p>' : 
-                            history.map(inv => `
-                                <div onclick="${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? `viewClosedInventory('${inv.inventario_id}')` : ''}" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 24px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; ${(inv.status === 'FECHADO' || inv.status === 'ANULADO') ? 'cursor: pointer;' : ''}" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                                    <div>
-                                        <div style="color: #4ade80; font-weight: 800; font-size: 1.1rem; margin-bottom: 4px;">${inv.inventario_id}</div>
-                                        <div style="color: #777; font-size: 0.85rem; margin-bottom: 2px;">${(inv.tipo || '').toUpperCase()} | ${inv.local}</div>
-                                        <div style="color: #666; font-size: 0.8rem; margin-bottom: 2px;">Iniciado por: ${getInventoryStartedBy(inv)}${isInventoryOwnedByCurrentUser(inv) ? ' (voce)' : ''}</div>
-                                        <div style="color: #555; font-size: 0.8rem;">${formatDateTimeBR(inv.data_inicio)}</div>
-                                    </div>
-                                    <div style="text-align: right;">
-                                        <div style="color: ${inv.status === 'FECHADO' ? '#4ade80' : (inv.status === 'ANULADO' ? '#ef4444' : '#fbbf24')}; font-size: 0.85rem; font-weight: 800; letter-spacing: 0.5px;">${inv.status}</div>
-                                        <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 12px;">
-                                            ${renderInventoryHistoryAction(inv)}
-                                        </div>
-                                    </div>
-                                </div>
-                            `).join('')
+                <main class="inventory-history-shell">
+                    <header class="inventory-history-header">
+                        <h1>HISTÓRICO DE INVENTÁRIO</h1>
+                        <p>Consulte, continue ou visualize inventários já iniciados.</p>
+                    </header>
+
+                    ${renderInventoryHistoryFilters()}
+                    ${renderInventoryHistorySummary(history)}
+
+                    ${ownOpenInventories.length ? `
+                        <section class="inventory-history-section">
+                            <div class="inventory-history-section-title">
+                                <span class="material-symbols-rounded">play_circle</span>
+                                <h2>CONTINUE SEU TRABALHO</h2>
+                            </div>
+                            <div class="inventory-history-featured-list">
+                                ${ownOpenInventories.map(inv => renderInventoryHistoryCard(inv, { featured: true })).join('')}
+                            </div>
+                        </section>
+                    ` : ''}
+
+                    <section class="inventory-history-section">
+                        <div class="inventory-history-section-title">
+                            <span class="material-symbols-rounded">history</span>
+                            <h2>OUTROS INVENTÁRIOS</h2>
+                        </div>
+                        <div class="inventory-history-list">
+                        ${filteredHistory.length === 0 ? '<div class="inventory-history-empty">Nenhum inventário encontrado.</div>' :
+                            otherInventories.length === 0
+                                ? '<div class="inventory-history-empty">Nenhum outro inventário encontrado.</div>'
+                                : otherInventories.map(inv => renderInventoryHistoryCard(inv)).join('')
                         }
-                    </div>
-                </div>
+                        </div>
+                    </section>
+                </main>
             </div>
         `;
     } catch (e) {
@@ -8453,7 +9048,15 @@ async function renderInventarioHistory() {
 }
 
 async function deleteTestInventory(sessionId) {
-    if (!confirm(`EXCLUIR TESTE: Deseja apagar permanentemente todos os dados do inventário ${sessionId}?\nIsso apagará itens, movimentos e o registro da sessão.`)) return;
+    const confirmed = await showAppConfirm({
+        title: 'Excluir teste',
+        message: `Deseja apagar permanentemente todos os dados do inventário ${sessionId}?`,
+        detail: 'Isso apagará itens, movimentos e o registro da sessão.',
+        confirmLabel: 'Excluir',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
     
     try {
         const client = window.supabaseClient;
@@ -8531,11 +9134,23 @@ async function viewClosedInventory(sessionId) {
 async function startInventoryReview(baseInventoryId) {
     const original = appData.currentInventory;
     if (!original || !original.items || original.items.length === 0) {
-        alert("Não é possível revisar um inventário sem itens contados!");
+        await showAppAlert({
+            title: 'Revisão indisponível',
+            message: 'Não é possível revisar um inventário sem itens contados!',
+            buttonLabel: 'OK',
+            icon: 'warning'
+        });
         return;
     }
 
-    if (!confirm("Deseja iniciar uma REVISÃO deste inventário?\nSerá gerada uma nova sessão com os mesmos itens.")) return;
+    const confirmed = await showAppConfirm({
+        title: 'Iniciar revisão',
+        message: 'Deseja iniciar uma REVISÃO deste inventário?',
+        detail: 'Será gerada uma nova sessão com os mesmos itens.',
+        confirmLabel: 'Iniciar revisão',
+        cancelLabel: 'Cancelar'
+    });
+    if (!confirmed) return;
     
     try {
         showToast("Iniciando revisão...");
@@ -8623,7 +9238,15 @@ async function startInventoryReview(baseInventoryId) {
 }
 
 async function cancelClosedInventory(sessionId) {
-    if (!confirm('Tem certeza que deseja ANULAR este inventário?\n\nEssa ação NÃO apaga dados, apenas marca como ANULADO.')) return;
+    const confirmed = await showAppConfirm({
+        title: 'Anular inventário',
+        message: 'Tem certeza que deseja ANULAR este inventário?',
+        detail: 'Essa ação NÃO apaga dados, apenas marca como ANULADO.',
+        confirmLabel: 'Anular inventário',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
 
     try {
         showToast("Anulando inventário...");
@@ -12136,6 +12759,23 @@ function hydratePickItemsFromSavedSession(sessionId) {
 async function resumePickingDraftFromServer(sessionId) {
     const session = (appData.separacao || []).find(row => String(row.separacao_id || row.id || row.col_a || '') === String(sessionId));
     if (!session) {
+        const localDraft = getDraftPickSession();
+        if (String(localDraft?.sessionId || '') === String(sessionId || '')) {
+            currentSessionItems = localDraft.items || [];
+            currentPickingContext = {
+                sessionId: localDraft.sessionId,
+                channelId: localDraft.channelId,
+                channelLabel: localDraft.channelLabel,
+                channelColor: localDraft.channelColor,
+                executionId: localDraft.executionId || generateExecutionId(),
+                createdAt: localDraft.createdAt || getDataHoraBrasil(),
+                total_pacotes_montados: getPickPackageCountFrom(localDraft),
+                totalPacotesMontados: getPickPackageCountFrom(localDraft)
+            };
+            renderPickingScreen(localDraft.sessionId, localDraft.channelId, localDraft.channelLabel, localDraft.channelColor);
+            warnIfDraftPickWasNotSynced(localDraft);
+            return;
+        }
         showToast('Separacao nao encontrada para retomar.', 'warning');
         return;
     }
@@ -12163,7 +12803,9 @@ async function resumePickingDraftFromServer(sessionId) {
         channelLabel,
         channelColor,
         executionId: generateExecutionId(),
-        createdAt: session.criado_em || session.data_separacao || getDataHoraBrasil()
+        createdAt: session.criado_em || session.data_separacao || getDataHoraBrasil(),
+        total_pacotes_montados: getPickPackageCountFrom(session),
+        totalPacotesMontados: getPickPackageCountFrom(session)
     };
     saveDraftPickSession({
         sessionId,
@@ -12175,6 +12817,8 @@ async function resumePickingDraftFromServer(sessionId) {
         operatorId: localStorage.getItem('currentUser'),
         createdAt: currentPickingContext.createdAt,
         executionId: currentPickingContext.executionId,
+        total_pacotes_montados: getPickPackageCountFrom(session),
+        totalPacotesMontados: getPickPackageCountFrom(session),
         saveStatus: 'synced'
     });
 
@@ -12185,11 +12829,313 @@ async function resumePickingDraftFromServer(sessionId) {
 }
 
 async function confirmDiscardSavedPickingDraft(sessionId) {
-    if (!confirm(`Excluir o rascunho da separacao ${sessionId}?\n\nOs produtos bipados nesse rascunho serao removidos.`)) {
+    const confirmed = await showAppConfirm({
+        title: 'Excluir rascunho de separação',
+        message: `Excluir o rascunho da separacao ${sessionId}?`,
+        detail: 'Os produtos bipados nesse rascunho serao removidos.',
+        confirmLabel: 'Excluir',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) {
         return;
     }
     await discardPickingDraft(sessionId);
-    renderPickMenu();
+    renderSeparacoesAndamentoScreen();
+}
+
+function getSeparationProductTotal(session) {
+    const storedTotal = Number(session.total_produtos_separados || session.totalProdutosSeparados || 0);
+    if (storedTotal > 0) return storedTotal;
+    const sessionId = getPackSeparationSessionId(session);
+    if (!sessionId) return Number(session.total_itens || session.qtd_itens || session.itens || 0) || 0;
+    return (appData.separacao_itens || [])
+        .filter(item => String(item.separacao_id || item.codigo_separacao || '') === String(sessionId))
+        .reduce((sum, item) => sum + (Number(item.qtd_separada || item.quantidade || item.qty || item.qtd_solicitada || 0) || 0), 0);
+}
+
+function getDraftPickSessionsWithLocalDraft() {
+    const sessions = [...getDraftPickSessionsFromCache()];
+    const localDraft = getDraftPickSession();
+    if (localDraft?.sessionId && !sessions.some(session => String(getPackSeparationSessionId(session)) === String(localDraft.sessionId))) {
+        sessions.unshift({
+            separacao_id: localDraft.sessionId,
+            canal_id: localDraft.channelId,
+            canal_nome: localDraft.channelLabel,
+            status: localDraft.status || PICK_STATUS_DRAFT,
+            criado_por: localStorage.getItem('currentUser') || '',
+            criado_em: localDraft.createdAt || localDraft.timestamp || getDataHoraBrasil(),
+            atualizado_em: localDraft.timestamp || getDataHoraBrasil(),
+            total_produtos_separados: (localDraft.items || []).reduce((sum, item) => sum + (Number(item.qty || item.qtd_separada || 0) || 0), 0),
+            total_pacotes_montados: getPickPackageCountFrom(localDraft),
+            __localDraft: true
+        });
+    }
+    return sessions.sort((a, b) => new Date(b.atualizado_em || b.criado_em || 0) - new Date(a.atualizado_em || a.criado_em || 0));
+}
+
+function getPickDraftChannelInfo(session) {
+    const raw = String(session?.canal_nome || session?.canal || session?.channelLabel || session?.col_c || '').trim();
+    const normalized = raw.toLowerCase();
+    if (normalized.includes('flex')) return { key: 'flex', label: 'Flex', icon: 'bolt', tone: 'purple' };
+    if (normalized.includes('correio')) return { key: 'correios', label: 'Correios', icon: 'local_shipping', tone: 'green' };
+    if (normalized.includes('turbo') || normalized.includes('motoboy') || normalized.includes('moto')) return { key: 'turbo', label: 'Turbo / Motoboy', icon: 'two_wheeler', tone: 'orange' };
+    if (normalized.includes('retirada') || normalized.includes('balcao') || normalized.includes('balcão') || normalized.includes('local')) return { key: 'retirada', label: 'Retirada local', icon: 'storefront', tone: 'yellow' };
+    return { key: 'outros', label: raw || 'Canal não informado', icon: 'inventory_2', tone: 'slate' };
+}
+
+function getPickDraftStatusInfo(session) {
+    const raw = String(session?.status || '').trim();
+    const normalized = raw.toLowerCase();
+    if (normalized.includes('final')) return { label: 'Finalizado', key: 'finalizado' };
+    if (normalized.includes('confer')) return { label: 'Pronto para conferência', key: 'conferencia' };
+    if (normalized.includes('aguard')) return { label: 'Aguardando itens', key: 'aguardando' };
+    return { label: 'Em andamento', key: 'andamento' };
+}
+
+function getPickDraftClientName(session) {
+    return session?.cliente_nome || session?.cliente || session?.nome_cliente || session?.destinatario || session?.comprador || '';
+}
+
+function buildPickDraftViewModel(session) {
+    const sessionId = getPackSeparationSessionId(session) || '-';
+    const channel = getPickDraftChannelInfo(session);
+    const status = getPickDraftStatusInfo(session);
+    const clientName = getPickDraftClientName(session);
+    const products = getSeparationProductTotal(session);
+    const packages = getPickPackageCountFrom(session);
+    const dateTime = formatPackSeparationDate(session.atualizado_em || session.criado_em || session.data_separacao || session.col_b) || '-';
+    const searchText = [sessionId, clientName, channel.label, session?.canal_nome, session?.canal, status.label]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+    return { session, sessionId, channel, status, clientName, products, packages, dateTime, searchText };
+}
+
+function getPickDraftSummaryCards(viewModels) {
+    const countBy = key => viewModels.filter(item => item.channel.key === key).length;
+    return [
+        { label: 'Total em andamento', value: viewModels.length, icon: 'pending_actions', tone: 'blue' },
+        { label: 'Flex', value: countBy('flex'), icon: 'bolt', tone: 'purple' },
+        { label: 'Correios', value: countBy('correios'), icon: 'local_shipping', tone: 'green' },
+        { label: 'Turbo / Motoboy', value: countBy('turbo'), icon: 'two_wheeler', tone: 'orange' },
+        { label: 'Retirada local', value: countBy('retirada'), icon: 'storefront', tone: 'yellow' }
+    ];
+}
+
+function showPickDraftDetails(sessionId) {
+    const session = getDraftPickSessionsWithLocalDraft()
+        .find(item => String(getPackSeparationSessionId(item) || '') === String(sessionId || ''));
+    if (!session) {
+        showToast('Separação não encontrada.', 'warning');
+        return;
+    }
+
+    const item = buildPickDraftViewModel(session);
+    const details = [
+        `Separação: ${item.sessionId}`,
+        `Canal: ${item.channel.label}`,
+        `Cliente: ${item.clientName || 'Cliente não informado'}`,
+        `Produtos: ${item.products}`,
+        `Volumes: ${item.packages}`,
+        `Data/Hora: ${item.dateTime}`,
+        `Status: ${item.status.label}`
+    ].join('\n');
+
+    showAppAlert({
+        type: 'info',
+        title: 'Detalhes da separação',
+        message: details,
+        buttonLabel: 'Fechar'
+    });
+}
+
+function applyPickDraftFilters() {
+    const activeFilter = document.querySelector('.pick-drafts-filter.is-active')?.dataset.filter || 'todas';
+    const search = (document.getElementById('pick-drafts-search')?.value || '').trim().toLowerCase();
+    const items = document.querySelectorAll('.pick-draft-row, .pick-draft-mobile-card');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+        const channel = item.dataset.channel || '';
+        const haystack = item.dataset.search || '';
+        const matchesFilter = activeFilter === 'todas' || channel === activeFilter;
+        const matchesSearch = !search || haystack.includes(search);
+        const visible = matchesFilter && matchesSearch;
+        item.hidden = !visible;
+        if (visible && item.classList.contains('pick-draft-row')) visibleCount += 1;
+    });
+
+    document.getElementById('pick-drafts-visible-count')?.replaceChildren(document.createTextNode(`${visibleCount} separações`));
+    document.querySelector('.pick-drafts-empty-filter')?.classList.toggle('hidden', visibleCount > 0);
+}
+
+function setPickDraftFilter(filter) {
+    document.querySelectorAll('.pick-drafts-filter').forEach(button => {
+        button.classList.toggle('is-active', button.dataset.filter === filter);
+    });
+    applyPickDraftFilters();
+}
+
+async function renderSeparacoesAndamentoScreen() {
+    const currentUser = localStorage.getItem('currentUser');
+    document.body.classList.remove('menu-active');
+
+    try {
+        const data = await DataClient.loadModule('separacao', true);
+        if (data) {
+            appData.separacao = data.separacao || appData.separacao || [];
+            appData.separacao_itens = data.separacao_itens || appData.separacao_itens || [];
+        }
+    } catch (error) {
+        console.warn('[SEP] Falha ao carregar separacoes em andamento:', error);
+    }
+
+    const sessions = getDraftPickSessionsWithLocalDraft();
+    const viewModels = sessions.map(buildPickDraftViewModel);
+    const summaryCards = getPickDraftSummaryCards(viewModels);
+    const filters = [
+        { key: 'todas', label: 'Todas' },
+        { key: 'flex', label: 'Flex' },
+        { key: 'correios', label: 'Correios' },
+        { key: 'turbo', label: 'Turbo / Motoboy' },
+        { key: 'retirada', label: 'Retirada local' }
+    ];
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in pick-drafts-screen">
+            ${getTopBarHTML(currentUser, 'renderMenu()')}
+            <main class="container pick-drafts-shell">
+                <header class="pick-drafts-header">
+                    <div>
+                        <h1>SEPARAÇÕES EM ANDAMENTO</h1>
+                        <p>Visualize e gerencie todas as separações que ainda não foram finalizadas.</p>
+                    </div>
+                    <aside class="pick-drafts-header-actions">
+                        <button type="button" class="pick-drafts-refresh" onclick="renderSeparacoesAndamentoScreen()">
+                            <span class="material-symbols-rounded">refresh</span>
+                            Atualizar
+                        </button>
+                        <span id="pick-drafts-visible-count" class="pick-drafts-counter">${viewModels.length} separações</span>
+                    </aside>
+                </header>
+
+                ${sessions.length === 0 ? `
+                    <section class="pick-drafts-empty-state">
+                        <span class="material-symbols-rounded">folder_open</span>
+                        <strong>Nenhuma separação em andamento</strong>
+                        <p>Quando uma separação for iniciada, ela aparecerá aqui.</p>
+                        <button type="button" onclick="renderSeparacoesAndamentoScreen()">Atualizar</button>
+                    </section>
+                ` : `
+                    <section class="pick-drafts-summary-grid">
+                        ${summaryCards.map(card => `
+                            <article class="pick-drafts-summary-card tone-${card.tone}">
+                                <span class="material-symbols-rounded">${card.icon}</span>
+                                <div>
+                                    <strong>${card.value}</strong>
+                                    <small>${card.label}</small>
+                                    <em>Em andamento</em>
+                                </div>
+                            </article>
+                        `).join('')}
+                    </section>
+
+                    <section class="pick-drafts-controls">
+                        <div class="pick-drafts-filter-bar">
+                            ${filters.map(filter => `
+                                <button type="button" class="pick-drafts-filter ${filter.key === 'todas' ? 'is-active' : ''}" data-filter="${filter.key}" onclick="setPickDraftFilter('${filter.key}')">
+                                    ${filter.label}
+                                </button>
+                            `).join('')}
+                        </div>
+                        <div class="pick-drafts-search-row">
+                            <label class="pick-drafts-search">
+                                <span class="material-symbols-rounded">search</span>
+                                <input id="pick-drafts-search" type="search" placeholder="Buscar por ID, cliente ou canal..." oninput="applyPickDraftFilters()">
+                            </label>
+                            <button type="button" class="pick-drafts-future-filter">
+                                <span class="material-symbols-rounded">tune</span>
+                                Filtros
+                            </button>
+                        </div>
+                    </section>
+
+                    <section class="pick-drafts-empty-filter hidden">
+                        <span class="material-symbols-rounded">search_off</span>
+                        <strong>Nenhuma separação encontrada</strong>
+                        <p>Ajuste os filtros ou a busca para ver mais resultados.</p>
+                    </section>
+
+                    <section class="pick-drafts-table-wrap">
+                        <table class="pick-drafts-table">
+                            <thead>
+                                <tr>
+                                    <th>Separação</th>
+                                    <th>Canal</th>
+                                    <th>Produtos</th>
+                                    <th>Volumes</th>
+                                    <th>Data / Hora</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${viewModels.map(item => `
+                                    <tr class="pick-draft-row" data-channel="${item.channel.key}" data-search="${escapeKitAttribute(item.searchText)}">
+                                        <td>
+                                            <strong class="pick-drafts-id">${escapeKitAttribute(item.sessionId)}</strong>
+                                            ${item.clientName ? `<small>Cliente: ${escapeKitAttribute(item.clientName)}</small>` : ''}
+                                        </td>
+                                        <td><span class="pick-drafts-channel-badge tone-${item.channel.tone}">${escapeKitAttribute(item.channel.label)}</span></td>
+                                        <td><strong>${item.products}</strong></td>
+                                        <td><strong>${item.packages}</strong></td>
+                                        <td>${escapeKitAttribute(item.dateTime)}</td>
+                                        <td><span class="pick-drafts-status status-${item.status.key}">${escapeKitAttribute(item.status.label)}</span></td>
+                                        <td>
+                                            <div class="pick-drafts-actions">
+                                                <button type="button" class="secondary" onclick="showPickDraftDetails(${quotePackInlineArg(item.sessionId)})">Ver detalhes</button>
+                                                <button type="button" class="primary" onclick="resumePickingDraftFromServer(${quotePackInlineArg(item.sessionId)})">Continuar</button>
+                                                <button type="button" class="danger-icon" onclick="confirmDiscardSavedPickingDraft(${quotePackInlineArg(item.sessionId)})" aria-label="Excluir separação">
+                                                    <span class="material-symbols-rounded">delete</span>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </section>
+
+                    <section class="pick-drafts-mobile-list">
+                        ${viewModels.map(item => `
+                            <article class="pick-draft-mobile-card" data-channel="${item.channel.key}" data-search="${escapeKitAttribute(item.searchText)}">
+                                <div class="pick-draft-mobile-top">
+                                    <strong>${escapeKitAttribute(item.sessionId)}</strong>
+                                    <span class="pick-drafts-status status-${item.status.key}">${escapeKitAttribute(item.status.label)}</span>
+                                </div>
+                                ${item.clientName ? `<small class="pick-draft-mobile-client">Cliente: ${escapeKitAttribute(item.clientName)}</small>` : ''}
+                                <span class="pick-drafts-channel-badge tone-${item.channel.tone}">${escapeKitAttribute(item.channel.label)}</span>
+                                <div class="pick-draft-mobile-grid">
+                                    <div><small>Produtos</small><strong>${item.products}</strong></div>
+                                    <div><small>Volumes</small><strong>${item.packages}</strong></div>
+                                    <div><small>Data/Hora</small><strong>${escapeKitAttribute(item.dateTime)}</strong></div>
+                                </div>
+                                <div class="pick-drafts-actions">
+                                    <button type="button" class="secondary" onclick="showPickDraftDetails(${quotePackInlineArg(item.sessionId)})">Ver detalhes</button>
+                                    <button type="button" class="primary" onclick="resumePickingDraftFromServer(${quotePackInlineArg(item.sessionId)})">Continuar</button>
+                                    <button type="button" class="danger-icon" onclick="confirmDiscardSavedPickingDraft(${quotePackInlineArg(item.sessionId)})" aria-label="Excluir separação">
+                                        <span class="material-symbols-rounded">delete</span>
+                                    </button>
+                                </div>
+                            </article>
+                        `).join('')}
+                    </section>
+                `}
+            </main>
+        </div>
+    `;
 }
 
 async function renderPickMenu() {
@@ -12198,7 +13144,6 @@ async function renderPickMenu() {
         // Opcional: Impedir abertura ou abrir com aviso
     }
     const currentUser = localStorage.getItem('currentUser');
-    document.body.classList.remove('menu-active');
     
     // Garantir carregamento real do Supabase
     await ensureCanaisLoaded();
@@ -12233,57 +13178,14 @@ async function renderPickMenu() {
     channels = channels.filter(c => !String(c.label).toUpperCase().includes('FULL'));
 
     const channelCards = buildPickChannelCards(channels);
-    const draftSessions = getDraftPickSessionsFromCache();
 
+    document.body.classList.remove('menu-active');
     app.innerHTML = `
                 <div class="dashboard-screen internal fade-in picking-screen module-screen standard-card-menu-screen">
                     ${getTopBarHTML(currentUser, 'renderMenu()')}
                     ${getModuleSidebarHTML('pick')}
 
                     <main class="container">
-                        ${draftSessions.length ? `
-                            <div class="operational-counter-row">
-                                <span class="operational-counter-pill">
-                                    <span class="material-symbols-rounded">pending_actions</span>
-                                    Separacoes em andamento: <strong>${draftSessions.length}</strong>
-                                </span>
-                            </div>
-                            <div class="standard-module-card-grid operational-card-grid operational-conference-grid" style="margin-bottom: 18px;">
-                                ${draftSessions.map(session => {
-                                    const sessionId = getPackSeparationSessionId(session);
-                                    const channelName = session.canal_nome || session.canal || session.col_c || 'Canal nao informado';
-                                    const config = getChannelConfig(channelName);
-                                    const createdAt = formatPackSeparationDate(session.criado_em || session.data_separacao || session.col_b);
-                                    const itemCount = getSeparationItemCount(session);
-                                    return `
-                                        <article class="standard-module-card operational-menu-card operational-conference-card" style="cursor: default;">
-                                            <span class="standard-module-card-icon">${config.svgIcon || `<span class="material-symbols-rounded">${config.icon}</span>`}</span>
-                                            <span class="standard-module-card-copy operational-conference-copy">
-                                                <strong>${escapeKitAttribute(sessionId)}</strong>
-                                                <small>${escapeKitAttribute(channelName)}</small>
-                                                <span class="operational-card-meta">
-                                                    <em>${escapeKitAttribute(createdAt)}</em>
-                                                    <em>${itemCount ? `${itemCount} item(ns)` : 'Sem itens carregados'}</em>
-                                                    <b>Em separacao</b>
-                                                </span>
-                                                <span class="operational-open-indicator">
-                                                    <span class="material-symbols-rounded">sync</span>
-                                                    Rascunho salvo
-                                                </span>
-                                            </span>
-                                            <button class="pack-session-action" type="button" onclick="resumePickingDraftFromServer(${quotePackInlineArg(sessionId)})" title="Retomar separacao">
-                                                <span class="material-symbols-rounded">play_arrow</span>
-                                                <span>Retomar</span>
-                                            </button>
-                                            <button class="pack-session-action" type="button" onclick="event.stopPropagation(); confirmDiscardSavedPickingDraft(${quotePackInlineArg(sessionId)})" title="Excluir rascunho">
-                                                <span class="material-symbols-rounded">delete</span>
-                                                <span>Excluir</span>
-                                            </button>
-                                        </article>
-                                    `;
-                                }).join('')}
-                            </div>
-                        ` : ''}
                         <div class="standard-module-card-grid operational-card-grid">
                             ${channelCards.map(item => `
                                 <button type="button" class="standard-module-card operational-menu-card" onclick="startPickingSession(${quotePackInlineArg(item.id)}, ${quotePackInlineArg(item.actualLabel)}, ${quotePackInlineArg(item.color)})">
@@ -12355,6 +13257,87 @@ let scanSuccessGlowTimeout = null;
 const PICK_STATUS_DRAFT = 'em_separacao';
 const PICK_STATUS_READY_FOR_PACK = 'aberta';
 const PICK_STATUS_FINISHED = 'finalizada';
+
+function normalizePickPackageCount(value) {
+    const count = Math.floor(Number(value || 0));
+    return Number.isFinite(count) ? Math.max(0, count) : 0;
+}
+
+function getPickPackageCountFrom(source = {}) {
+    return normalizePickPackageCount(
+        source.total_pacotes_montados
+        ?? source.totalPacotesMontados
+        ?? source.pacotesMontados
+        ?? source.packagesMounted
+        ?? 0
+    );
+}
+
+function getCurrentPickPackageCount() {
+    return getPickPackageCountFrom(currentPickingContext)
+        || getPickPackageCountFrom(getDraftPickSession())
+        || getPickPackageCountFrom(currentPickSession?.pickingData)
+        || getPickPackageCountFrom(currentPickSession);
+}
+
+function getPickingOperationalStats(items = currentSessionItems) {
+    const totalProdutosSeparados = (items || []).reduce((total, item) => total + (Number(item.qty || item.qtd_separada || 0) || 0), 0);
+    const totalPacotesMontados = getCurrentPickPackageCount();
+    return {
+        total_produtos_separados: totalProdutosSeparados,
+        total_pacotes_montados: totalPacotesMontados,
+        media_produtos_por_pacote: totalPacotesMontados > 0 ? totalProdutosSeparados / totalPacotesMontados : 0
+    };
+}
+
+function formatPickPackageAverage(value) {
+    const numberValue = Number(value || 0);
+    if (!Number.isFinite(numberValue) || numberValue <= 0) return '0';
+    return numberValue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function syncPickPackageCount(count, persist = true) {
+    const safeCount = normalizePickPackageCount(count);
+    if (currentPickingContext) {
+        currentPickingContext.total_pacotes_montados = safeCount;
+        currentPickingContext.totalPacotesMontados = safeCount;
+    }
+    if (currentPickSession) {
+        currentPickSession.total_pacotes_montados = safeCount;
+        currentPickSession.totalPacotesMontados = safeCount;
+        if (currentPickSession.pickingData) {
+            currentPickSession.pickingData.total_pacotes_montados = safeCount;
+            currentPickSession.pickingData.totalPacotesMontados = safeCount;
+        }
+    }
+
+    const packagesEl = document.getElementById('pick-summary-packages');
+    if (packagesEl) packagesEl.textContent = String(safeCount);
+
+    if (persist) {
+        saveDraftPickSession({
+            sessionId: currentPickingContext?.sessionId,
+            channelId: currentPickingContext?.channelId,
+            channelLabel: currentPickingContext?.channelLabel,
+            channelColor: currentPickingContext?.channelColor,
+            items: currentSessionItems,
+            status: PICK_STATUS_DRAFT,
+            operatorId: localStorage.getItem('currentUser'),
+            createdAt: currentPickingContext?.createdAt || getDraftPickSession()?.createdAt || getDataHoraBrasil(),
+            executionId: currentPickingContext?.executionId || getDraftPickSession()?.executionId || generateExecutionId(),
+            total_pacotes_montados: safeCount,
+            totalPacotesMontados: safeCount,
+            saveStatus: 'local_only'
+        });
+    }
+    return safeCount;
+}
+
+function adjustPickPackageCount(delta) {
+    const nextCount = syncPickPackageCount(getCurrentPickPackageCount() + Number(delta || 0), true);
+    showToast(nextCount === 1 ? '1 pacote montado.' : `${nextCount} pacotes montados.`);
+    setTimeout(() => document.getElementById('pick-ean-input')?.focus(), 60);
+}
 
 function getDraftPickSession() {
     try {
@@ -12486,9 +13469,16 @@ async function confirmDiscardPickingDraft(sessionId, channelId, channelLabel, ch
     const targetSessionId = sessionId || draft?.sessionId || currentPickingContext?.sessionId;
     const hasItems = currentSessionItems.length > 0 || (draft?.items || []).length > 0;
     const itemLabel = hasItems ? 'Todos os produtos bipados nesse rascunho serao removidos.' : 'Nenhum produto foi bipado ainda.';
-    const msg = `Cancelar o rascunho da separacao ${targetSessionId}?\n\n${itemLabel}\n\nUse isso quando iniciou a separacao no canal errado.`;
 
-    if (!confirm(msg)) return;
+    const confirmed = await showAppConfirm({
+        title: 'Cancelar rascunho de separação',
+        message: `Cancelar o rascunho da separacao ${targetSessionId}?`,
+        detail: `${itemLabel}\nUse isso quando iniciou a separacao no canal errado.`,
+        confirmLabel: 'Cancelar rascunho',
+        cancelLabel: 'Voltar',
+        danger: true
+    });
+    if (!confirmed) return;
 
     await discardPickingDraft(targetSessionId);
     renderPickMenu();
@@ -12525,6 +13515,7 @@ function generatePickSessionId(channelLabel) {
 function buildPickingSessionPayload(sessionId, channelId, channelLabel, status = PICK_STATUS_DRAFT, createdAt = null) {
     const now = getDataHoraBrasil();
     const currentUser = localStorage.getItem('currentUser') || 'N/A';
+    const stats = getPickingOperationalStats();
     return {
         separacao_id: sessionId,
         pedido_referencia: '',
@@ -12534,6 +13525,8 @@ function buildPickingSessionPayload(sessionId, channelId, channelLabel, status =
         criado_por: currentUser,
         criado_em: createdAt || now,
         atualizado_em: now,
+        total_produtos_separados: stats.total_produtos_separados,
+        total_pacotes_montados: stats.total_pacotes_montados,
         observacao: 'SEPARACAO MANUAL'
     };
 }
@@ -12798,9 +13791,12 @@ async function deletePickingDraftItemSupabaseDirect(payload = {}) {
 }
 
 async function persistPickingFinal(sessionId) {
+    const stats = getPickingOperationalStats(currentPickSession?.items || currentSessionItems);
     const payload = {
         sessionId,
         status: PICK_STATUS_READY_FOR_PACK,
+        total_produtos_separados: stats.total_produtos_separados,
+        total_pacotes_montados: stats.total_pacotes_montados,
         executionId: generateExecutionId()
     };
 
@@ -12846,12 +13842,26 @@ async function startPickingSession(channelId, channelLabel, channelColor) {
             console.log(`[PICKING DEBUG] rascunho com itens detectado: ${draft.channelLabel}`);
             // Se o rascunho for de OUTRO canal, oferece Retomar ou Limpar
             if (draft.channelId !== channelId) {
-                const msg = `Sessao ativa detectada em ${draft.channelLabel}.\n\nPara iniciar em ${channelLabel}, você deve descartar o rascunho anterior.\n\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`;
-                if (confirm(msg)) {
+                const msg = `Para iniciar em ${channelLabel}, você deve descartar o rascunho anterior.`;
+                const shouldClearDraft = await showAppConfirm({
+                    title: 'Sessão ativa detectada',
+                    message: `Sessao ativa detectada em ${draft.channelLabel}.`,
+                    detail: `${msg}\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`,
+                    confirmLabel: 'Limpar rascunho',
+                    cancelLabel: 'Não limpar',
+                    danger: true
+                });
+                if (shouldClearDraft) {
                     await discardPickingDraft(draft.sessionId, { silent: true });
                     console.log(`[PICKING DEBUG] rascunho de ${draft.channelLabel} descartado`);
                 } else {
-                    if (confirm(`Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`)) {
+                    const shouldResumeDraft = await showAppConfirm({
+                        title: 'Retomar sessão',
+                        message: `Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`,
+                        confirmLabel: 'Retomar',
+                        cancelLabel: 'Cancelar'
+                    });
+                    if (shouldResumeDraft) {
                         currentSessionItems = draft.items || [];
                         renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
                         updatePickItemsList();
@@ -13023,7 +14033,13 @@ function openHighQtyModal({ item, currentQty, flow = 'pick', reason = 'quantidad
                     renderInputStep('Informe uma quantidade válida.');
                     return;
                 }
-                if (!confirm(isRemove ? `Confirmar remoção de ${nextQty} unidades?` : `Confirmar alteração para ${nextQty} unidades?`)) return;
+                const confirmedQty = await showAppConfirm({
+                    title: isRemove ? 'Confirmar remoção' : 'Confirmar alteração',
+                    message: isRemove ? `Confirmar remoção de ${nextQty} unidades?` : `Confirmar alteração para ${nextQty} unidades?`,
+                    confirmLabel: 'Confirmar',
+                    cancelLabel: 'Cancelar'
+                });
+                if (!confirmedQty) return;
                 try {
                     await onConfirm?.(nextQty, reason);
                     finish(nextQty);
@@ -13139,11 +14155,14 @@ function getPickTotalQuantity() {
 function updatePickSummaryUI() {
     const differentItems = currentSessionItems.length;
     const totalQuantity = getPickTotalQuantity();
+    const totalPackages = getCurrentPickPackageCount();
     const itemsEl = document.getElementById('pick-summary-items');
     const qtyEl = document.getElementById('pick-summary-qty');
+    const packagesEl = document.getElementById('pick-summary-packages');
     const progressEl = document.getElementById('pick-summary-progress');
     if (itemsEl) itemsEl.textContent = String(differentItems);
     if (qtyEl) qtyEl.textContent = String(totalQuantity);
+    if (packagesEl) packagesEl.textContent = String(totalPackages);
     if (progressEl) progressEl.textContent = differentItems > 0 ? '100%' : '0%';
 }
 
@@ -13158,13 +14177,17 @@ function focusPickManualInput() {
 function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
     const currentUser = localStorage.getItem('currentUser');
     pickRemovalModeActive = false;
+    const draft = getDraftPickSession();
+    const packageCount = getPickPackageCountFrom(draft || currentPickingContext || {});
     currentPickingContext = {
         sessionId,
         channelId,
         channelLabel,
         channelColor,
         executionId: currentPickingContext?.executionId || generateExecutionId(),
-        createdAt: currentPickingContext?.createdAt || getDataHoraBrasil()
+        createdAt: currentPickingContext?.createdAt || draft?.createdAt || getDataHoraBrasil(),
+        total_pacotes_montados: packageCount,
+        totalPacotesMontados: packageCount
     };
     const channelIcon = getChannelConfig(channelLabel).svgIcon || menu3DIcons?.[channelId] || '<span class="material-symbols-rounded">inventory_2</span>';
     const createdAtLabel = formatPickCreatedAt(currentPickingContext.createdAt);
@@ -13253,10 +14276,18 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                     <aside class="pick-summary-panel">
                         <h2>RESUMO DA SEPARACAO</h2>
                         <div class="pick-summary-metrics">
+                            <div><span>Produtos separados</span><strong id="pick-summary-qty">${getPickTotalQuantity()}</strong></div>
                             <div><span>Itens</span><strong id="pick-summary-items">${currentSessionItems.length}</strong></div>
-                            <div><span>Unidades totais</span><strong id="pick-summary-qty">${getPickTotalQuantity()}</strong></div>
+                            <div><span>Pacotes montados</span><strong id="pick-summary-packages">${packageCount}</strong></div>
                         </div>
                         <div class="pick-summary-actions">
+                            <button class="pick-package-btn pick-package-minus" type="button" onclick="adjustPickPackageCount(-1)" aria-label="Diminuir pacote montado">
+                                <span class="material-symbols-rounded">remove</span>
+                            </button>
+                            <button class="pick-package-btn pick-package-plus" type="button" onclick="adjustPickPackageCount(1)">
+                                <span class="material-symbols-rounded">add</span>
+                                <span>Pacote</span>
+                            </button>
                             <button id="pick-remove-scan-toggle" class="pick-remove-scan-btn" type="button" onclick="togglePickRemovalMode()">
                                 <span class="material-symbols-rounded">remove_circle</span>
                                 <span id="pick-remove-scan-label">Remover por bipagem</span>
@@ -13453,6 +14484,7 @@ async function findProductForPicking(cleanCode) {
 
 function getCurrentPickDraftForUpdate(saveStatus = 'saving') {
     const existingDraft = getDraftPickSession() || {};
+    const packageCount = getCurrentPickPackageCount();
     return saveDraftPickSession({
         sessionId: existingDraft.sessionId || currentPickingContext?.sessionId || `SEP-TEMP-${Date.now()}`,
         channelId: existingDraft.channelId || currentPickingContext?.channelId || '',
@@ -13463,6 +14495,8 @@ function getCurrentPickDraftForUpdate(saveStatus = 'saving') {
         operatorId: localStorage.getItem('currentUser'),
         createdAt: existingDraft.createdAt || currentPickingContext?.createdAt || getDataHoraBrasil(),
         executionId: existingDraft.executionId || currentPickingContext?.executionId || generateExecutionId(),
+        total_pacotes_montados: packageCount,
+        totalPacotesMontados: packageCount,
         saveStatus,
         lastSaveAttemptAt: getDataHoraBrasil()
     });
@@ -13726,7 +14760,9 @@ async function addPickItem(scannedEan = null) {
                 status: PICK_STATUS_DRAFT,
                 timestamp: getDataHoraBrasil(now),
                 createdAt: currentPickingContext?.createdAt || getDataHoraBrasil(now),
-                executionId: currentPickingContext?.executionId || generateExecutionId()
+                executionId: currentPickingContext?.executionId || generateExecutionId(),
+                total_pacotes_montados: getCurrentPickPackageCount(),
+                totalPacotesMontados: getCurrentPickPackageCount()
             };
         } else {
             draft = getDraftPickSession() || {};
@@ -13737,6 +14773,8 @@ async function addPickItem(scannedEan = null) {
         draft.timestamp = getDataHoraBrasil();
         draft.createdAt = draft.createdAt || getDataHoraBrasil();
         draft.executionId = draft.executionId || currentPickingContext?.executionId || generateExecutionId();
+        draft.total_pacotes_montados = getCurrentPickPackageCount();
+        draft.totalPacotesMontados = getCurrentPickPackageCount();
         draft.saveStatus = 'saving';
         draft.lastSaveAttemptAt = getDataHoraBrasil();
         localStorage.setItem('draft_pick_session', JSON.stringify(draft));
@@ -13858,7 +14896,12 @@ function removePickItem(index) {
         discardPickingDraft(currentPickingContext?.sessionId, { silent: true })
             .catch(error => console.warn('[SEP] nao foi possivel cancelar rascunho vazio:', error));
     } else {
-        saveDraftPickSession({ items: currentSessionItems, saveStatus: 'local_only' });
+        saveDraftPickSession({
+            items: currentSessionItems,
+            total_pacotes_montados: getCurrentPickPackageCount(),
+            totalPacotesMontados: getCurrentPickPackageCount(),
+            saveStatus: 'local_only'
+        });
     }
     setTimeout(() => document.getElementById('pick-ean-input')?.focus(), 80);
 }
@@ -13874,6 +14917,8 @@ async function pausePickingSession(sessionId, channelId, channelLabel, channelCo
         operatorId: localStorage.getItem('currentUser'),
         createdAt: currentPickingContext?.createdAt || getDataHoraBrasil(),
         executionId: currentPickingContext?.executionId || generateExecutionId(),
+        total_pacotes_montados: getCurrentPickPackageCount(),
+        totalPacotesMontados: getCurrentPickPackageCount(),
         saveStatus: 'saving'
     });
 
@@ -13911,6 +14956,7 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
         const currentUser = localStorage.getItem('currentUser');
         const now = getDataHoraBrasil();
         const modoRapidoAtivo = isModoRapidoAtivo();
+        const stats = getPickingOperationalStats(currentSessionItems);
 
         const pickingData = {
             separacao_id: sessionId,
@@ -13925,6 +14971,8 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
             origem_operacional: 'manual_nf',
             pedido_origem_id: '',
             marketplace_order_id: '',
+            total_produtos_separados: stats.total_produtos_separados,
+            total_pacotes_montados: stats.total_pacotes_montados,
             observacao: modoRapidoAtivo ? 'SAIDA_RAPIDA AUTOMATICA' : 'SEPARACAO MANUAL POR NF'
         };
 
@@ -13956,7 +15004,9 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
             user: currentUser,
             time: now,
             pickingData,
-            conferenceRows
+            conferenceRows,
+            total_produtos_separados: stats.total_produtos_separados,
+            total_pacotes_montados: stats.total_pacotes_montados
         };
 
         currentPickSession = session;
@@ -13965,7 +15015,7 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
 
 
     } catch (error) {
-        console.error("Error preparing picking result:", error);
+        console.error('[SEPARACAO] erro ao finalizar', error);
         await showAppModal({
             type: 'error',
             title: 'Erro ao processar separação',
@@ -14057,6 +15107,8 @@ function adjustPickRow(index, delta, sessionId, channelId, channelLabel, channel
         channelLabel,
         channelColor,
         items: currentSessionItems,
+        total_pacotes_montados: getCurrentPickPackageCount(),
+        totalPacotesMontados: getCurrentPickPackageCount(),
         saveStatus: 'local_only'
     });
     renderPickResult(sessionId, channelId, channelLabel, channelColor);
@@ -14085,8 +15137,156 @@ function buildFastPickingFinalRows(items, sessionId) {
     return Object.values(grouped);
 }
 
+async function finalizeFastPickingWithoutConference(payload = {}) {
+    const currentUser = payload.user || localStorage.getItem('currentUser') || 'N/A';
+    const sessionId = payload.sessionId;
+    const rows = payload.rows || [];
+    if (!sessionId) throw new Error('separacao_id nao informado');
+    if (!rows.length) throw new Error('Nenhum item valido para finalizar no modo rapido.');
+
+    console.log('[SEPARACAO] fluxo rapido: baixando estoque sem conferencia', {
+        sessionId,
+        itens: rows.length
+    });
+
+    let movimentos = 0;
+    for (const row of rows) {
+        let needed = Number(row.qtd_conferida || row.qtd_separada || 0);
+        if (!row.id_interno || needed <= 0) continue;
+
+        for (const local of LOCAIS_SAIDA) {
+            if (needed <= 0) break;
+            const stockRows = getPickStockEntries(row.id_interno)
+                .filter(stock => normalizarLocal(stock.local) === local)
+                .sort((a, b) => Number(b.saldo_disponivel ?? b.saldo_total ?? 0) - Number(a.saldo_disponivel ?? a.saldo_total ?? 0));
+            const available = stockRows.reduce((sum, stock) => sum + Math.max(0, Number(stock.saldo_disponivel ?? stock.saldo_total ?? stock.saldo ?? 0) || 0), 0);
+            const take = Math.min(available, needed);
+            if (take <= 0) continue;
+
+            const ok = await DataClient.updateEstoqueSupabase(row.id_interno, local, 'subtrai', take);
+            if (!ok) throw new Error(`Falha ao baixar estoque do produto ${row.id_interno}`);
+            await DataClient.saveMovimentoSupabase({
+                tipo: 'saida',
+                id_interno: row.id_interno,
+                local_origem: local,
+                local_destino: null,
+                quantidade: take,
+                usuario: currentUser,
+                origem: 'separacao',
+                observacao: `Baixa automatica da separacao rapida ${sessionId}`
+            });
+            movimentos += 1;
+            needed -= take;
+        }
+
+        if (needed > 0) {
+            const ok = await DataClient.updateEstoqueSupabase(row.id_interno, 'TERREO', 'subtrai', needed);
+            if (!ok) throw new Error(`Falha ao gerar estoque negativo do produto ${row.id_interno}`);
+            await DataClient.saveMovimentoSupabase({
+                tipo: 'saida',
+                id_interno: row.id_interno,
+                local_origem: 'TERREO',
+                local_destino: null,
+                quantidade: needed,
+                usuario: currentUser,
+                origem: 'separacao',
+                observacao: `Baixa da separacao rapida ${sessionId} com estoque negativo permitido. Produto ficou com saldo negativo.`
+            });
+            console.warn('[SEPARACAO_ESTOQUE_NEGATIVO] separacao rapida gerou saldo negativo', {
+                sessionId,
+                produto: row.id_interno,
+                quantidade_negativa: needed
+            });
+            movimentos += 1;
+        }
+    }
+
+    await DataClient.finalizePickingDraftSupabase({
+        sessionId,
+        status: PICK_STATUS_FINISHED,
+        total_produtos_separados: Number(payload.total_produtos_separados || 0),
+        total_pacotes_montados: Number(payload.total_pacotes_montados || 0),
+        executionId: payload.executionId || generateExecutionId()
+    });
+
+    DataClient.invalidateCache?.('produtos');
+    DataClient.invalidateCache?.('movimentos');
+    DataClient.invalidateCache?.('separacao');
+
+    return { ok: true, sessionId, movimentos };
+}
+
+async function createPickingConferenceWithoutStock(payload = {}) {
+    const client = window.supabaseClient;
+    if (!client) throw new Error('Supabase client nao encontrado');
+
+    const sessionId = payload.sessionId;
+    if (!sessionId) throw new Error('separacao_id nao informado');
+
+    console.log('[SEPARACAO] fluxo normal: criando conferencia sem baixar estoque', {
+        sessionId,
+        itens: payload.rows?.length || 0
+    });
+
+    const now = getDataHoraBrasil();
+    const conferenciaId = `CONF-${sessionId}`;
+    const { data: existing, error: existingError } = await client
+        .from('conferencia')
+        .select('conferencia_id')
+        .eq('separacao_id', sessionId)
+        .maybeSingle();
+    if (existingError && existingError.code !== 'PGRST116') throw existingError;
+
+    if (existing?.conferencia_id) {
+        return {
+            ok: true,
+            status: 'already_exists',
+            conferencia_id: existing.conferencia_id,
+            separacao_id: sessionId
+        };
+    }
+
+    const { error: confError } = await client.from('conferencia').insert([{
+        conferencia_id: conferenciaId,
+        separacao_id: sessionId,
+        status: 'em_conferencia',
+        conferido_por: payload.user || 'N/A',
+        conferido_em: null,
+        atualizado_em: now
+    }]);
+    if (confError) throw confError;
+
+    const itensPayload = (payload.rows || [])
+        .filter(row => row?.id_interno)
+        .map(row => ({
+            conferencia_id: conferenciaId,
+            separacao_id: sessionId,
+            id_interno: row.id_interno,
+            ean: row.ean || '',
+            descricao: row.descricao || '',
+            qtd_separada: Number(row.qtd_separada || 0),
+            qtd_conferida: 0,
+            divergencia: 'FALTA'
+        }));
+
+    if (itensPayload.length) {
+        const { error: itensError } = await client.from('conferencia_itens').insert(itensPayload);
+        if (itensError) throw itensError;
+    }
+
+    DataClient.invalidateCache?.('conferencia');
+
+    return {
+        ok: true,
+        status: 'created',
+        conferencia_id: conferenciaId,
+        separacao_id: sessionId
+    };
+}
+
 async function finalizeFastPickingSession(sessionId, channelId, channelLabel, channelColor, draft, now) {
     const currentUser = localStorage.getItem('currentUser');
+    const stats = getPickingOperationalStats(currentPickSession.items);
 
     for (const item of currentPickSession.items) {
         await persistPickingDraftItem({
@@ -14103,13 +15303,25 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
         throw new Error('Nenhum item valido para finalizar no modo rapido.');
     }
 
-    const finalizationResult = await submitConferenceFinalization({
-        action: 'finalizar_conferencia',
+    const fastPayload = {
         sessionId,
         user: currentUser,
         rows,
+        total_produtos_separados: stats.total_produtos_separados,
+        total_pacotes_montados: stats.total_pacotes_montados,
         executionId: draft.executionId || generateExecutionId()
-    });
+    };
+
+    let finalizationResult;
+    if (!navigator.onLine) {
+        await queueOperation('supabase_pick_fast_finalize', fastPayload, {
+            module: 'separacao',
+            sessionId
+        });
+        finalizationResult = { queued: true };
+    } else {
+        finalizationResult = await finalizeFastPickingWithoutConference(fastPayload);
+    }
 
     if (!appData.separacao) appData.separacao = [];
     const localSession = {
@@ -14124,6 +15336,8 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
         canal_nome: channelLabel,
         status: finalizationResult?.queued ? 'pendente_sync' : PICK_STATUS_FINISHED,
         finalizado_em: now,
+        total_produtos_separados: stats.total_produtos_separados,
+        total_pacotes_montados: stats.total_pacotes_montados,
         observacao: 'SAIDA_RAPIDA AUTOMATICA'
     };
     const existingIndex = appData.separacao.findIndex(s => (s.separacao_id || s.col_a) === sessionId);
@@ -14137,6 +15351,15 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
     showToast(finalizationResult?.queued
         ? `Saida rapida ${sessionId} salva localmente para sincronizar.`
         : `Saida rapida ${sessionId} finalizada e estoque baixado!`);
+    await showAppModal({
+        type: 'success',
+        title: 'Saida rapida finalizada',
+        message: finalizationResult?.queued
+            ? `Saida rapida ${sessionId} salva localmente para sincronizar.`
+            : `Saida rapida ${sessionId} finalizada e estoque baixado.`,
+        detail: `Produtos separados: ${stats.total_produtos_separados} | Pacotes montados: ${stats.total_pacotes_montados} | Média por pacote: ${formatPickPackageAverage(stats.media_produtos_por_pacote)}`,
+        confirmText: 'OK'
+    });
     playBeep('success');
     renderMenu();
 }
@@ -14157,11 +15380,19 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             return;
         }
 
-        await ensureProdutosLoaded(true);
-        const stockValidation = validatePickingStockForExit(currentPickSession.items, 'finalizar_separacao');
-        const canContinueStock = await confirmPickingNegativeStockIfNeeded(stockValidation, 'finalizar_separacao');
-        if (!canContinueStock) return;
+        const stats = getPickingOperationalStats(currentPickSession.items);
+        if (stats.total_produtos_separados > 0 && stats.total_pacotes_montados === 0) {
+            const confirmed = await showAppModal({
+                type: 'warning',
+                title: 'Nenhum pacote marcado',
+                message: 'Nenhum pacote foi marcado. Deseja finalizar mesmo assim?',
+                confirmText: 'Finalizar mesmo assim',
+                cancelText: 'Voltar'
+            });
+            if (!confirmed) return;
+        }
 
+        await ensureProdutosLoaded(true);
         const now = getDataHoraBrasil();
         const draft = getDraftPickSession() || {
             sessionId,
@@ -14171,8 +15402,16 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             createdAt: currentPickSession?.pickingData?.criado_em || now,
             executionId: generateExecutionId()
         };
+        const modoRapidoAtivo = isModoRapidoAtivo();
+        console.log('[SEPARACAO] modo selecionado', {
+            sessionId,
+            modo: modoRapidoAtivo ? 'rapido' : 'normal'
+        });
 
-        if (isModoRapidoAtivo()) {
+        if (modoRapidoAtivo) {
+            const stockValidation = validatePickingStockForExit(currentPickSession.items, 'finalizar_separacao_rapida');
+            const canContinueStock = await confirmPickingNegativeStockIfNeeded(stockValidation, 'finalizar_separacao_rapida');
+            if (!canContinueStock) return;
             await finalizeFastPickingSession(sessionId, channelId, channelLabel, channelColor, draft, now);
             return;
         }
@@ -14200,6 +15439,27 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             }, item);
         }
 
+        const conferencePayload = {
+            sessionId,
+            user: localStorage.getItem('currentUser') || 'N/A',
+            rows: (currentPickSession.conferenceRows?.length
+                ? currentPickSession.conferenceRows
+                : buildFastPickingFinalRows(currentPickSession.items, sessionId)).map(row => ({
+                    ...row,
+                    qtd_conferida: 0,
+                    divergencia: 'FALTA'
+                })),
+            executionId: draft.executionId || generateExecutionId()
+        };
+
+        if (!navigator.onLine) {
+            await queueOperation('supabase_pick_create_conference', conferencePayload, {
+                module: 'conferencia',
+                sessionId
+            });
+        } else {
+            await createPickingConferenceWithoutStock(conferencePayload);
+        }
         const finalResult = await persistPickingFinal(sessionId);
 
         if (!appData.separacao) appData.separacao = [];
@@ -14207,6 +15467,8 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             ...pickingData,
             separacao_id: sessionId,
             canal_nome: channelLabel,
+            total_produtos_separados: stats.total_produtos_separados,
+            total_pacotes_montados: stats.total_pacotes_montados,
             status: PICK_STATUS_READY_FOR_PACK
         };
         const existingIndex = appData.separacao.findIndex(s => (s.separacao_id || s.col_a) === sessionId);
@@ -14229,11 +15491,12 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             message: finalResult?.queued
                 ? `Separação ${sessionId} salva localmente para sincronizar.`
                 : `Separação ${sessionId} enviada para conferência.`,
+            detail: `Produtos separados: ${stats.total_produtos_separados} | Pacotes montados: ${stats.total_pacotes_montados} | Média por pacote: ${formatPickPackageAverage(stats.media_produtos_por_pacote)}`,
             confirmText: 'OK'
         });
         renderMenu();
     } catch (e) {
-        console.error('[SEP] erro ao finalizar separacao', {
+        console.error('[SEPARACAO] erro ao finalizar', {
             message: e?.message,
             details: e?.details,
             hint: e?.hint,
@@ -14512,8 +15775,16 @@ async function renderPackSessionsList(channelName) {
             `;
 }
 
-function deletePickingSession(sessionId, channelName) {
-    if (!confirm(`Tem certeza que deseja excluir a separação ${sessionId}?\nEsta ação não pode ser desfeita.`)) {
+async function deletePickingSession(sessionId, channelName) {
+    const confirmed = await showAppConfirm({
+        title: 'Excluir separação',
+        message: `Tem certeza que deseja excluir a separação ${sessionId}?`,
+        detail: 'Esta ação não pode ser desfeita.',
+        confirmLabel: 'Excluir',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) {
         return;
     }
 
@@ -14982,8 +16253,14 @@ function persistPackSessionCache() {
 /**
  * Fun?o Compartilhada para Busca Manual de Produto
  */
-function openManualAddProduct(callback) {
-    const term = prompt("Digite o EAN ou C?digo do produto para adicionar:");
+async function openManualAddProduct(callback) {
+    const term = await showAppPrompt({
+        title: 'Adicionar produto',
+        message: 'Digite o EAN ou C?digo do produto para adicionar:',
+        label: 'EAN ou Código',
+        confirmLabel: 'Adicionar',
+        cancelLabel: 'Cancelar'
+    });
     if (!term) return;
 
     const product = appData.products.find(p =>
@@ -15002,8 +16279,8 @@ function openManualAddProduct(callback) {
     callback(product);
 }
 
-function openManualAddProductToSession(sessionId, type = 'PACK') {
-    openManualAddProduct((product) => {
+async function openManualAddProductToSession(sessionId, type = 'PACK') {
+    await openManualAddProduct((product) => {
         if (type === 'PACK') {
             manualAddItemToConference(product);
         } else {
@@ -15250,7 +16527,7 @@ function renderConferenceCorrection() {
                         ${hasDivergence ? `
                         <div style="margin: 20px 0; padding: 16px; background: rgba(234, 179, 8, 0.1); border-radius: 12px; border: 1px solid rgba(234, 179, 8, 0.3); text-align: center;">
                             <p style="color: #facc15; font-weight: 600; margin-bottom: 16px;">Deseja corrigir as divergências?</p>
-                            <button onclick="confirm('Clique OK para confirmar a correção e prosseguir') && renderConferenceCorrection()" class="btn-action" style="width: 100%; background: #f59e0b;">
+                            <button onclick="confirmConferenceCorrectionFlow()" class="btn-action" style="width: 100%; background: #f59e0b;">
                                 <span class="material-symbols-rounded">edit</span>
                                 CORRIGIR E CONTINUAR
                             </button>
@@ -15755,6 +17032,460 @@ function quickActionToggleFastMode() {
         if (menu) menu.classList.remove('hidden');
         if (overlay) overlay.classList.remove('hidden');
     }, 0);
+}
+
+async function confirmConferenceCorrectionFlow() {
+    const confirmed = await showAppConfirm({
+        title: 'Confirmar correção',
+        message: 'Clique OK para confirmar a correção e prosseguir',
+        confirmLabel: 'OK',
+        cancelLabel: 'Cancelar'
+    });
+    if (confirmed) renderConferenceCorrection();
+}
+
+function quickActionSeparacoesAndamento() {
+    toggleQuickActions();
+    renderSeparacoesAndamentoScreen();
+}
+
+function quickActionGerarRomaneio() {
+    toggleQuickActions();
+    renderRomaneioScreen();
+}
+
+const ROMANEIO_STORAGE_KEY = 'dyRomaneiosRetirada';
+let romaneioSignatureState = { dataUrl: '', redoDataUrl: '' };
+
+function getRomaneios() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(ROMANEIO_STORAGE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.warn('[ROMANEIO] cache invalido. Limpando.', error);
+        localStorage.removeItem(ROMANEIO_STORAGE_KEY);
+        return [];
+    }
+}
+
+function saveRomaneios(romaneios) {
+    localStorage.setItem(ROMANEIO_STORAGE_KEY, JSON.stringify(Array.isArray(romaneios) ? romaneios : []));
+}
+
+function isRomaneioPickupStatus(status) {
+    const normalized = String(status || '').toLowerCase();
+    return normalized && !['cancelada', 'rascunho', 'draft', 'em_separacao'].includes(normalized);
+}
+
+function getRomaneioTodayMetrics(channelName, withdrawalType = channelName) {
+    const todayIso = getDataBrasilISO();
+    const todayBr = formatDateBR(todayIso);
+    const target = normalizeOperationalLabel(channelName);
+    const typeTarget = normalizeOperationalLabel(withdrawalType);
+    const sessions = (appData.separacao || []).filter(session => {
+        const channel = normalizeOperationalLabel(session.canal_nome || session.canal || session.col_c || '');
+        const rawDate = String(session.data_separacao || session.criado_em || session.finalizado_em || session.col_b || '');
+        const matchesDate = rawDate.includes(todayBr) || rawDate.includes(todayIso);
+        const matchesChannel = typeTarget === 'OUTROS'
+            ? channel && !channel.includes('FLEX') && !channel.includes('CORREIOS')
+            : channel && target && (channel.includes(target) || target.includes(channel));
+        return matchesDate && matchesChannel && isRomaneioPickupStatus(session.status || 'aberta');
+    });
+
+    return sessions.reduce((acc, session) => {
+        acc.produtos += getSeparationProductTotal(session);
+        acc.pacotes += getPickPackageCountFrom(session);
+        acc.separacoes += 1;
+        return acc;
+    }, {
+        data: todayBr,
+        canal: channelName,
+        produtos: 0,
+        pacotes: 0,
+        separacoes: 0,
+        tipo_retirada: withdrawalType
+    });
+}
+
+async function renderRomaneioScreen(selectedType = '', selectedId = '') {
+    const currentUser = localStorage.getItem('currentUser');
+    document.body.classList.remove('menu-active');
+
+    try {
+        const data = await DataClient.loadModule('separacao', true);
+        if (data) {
+            appData.separacao = data.separacao || appData.separacao || [];
+            appData.separacao_itens = data.separacao_itens || appData.separacao_itens || [];
+        }
+    } catch (error) {
+        console.warn('[ROMANEIO] Falha ao atualizar separacoes:', error);
+    }
+
+    const romaneios = getRomaneios().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    const selected = selectedId ? romaneios.find(item => item.id === selectedId) : null;
+    const metrics = selectedType ? getRomaneioTodayMetrics(selectedType, selectedType) : null;
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in module-screen romaneio-screen">
+            ${getTopBarHTML(currentUser, 'renderMenu()')}
+            ${getModuleSidebarHTML('pick')}
+            <main class="container romaneio-shell">
+                <header class="romaneio-header">
+                    <div>
+                        <span>Retirada</span>
+                        <h1>Gerar Romaneio</h1>
+                    </div>
+                </header>
+
+                <section class="romaneio-channel-step">
+                    <h2>Tipo de Retirada</h2>
+                    <div class="romaneio-channel-grid">
+                        ${['Flex', 'Correios', 'Outros'].map(type => {
+                            const config = getRomaneioTypeConfig(type);
+                            const active = normalizeOperationalLabel(type) === normalizeOperationalLabel(selectedType);
+                            return `
+                                <button class="romaneio-channel-card ${active ? 'is-active' : ''}" type="button" onclick="renderRomaneioScreen('${type}')">
+                                    <span>${config.svgIcon || `<span class="material-symbols-rounded">${config.icon}</span>`}</span>
+                                    <strong>${type.toUpperCase()}</strong>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </section>
+
+                ${metrics ? renderRomaneioForm(metrics) : ''}
+                ${selected ? renderRomaneioDetail(selected) : ''}
+                ${renderRomaneioHistory(romaneios)}
+            </main>
+        </div>
+    `;
+
+    if (metrics) setTimeout(() => initRomaneioSignaturePad(), 80);
+}
+
+function getRomaneioTypeConfig(type) {
+    if (normalizeOperationalLabel(type) === 'OUTROS') {
+        return {
+            icon: 'inventory_2',
+            svgIcon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#2563EB"/><path d="M20 26 L32 18 L44 26 V42 L32 50 L20 42 Z" fill="#fff" opacity="0.95"/><path d="M20 26 L32 34 L44 26 M32 34 V50" stroke="#2563EB" stroke-width="2.5" fill="none"/></svg>'
+        };
+    }
+    return getChannelConfig(type);
+}
+
+function formatRomaneioShortDate(value) {
+    const parts = String(value || '').split('/');
+    if (parts.length === 3) return `${parts[0]}/${parts[1]}/${String(parts[2]).slice(-2)}`;
+    return value || '-';
+}
+
+function renderRomaneioForm(metrics) {
+    const isOther = normalizeOperationalLabel(metrics.tipo_retirada) === 'OUTROS';
+    return `
+        <section class="romaneio-form-card">
+            <div class="romaneio-metrics-grid">
+                <div><small>Produtos</small><strong>${metrics.produtos}</strong><em>itens</em><span class="material-symbols-rounded">deployed_code</span></div>
+                <div><small>Pacotes</small><strong>${metrics.pacotes}</strong><em>pacotes</em><span class="material-symbols-rounded">package_2</span></div>
+                <div><small>Separações</small><strong>${metrics.separacoes}</strong><em>separações</em><span class="material-symbols-rounded">assignment</span></div>
+                <div><small>Data</small><strong>${escapeKitAttribute(formatRomaneioShortDate(metrics.data))}</strong><em>${escapeKitAttribute(metrics.data)}</em><span class="material-symbols-rounded">calendar_month</span></div>
+            </div>
+
+            <form id="romaneio-form" class="romaneio-form" onsubmit="event.preventDefault(); saveRomaneioFromForm('${escapeKitAttribute(metrics.tipo_retirada)}')">
+                ${isOther ? `
+                    <label class="romaneio-field-full">
+                        <span>Nome do Canal *</span>
+                        <input name="canal_personalizado" type="text" autocomplete="organization" required placeholder="Turbo Motoboy, Transportadora, Retirada Balcão">
+                    </label>
+                ` : ''}
+                <label>
+                    <span>Nome do Responsável *</span>
+                    <input name="responsavel" type="text" autocomplete="name" required>
+                </label>
+                <label>
+                    <span>Documento (opcional)</span>
+                    <input name="documento" type="text" autocomplete="off">
+                </label>
+                <label class="romaneio-field-full">
+                    <span>Observação (opcional)</span>
+                    <input name="observacao" type="text" autocomplete="off" placeholder="Retirado às 16:40, coleta agência central...">
+                </label>
+
+                <div class="romaneio-signature-box">
+                    <div class="romaneio-signature-header">
+                        <strong>Assinatura digital</strong>
+                        <div>
+                            <button type="button" onclick="clearRomaneioSignature()">Limpar assinatura</button>
+                            <button type="button" onclick="redoRomaneioSignature()">Refazer assinatura</button>
+                        </div>
+                    </div>
+                    <canvas id="romaneio-signature-canvas"></canvas>
+                </div>
+
+                <button class="romaneio-save-btn" type="submit">
+                    <span class="material-symbols-rounded">draw</span>
+                    Salvar Romaneio
+                </button>
+            </form>
+        </section>
+    `;
+}
+
+function renderRomaneioHistory(romaneios) {
+    return `
+        <section class="romaneio-history">
+            <div class="romaneio-section-title">
+                <h2>Histórico de Romaneios</h2>
+                <span>${romaneios.length}</span>
+            </div>
+            ${romaneios.length === 0 ? `
+                <div class="romaneio-empty-state compact">
+                    <span class="material-symbols-rounded">receipt_long</span>
+                    <strong>Nenhum romaneio salvo.</strong>
+                </div>
+            ` : `
+                <div class="romaneio-history-list">
+                    ${romaneios.map(item => `
+                        <article class="romaneio-history-card">
+                            <div class="romaneio-history-icon">${getRomaneioTypeConfig(item.tipo_retirada || item.canal).svgIcon || `<span class="material-symbols-rounded">receipt_long</span>`}</div>
+                            <div class="romaneio-history-copy">
+                                <small>${escapeKitAttribute(item.data)} ${item.hora ? `- ${escapeKitAttribute(item.hora)}` : ''}</small>
+                                <strong>${escapeKitAttribute(item.canal || '-')}</strong>
+                                <span>Produtos: ${Number(item.produtos || 0)}</span>
+                                <span>Pacotes: ${Number(item.pacotes || 0)}</span>
+                                <span>Separações: ${Number(item.separacoes || 0)}</span>
+                                <em>Responsável: ${escapeKitAttribute(item.responsavel || '-')}</em>
+                            </div>
+                            <button type="button" onclick="renderRomaneioScreen('', '${escapeKitAttribute(item.id)}')">
+                                <span class="material-symbols-rounded">visibility</span>
+                                Visualizar
+                            </button>
+                        </article>
+                    `).join('')}
+                </div>
+            `}
+        </section>
+    `;
+}
+
+function renderRomaneioDetail(item) {
+    return `
+        <section class="romaneio-detail">
+            <div class="romaneio-section-title">
+                <h2>Romaneio ${escapeKitAttribute(item.id)}</h2>
+                <span>${escapeKitAttribute(item.status || 'Assinado')}</span>
+            </div>
+            <div class="romaneio-detail-grid">
+                <div><small>Data/Hora</small><strong>${escapeKitAttribute(item.data)} ${escapeKitAttribute(item.hora)}</strong></div>
+                <div><small>Canal</small><strong>${escapeKitAttribute(item.canal)}</strong></div>
+                <div><small>Produtos</small><strong>${Number(item.produtos || 0)}</strong></div>
+                <div><small>Pacotes</small><strong>${Number(item.pacotes || 0)}</strong></div>
+                <div><small>Separações</small><strong>${Number(item.separacoes || 0)}</strong></div>
+                <div><small>Responsável</small><strong>${escapeKitAttribute(item.responsavel || '-')}</strong></div>
+                <div><small>Documento</small><strong>${escapeKitAttribute(item.documento || '-')}</strong></div>
+                <div><small>Observação</small><strong>${escapeKitAttribute(item.observacao || '-')}</strong></div>
+                <div><small>Usuário</small><strong>${escapeKitAttribute(item.usuario || '-')}</strong></div>
+                <div><small>PDF</small><strong>${item.pdfDataUrl ? 'Disponível' : 'Ainda não gerado'}</strong></div>
+            </div>
+            ${item.assinatura ? `<img class="romaneio-signature-preview" src="${escapeKitAttribute(item.assinatura)}" alt="Assinatura do responsável">` : ''}
+            ${item.pdfDataUrl ? `<button class="romaneio-pdf-open-btn" type="button" onclick="openRomaneioPDF('${escapeKitAttribute(item.id)}')">Visualizar PDF</button>` : ''}
+            ${renderRomaneioPostSaveActions(item)}
+        </section>
+    `;
+}
+
+function renderRomaneioPostSaveActions(item) {
+    const type = normalizeOperationalLabel(item.tipo_retirada || item.canal);
+    if (!type.includes('CORREIOS')) {
+        return `
+            <div class="romaneio-post-actions">
+                <button type="button" onclick="renderMenu()">Concluir</button>
+            </div>
+        `;
+    }
+    return `
+        <div class="romaneio-post-actions">
+            <button type="button" onclick="generateRomaneioPDF('${escapeKitAttribute(item.id)}')">Gerar PDF</button>
+            <button type="button" onclick="shareRomaneioWhatsApp('${escapeKitAttribute(item.id)}')">Compartilhar WhatsApp</button>
+            <button type="button" onclick="shareRomaneioEmail('${escapeKitAttribute(item.id)}')">Compartilhar E-mail</button>
+        </div>
+    `;
+}
+
+function initRomaneioSignaturePad() {
+    const canvas = document.getElementById('romaneio-signature-canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(320, Math.floor(rect.width * window.devicePixelRatio));
+    canvas.height = Math.max(160, Math.floor(rect.height * window.devicePixelRatio));
+    const ctx = canvas.getContext('2d');
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#111827';
+    romaneioSignatureState = { dataUrl: '', redoDataUrl: '' };
+    let drawing = false;
+    let hasStroke = false;
+
+    const getPoint = event => {
+        const bounds = canvas.getBoundingClientRect();
+        const source = event.touches?.[0] || event;
+        return { x: source.clientX - bounds.left, y: source.clientY - bounds.top };
+    };
+    const save = () => {
+        if (!hasStroke) return;
+        romaneioSignatureState.dataUrl = canvas.toDataURL('image/png');
+    };
+
+    const start = event => {
+        event.preventDefault();
+        drawing = true;
+        hasStroke = true;
+        const point = getPoint(event);
+        ctx.beginPath();
+        ctx.moveTo(point.x, point.y);
+    };
+    const move = event => {
+        if (!drawing) return;
+        event.preventDefault();
+        const point = getPoint(event);
+        ctx.lineTo(point.x, point.y);
+        ctx.stroke();
+    };
+    const end = () => {
+        if (!drawing) return;
+        drawing = false;
+        save();
+    };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', end, { once: false });
+    canvas.addEventListener('touchstart', start, { passive: false });
+    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchend', end);
+}
+
+function clearRomaneioSignature() {
+    const canvas = document.getElementById('romaneio-signature-canvas');
+    if (!canvas) return;
+    if (romaneioSignatureState.dataUrl) romaneioSignatureState.redoDataUrl = romaneioSignatureState.dataUrl;
+    canvas.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+    romaneioSignatureState.dataUrl = '';
+}
+
+function redoRomaneioSignature() {
+    const canvas = document.getElementById('romaneio-signature-canvas');
+    if (!canvas || !romaneioSignatureState.redoDataUrl) return;
+    const ctx = canvas.getContext('2d');
+    const image = new Image();
+    image.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
+        romaneioSignatureState.dataUrl = romaneioSignatureState.redoDataUrl;
+    };
+    image.src = romaneioSignatureState.redoDataUrl;
+}
+
+function getRomaneioText(item) {
+    return `Romaneio ${item.id}\nData: ${item.data} ${item.hora}\nCanal: ${item.canal}\nProdutos: ${item.produtos}\nPacotes: ${item.pacotes}\nSeparacoes: ${item.separacoes || 0}\nResponsavel: ${item.responsavel}\nDocumento: ${item.documento || '-'}\nObservacao: ${item.observacao || '-'}\nStatus: ${item.status}`;
+}
+
+function saveRomaneioFromForm(withdrawalType) {
+    const form = document.getElementById('romaneio-form');
+    if (!form) return;
+    const data = new FormData(form);
+    const type = String(withdrawalType || '').trim();
+    const customChannel = String(data.get('canal_personalizado') || '').trim();
+    const isOther = normalizeOperationalLabel(type) === 'OUTROS';
+    const finalChannel = isOther ? customChannel : type;
+    const responsavel = String(data.get('responsavel') || '').trim();
+    if (isOther && !customChannel) {
+        showToast('Informe o nome do canal.', 'warning');
+        return;
+    }
+    if (!responsavel) {
+        showToast('Informe o nome do responsável.', 'warning');
+        return;
+    }
+    if (!romaneioSignatureState.dataUrl) {
+        showToast('Colete a assinatura antes de salvar.', 'warning');
+        return;
+    }
+
+    const metrics = getRomaneioTodayMetrics(finalChannel || type, type);
+    const now = new Date();
+    const romaneio = {
+        id: `ROM-${normalizeOperationalLabel(finalChannel || type).slice(0, 3)}-${Date.now()}`,
+        data: metrics.data,
+        hora: formatTimeBR(now),
+        canal: finalChannel || metrics.canal,
+        tipo_retirada: type,
+        produtos: metrics.produtos,
+        pacotes: metrics.pacotes,
+        separacoes: metrics.separacoes,
+        responsavel,
+        documento: String(data.get('documento') || '').trim(),
+        observacao: String(data.get('observacao') || '').trim(),
+        assinatura: romaneioSignatureState.dataUrl,
+        usuario: localStorage.getItem('currentUser') || '',
+        status: 'Assinado',
+        createdAt: now.toISOString()
+    };
+
+    const romaneios = getRomaneios();
+    romaneios.unshift(romaneio);
+    saveRomaneios(romaneios);
+    showToast('Romaneio salvo.');
+    renderRomaneioScreen('', romaneio.id);
+}
+
+function findRomaneioById(id) {
+    return getRomaneios().find(item => String(item.id) === String(id));
+}
+
+function updateRomaneio(item) {
+    const romaneios = getRomaneios();
+    const index = romaneios.findIndex(row => row.id === item.id);
+    if (index >= 0) romaneios[index] = item;
+    saveRomaneios(romaneios);
+}
+
+function generateRomaneioPDF(id) {
+    const item = findRomaneioById(id);
+    if (!item) return;
+    const html = `<html><body><pre>${getRomaneioText(item)}</pre><img style="max-width:420px" src="${item.assinatura || ''}"></body></html>`;
+    item.pdfDataUrl = `data:text/html;base64,${btoa(unescape(encodeURIComponent(html)))}`;
+    updateRomaneio(item);
+    showToast('PDF preparado para geração futura.');
+    renderRomaneioScreen('', item.id);
+}
+
+function openRomaneioPDF(id) {
+    const item = findRomaneioById(id);
+    if (!item?.pdfDataUrl) {
+        showToast('PDF ainda não gerado.', 'warning');
+        return;
+    }
+    window.open(item.pdfDataUrl, '_blank');
+}
+
+async function shareRomaneioWhatsApp(id) {
+    const item = findRomaneioById(id);
+    if (!item) return;
+    const text = getRomaneioText(item);
+    if (navigator.share) {
+        await navigator.share({ title: `Romaneio ${item.id}`, text }).catch(() => null);
+        return;
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+function shareRomaneioEmail(id) {
+    const item = findRomaneioById(id);
+    if (!item) return;
+    const subject = `Romaneio ${item.id}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(getRomaneioText(item))}`;
 }
 
 function startFastMode() {
@@ -19651,6 +21382,15 @@ function renderConfigSubMenu() {
                                 <label for="toggle-modo-rapido"></label>
                             </div>
                         </div>
+
+                        <button type="button" class="config-security-entry" onclick="openSecuritySettings()">
+                            <span class="material-symbols-rounded">security</span>
+                            <span>
+                                <strong>SEGURANÇA</strong>
+                                <small>PIN mestre e dispositivos autorizados.</small>
+                            </span>
+                            <em class="material-symbols-rounded">chevron_right</em>
+                        </button>
                     </div>
 
                     <div style="margin-top: 40px; text-align: center; color: var(--muted); font-size: 0.75rem;">
@@ -19664,7 +21404,14 @@ function renderConfigSubMenu() {
     updateThemeControlsUI();
 }
 
-function toggleConfig(key, value) {
+async function toggleConfig(key, value) {
+    if (['permitir_saida_estoque_zero', 'permitir_estoque_negativo', 'modo_rapido'].includes(key)) {
+        const allowed = await requireMasterPin('alterar configurações críticas');
+        if (!allowed) {
+            renderConfigSubMenu();
+            return;
+        }
+    }
     const config = getAppConfig();
     config[key] = value;
     if (key === 'permitir_saida_estoque_zero' || key === 'permitir_estoque_negativo') {
@@ -19679,6 +21426,367 @@ function toggleConfig(key, value) {
     if (key === 'modo_rapido') {
         renderMenu(false);
     }
+}
+
+async function openSecuritySettings() {
+    const deviceStatus = await ensureCurrentDeviceRegistered({ silent: false, source: 'abrir_seguranca', logUpdate: true });
+    if (deviceStatus.allowed === false) return;
+    const allowed = await requireMasterPin('acessar Configurações > Segurança');
+    if (!allowed) return;
+    await logSecurityEvent('acesso_configuracoes_seguranca', 'Acesso às configurações de segurança.');
+    renderSecuritySettings();
+}
+
+function formatSecurityDate(value) {
+    if (!value) return 'Nunca';
+    return formatDateTimeBR(value) || String(value);
+}
+
+function getSecurityOnlineWindowMinutes() {
+    const config = getAppConfig?.() || {};
+    const minutes = Number(config.security_online_window_minutes || config.segurança_online_minutos || 5);
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : 5;
+}
+
+function getSecurityDeviceBrowser(device = {}) {
+    const source = String(device.navegador || device.browser || device.user_agent || device.nome_dispositivo || '').toLowerCase();
+    if (source.includes('edg')) return 'Edge';
+    if (source.includes('chrome')) return 'Chrome';
+    if (source.includes('firefox')) return 'Firefox';
+    if (source.includes('safari')) return 'Safari';
+    return device.navegador || device.browser || 'Não informado';
+}
+
+function getSecurityDeviceLocation(device = {}) {
+    return device.local_aproximado || device.localizacao || device.location || device.cidade || device.ip_cidade || 'Não informado';
+}
+
+function getSecurityDeviceRequestDate(device = {}) {
+    return device.solicitado_em || device.requested_at || device.criado_em || device.ultimo_acesso;
+}
+
+function getSecurityLastActivityLabel(value) {
+    if (!value) return 'Agora';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return formatSecurityDate(value);
+    const diffMs = Date.now() - date.getTime();
+    if (diffMs < 60000) return 'Agora';
+    const diffMinutes = Math.max(1, Math.round(diffMs / 60000));
+    if (diffMinutes < 60) return `${diffMinutes} min atrás`;
+    return formatSecurityDate(value);
+}
+
+function isSecurityDevicePending(device = {}) {
+    const status = String(device.status || device.situacao || '').toLowerCase();
+    return status.includes('pend')
+        || status.includes('aguard')
+        || device.aprovado === false
+        || device.autorizado === false
+        || device.ativo === null;
+}
+
+function isSecurityDeviceOnline(device = {}, onlineWindowMinutes = getSecurityOnlineWindowMinutes()) {
+    if (isSecurityDevicePending(device) || device.ativo === false) return false;
+    const lastAccess = device.ultimo_acesso ? new Date(device.ultimo_acesso).getTime() : 0;
+    if (!lastAccess || Number.isNaN(lastAccess)) return false;
+    return Date.now() - lastAccess <= onlineWindowMinutes * 60 * 1000;
+}
+
+async function loadAuthorizedDevices() {
+    const client = getSecurityClient();
+    if (!client) throw new Error('Supabase indisponível.');
+    const securityStatus = await verifySecurityInstalled();
+    if (!securityStatus.installed) throw securityStatus.error || new Error('Segurança não instalada.');
+    const { data, error } = await client
+        .from('dispositivos_autorizados')
+        .select('*')
+        .order('ultimo_acesso', { ascending: false, nullsFirst: false });
+    if (error) {
+        logSecurityError('[SECURITY] load dispositivos', error);
+        throw error;
+    }
+    return data || [];
+}
+
+function renderSecurityDeviceMeta(device, { includeUser = true, includeRequestDate = false } = {}) {
+    const rows = [];
+    if (includeUser) rows.push(['Usuário', device.nome_usuario || device.usuario_id || 'Usuário não informado']);
+    rows.push(['Local', getSecurityDeviceLocation(device)]);
+    rows.push(['Navegador', getSecurityDeviceBrowser(device)]);
+    rows.push(includeRequestDate
+        ? ['Solicitado em', formatSecurityDate(getSecurityDeviceRequestDate(device))]
+        : ['Última atividade', getSecurityLastActivityLabel(device.ultimo_acesso)]);
+
+    return rows.map(([label, value]) => `
+        <span>
+            <b>${escapeKitAttribute(label)}</b>
+            ${escapeKitAttribute(value)}
+        </span>
+    `).join('');
+}
+
+function renderSecurityOnlineDeviceCard(device, currentDeviceId) {
+    const isCurrent = String(device.device_id || '') === String(currentDeviceId);
+    return `
+        <article class="security-device-card security-online-card">
+            <div class="security-device-icon">
+                <span class="material-symbols-rounded">${isCurrent ? 'devices' : 'computer'}</span>
+            </div>
+            <div class="security-device-main">
+                <div class="security-device-heading">
+                    <strong>${escapeKitAttribute(device.nome_dispositivo || 'Dispositivo desconhecido')}</strong>
+                    ${isCurrent ? '<small>Este dispositivo</small>' : ''}
+                </div>
+                <div class="security-device-meta">
+                    ${renderSecurityDeviceMeta(device)}
+                </div>
+            </div>
+            <div class="security-device-actions">
+                <em class="online"><i></i>Online</em>
+                <button type="button" class="security-outline-danger" onclick="endSecuritySession('${escapeKitAttribute(device.device_id || '')}')">
+                    Encerrar sessão
+                </button>
+            </div>
+        </article>
+    `;
+}
+
+function renderSecurityPendingRequestCard(device) {
+    return `
+        <article class="security-device-card security-pending-card">
+            <div class="security-device-icon pending">
+                <span class="material-symbols-rounded">person_add</span>
+            </div>
+            <div class="security-device-main">
+                <div class="security-device-heading">
+                    <strong>${escapeKitAttribute(device.nome_usuario || device.usuario_id || 'Pessoa não informada')}</strong>
+                    <small>${escapeKitAttribute(device.nome_dispositivo || 'Dispositivo não informado')}</small>
+                </div>
+                <div class="security-device-meta">
+                    ${renderSecurityDeviceMeta(device, { includeUser: false, includeRequestDate: true })}
+                </div>
+            </div>
+            <div class="security-device-actions security-request-actions">
+                <button type="button" class="security-approve-btn" onclick="approveSecurityRequest('${escapeKitAttribute(device.device_id || '')}')">
+                    Aprovar
+                </button>
+                <button type="button" class="security-outline-danger" onclick="denySecurityRequest('${escapeKitAttribute(device.device_id || '')}')">
+                    Negar
+                </button>
+            </div>
+        </article>
+    `;
+}
+
+async function renderSecuritySettings() {
+    const deviceStatus = await ensureCurrentDeviceRegistered({ silent: false, source: 'tela_seguranca', logUpdate: true });
+    if (deviceStatus.allowed === false) return;
+
+    const currentUser = localStorage.getItem('currentUser');
+    currentScreen = 'internal';
+    document.body.classList.remove('menu-active');
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in config-screen module-screen security-settings-screen">
+            ${getTopBarHTML(currentUser, 'renderConfigSubMenu()')}
+            ${getModuleSidebarHTML('configuracoes')}
+            <main class="container security-settings-shell">
+                <header class="security-settings-header">
+                    <span class="material-symbols-rounded">security</span>
+                    <div>
+                        <h1>SEGURANÇA</h1>
+                        <p>Gerencie suas configurações de segurança e monitore os acessos à sua conta.</p>
+                    </div>
+                </header>
+                <section class="security-panel security-pin-panel">
+                    <div class="security-card-copy">
+                        <span class="material-symbols-rounded">lock</span>
+                        <div>
+                            <strong>PIN Mestre</strong>
+                            <p>Protege configurações sensíveis e ações de segurança.</p>
+                        </div>
+                    </div>
+                    <button type="button" class="security-primary-btn" onclick="changeMasterPin()">
+                        <span class="material-symbols-rounded">pin</span>
+                        Alterar PIN
+                    </button>
+                </section>
+                <section class="security-panel security-device-panel">
+                    <div class="security-panel-title">
+                        <div>
+                            <strong>Dispositivos Online</strong>
+                            <p>Veja quais dispositivos estão com acesso ativo à sua conta neste momento.</p>
+                        </div>
+                        <button type="button" class="security-refresh-btn" onclick="renderSecuritySettings()" aria-label="Atualizar dispositivos online">
+                            <span class="material-symbols-rounded">refresh</span>
+                            Atualizar
+                        </button>
+                    </div>
+                    <div id="security-online-devices-list" class="security-devices-list">
+                        <div class="security-empty">Carregando dispositivos online...</div>
+                    </div>
+                </section>
+                <section class="security-panel security-device-panel">
+                    <div class="security-panel-title">
+                        <div>
+                            <div class="security-title-row">
+                                <strong>Solicitações Pendentes</strong>
+                                <span id="security-pending-count" class="security-count-badge">0</span>
+                            </div>
+                            <p>Pessoas que solicitaram acesso à sua conta e aguardam aprovação.</p>
+                        </div>
+                        <button type="button" class="security-history-link" onclick="showToast('Histórico de segurança fica separado para não carregar acessos antigos automaticamente.', 'info')">
+                            Ver histórico
+                        </button>
+                    </div>
+                    <div id="security-pending-requests-list" class="security-devices-list">
+                        <div class="security-empty">Carregando solicitações...</div>
+                    </div>
+                </section>
+                <section class="security-panel security-tips-panel">
+                    <div class="security-panel-title compact">
+                        <div>
+                            <strong>Dicas de Segurança</strong>
+                        </div>
+                    </div>
+                    <div class="security-tips-grid">
+                        <span>Encerre sessões em dispositivos que você não reconhece.</span>
+                        <span>Mantenha seu PIN Mestre seguro.</span>
+                        <span>Aprove ou negue solicitações com atenção.</span>
+                    </div>
+                </section>
+            </main>
+        </div>
+    `;
+
+    try {
+        const devices = await loadAuthorizedDevices();
+        const currentDeviceId = getOrCreateDeviceId();
+        const onlineWindowMinutes = getSecurityOnlineWindowMinutes();
+        const onlineDevices = devices.filter(device => isSecurityDeviceOnline(device, onlineWindowMinutes));
+        const pendingRequests = devices.filter(device => isSecurityDevicePending(device));
+        const onlineList = document.getElementById('security-online-devices-list');
+        const pendingList = document.getElementById('security-pending-requests-list');
+        const pendingCount = document.getElementById('security-pending-count');
+
+        if (pendingCount) pendingCount.textContent = String(pendingRequests.length);
+        if (onlineList) {
+            onlineList.innerHTML = onlineDevices.length
+                ? onlineDevices.map(device => renderSecurityOnlineDeviceCard(device, currentDeviceId)).join('')
+                : '<div class="security-empty">Nenhum dispositivo online no momento.</div>';
+        }
+        if (pendingList) {
+            pendingList.innerHTML = pendingRequests.length
+                ? pendingRequests.map(renderSecurityPendingRequestCard).join('')
+                : '<div class="security-empty">Nenhuma solicitação pendente.</div>';
+        }
+    } catch (error) {
+        const safeMessage = escapeKitAttribute(error.message || '');
+        const onlineList = document.getElementById('security-online-devices-list');
+        const pendingList = document.getElementById('security-pending-requests-list');
+        if (onlineList) onlineList.innerHTML = `<div class="security-empty">Não foi possível carregar os dispositivos. ${safeMessage}</div>`;
+        if (pendingList) pendingList.innerHTML = '<div class="security-empty">Nenhuma solicitação pendente.</div>';
+    }
+}
+
+async function changeMasterPin() {
+    const allowed = await requireMasterPin('alterar o PIN mestre');
+    if (!allowed) return;
+    await promptCreateMasterPin();
+}
+
+async function updateSecurityDeviceAccess(deviceId, payload, successMessage, logAction, logDetails) {
+    const client = getSecurityClient();
+    if (!client) {
+        showToast('Supabase indisponível.', 'error');
+        return false;
+    }
+
+    try {
+        const { error } = await client
+            .from('dispositivos_autorizados')
+            .update(payload)
+            .eq('device_id', deviceId);
+        if (error) {
+            logSecurityError('[SECURITY] update dispositivo', error, { deviceId });
+            throw error;
+        }
+        await logSecurityEvent(logAction, logDetails, deviceId);
+        showToast(successMessage, 'success');
+        return true;
+    } catch (error) {
+        await showAppAlert({
+            title: 'Erro de segurança',
+            message: error.message || String(error),
+            danger: true,
+            icon: 'error'
+        });
+        return false;
+    }
+}
+
+async function endSecuritySession(deviceId) {
+    const allowed = await requireMasterPin('encerrar sessão de dispositivo');
+    if (!allowed) return;
+    const confirmed = await showAppConfirm({
+        title: 'Encerrar sessão',
+        message: 'Este dispositivo será desconectado e bloqueado por segurança. Deseja continuar?',
+        confirmLabel: 'Encerrar sessão',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
+
+    const updated = await updateSecurityDeviceAccess(
+        deviceId,
+        { ativo: false, bloqueado_em: getSecurityTimestamp() },
+        'Sessão encerrada.',
+        'sessao_encerrada',
+        'Sessão encerrada pela tela de Segurança.'
+    );
+    if (!updated) return;
+    if (String(deviceId) === String(getOrCreateDeviceId())) {
+        renderBlockedDeviceScreen();
+    } else {
+        renderSecuritySettings();
+    }
+}
+
+async function approveSecurityRequest(deviceId) {
+    const allowed = await requireMasterPin('aprovar solicitação de acesso');
+    if (!allowed) return;
+    const updated = await updateSecurityDeviceAccess(
+        deviceId,
+        { ativo: true, ultimo_acesso: getSecurityTimestamp(), bloqueado_em: null },
+        'Solicitação aprovada.',
+        'solicitacao_acesso_aprovada',
+        'Solicitação de acesso aprovada pela tela de Segurança.'
+    );
+    if (updated) renderSecuritySettings();
+}
+
+async function denySecurityRequest(deviceId) {
+    const allowed = await requireMasterPin('negar solicitação de acesso');
+    if (!allowed) return;
+    const confirmed = await showAppConfirm({
+        title: 'Negar solicitação',
+        message: 'A solicitação será recusada e o dispositivo ficará sem acesso.',
+        confirmLabel: 'Negar',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
+    const updated = await updateSecurityDeviceAccess(
+        deviceId,
+        { ativo: false, bloqueado_em: getSecurityTimestamp() },
+        'Solicitação negada.',
+        'solicitacao_acesso_negada',
+        'Solicitação de acesso negada pela tela de Segurança.'
+    );
+    if (updated) renderSecuritySettings();
+}
+
+async function removeDeviceAccess(deviceId) {
+    return endSecuritySession(deviceId);
 }
 
 async function renderGarantiaEnvioForm() {
@@ -20180,7 +22288,7 @@ function renderNFSubMenu() {
     document.body.classList.remove('menu-active');
     const subItems = [
         { id: 'nf_xml', label: 'RECEBER POR XML', icon: 'xml', onclick: 'renderNFXmlUploadScreen()', description: 'Importar XML da NF-e, validar fornecedor e preparar os itens da entrada.' },
-        { id: 'nf_abertas', label: 'NOTAS EM ABERTO', icon: 'abertas', onclick: 'renderNFAbertasList()', description: 'Continuar notas importadas, pendentes de vínculo ou conferência.' },
+        { id: 'nf_abertas', label: 'NOTAS EM ABERTO', icon: 'abertas', onclick: 'renderNFAbertasList()', description: 'Continuar notas com fornecedor, vínculo ou estoque pendente.' },
         { id: 'nf_historico', label: 'HIST\u00d3RICO DE ENTRADAS', icon: 'historico', onclick: 'renderHistoricoEntradasNF()', description: 'Consultar entradas concluídas, financeiras ou canceladas.' }
     ];
     
@@ -20424,28 +22532,14 @@ function closeAppCenterModal() {
 }
 
 function showAppConfirmModal({ title, message, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', onConfirm } = {}) {
-    closeAppCenterModal();
-    const modal = document.createElement('div');
-    modal.id = 'app-center-modal';
-    modal.className = 'app-center-modal-backdrop';
-    modal.innerHTML = `
-        <div class="app-center-modal-card" role="dialog" aria-modal="true" aria-label="${escapeKitAttribute(title || 'Confirmação')}">
-            <button type="button" class="app-center-modal-close" onclick="closeAppCenterModal()" aria-label="Fechar">
-                <span class="material-symbols-rounded">close</span>
-            </button>
-            <h3>${escapeKitAttribute(title || 'Confirmar ação')}</h3>
-            <p>${escapeKitAttribute(message || '')}</p>
-            <div class="app-center-modal-actions">
-                <button type="button" class="app-center-modal-secondary" onclick="closeAppCenterModal()">${escapeKitAttribute(cancelLabel)}</button>
-                <button type="button" class="app-center-modal-primary" id="app-center-modal-confirm">${escapeKitAttribute(confirmLabel)}</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    document.getElementById('app-center-modal-confirm')?.addEventListener('click', async () => {
-        closeAppCenterModal();
-        if (typeof onConfirm === 'function') await onConfirm();
-    }, { once: true });
+    showAppConfirm({
+        title: title || 'Confirmar ação',
+        message: message || '',
+        confirmLabel,
+        cancelLabel
+    }).then(async confirmed => {
+        if (confirmed && typeof onConfirm === 'function') await onConfirm();
+    });
 }
 
 const NF_XML_CUSTO_CONFIG = {
@@ -21915,7 +24009,7 @@ function renderNFXmlFinanceBlock() {
                         <div class="nfxml-payment-index">${index + 1}</div>
                         <label>
                             <span>Parcela</span>
-                            <input value="${escapeKitAttribute(item.parcela || String(index + 1).padStart(3, '0'))}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'parcela', this.value)"` : 'readonly'}>
+                            <input value="${escapeKitAttribute(item.parcela || String(index + 1).padStart(3, '0'))}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'parcela', this.value, false)"` : 'readonly'}>
                         </label>
                         <label>
                             <span>Valor</span>
@@ -21923,20 +24017,20 @@ function renderNFXmlFinanceBlock() {
                         </label>
                         <label>
                             <span>Vencimento</span>
-                            <input type="date" value="${escapeKitAttribute(item.vencimento || '')}" ${editableParcelas ? `onchange="updateNFXmlFinanceParcelField('${item.id}', 'vencimento', this.value)"` : 'readonly'}>
+                            <input type="date" value="${escapeKitAttribute(item.vencimento || '')}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'vencimento', this.value, false)" onchange="updateNFXmlFinanceParcelField('${item.id}', 'vencimento', this.value, false)"` : 'readonly'}>
                         </label>
                         <label>
                             <span>Forma</span>
-                            <select ${editableParcelas ? `onchange="updateNFXmlFinanceParcelField('${item.id}', 'forma_pagamento', this.value)"` : 'disabled'}>
+                            <select ${editableParcelas ? `onchange="updateNFXmlFinanceParcelField('${item.id}', 'forma_pagamento', this.value, false)"` : 'disabled'}>
                                 ${formas.map(f => `<option value="${f}" ${item.forma_pagamento === f ? 'selected' : ''}>${f}</option>`).join('')}
                             </select>
                         </label>
                         <label class="wide">
                             <span>Observação</span>
-                            <input value="${escapeKitAttribute(item.observacoes || '')}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'observacoes', this.value)"` : 'readonly'}>
+                            <input value="${escapeKitAttribute(item.observacoes || '')}" ${editableParcelas ? `oninput="updateNFXmlFinanceParcelField('${item.id}', 'observacoes', this.value, false)"` : 'readonly'}>
                         </label>
                         <label class="nfxml-paid-check">
-                            <input type="checkbox" ${item.pago ? 'checked' : ''} ${editableParcelas ? `onchange="updateNFXmlFinanceParcelField('${item.id}', 'pago', this.checked)"` : 'disabled'}>
+                            <input type="checkbox" ${item.pago ? 'checked' : ''} ${editableParcelas ? `onchange="updateNFXmlFinanceParcelField('${item.id}', 'pago', this.checked, false)"` : 'disabled'}>
                             <span>Pago</span>
                         </label>
                         ${editableParcelas ? `
@@ -21963,7 +24057,7 @@ function renderNFXmlFinanceBlock() {
                                 <div class="nfxml-payment-index">C${index + 1}</div>
                                 <label class="wide">
                                     <span>Descrição</span>
-                                    <input value="${escapeKitAttribute(item.descricao || '')}" oninput="updateNFXmlComplementarField('${item.id}', 'descricao', this.value)">
+                                    <input value="${escapeKitAttribute(item.descricao || '')}" oninput="updateNFXmlComplementarField('${item.id}', 'descricao', this.value, false)">
                                 </label>
                                 <label>
                                     <span>Valor</span>
@@ -21971,20 +24065,20 @@ function renderNFXmlFinanceBlock() {
                                 </label>
                                 <label>
                                     <span>Vencimento</span>
-                                    <input type="date" value="${escapeKitAttribute(item.vencimento || '')}" onchange="updateNFXmlComplementarField('${item.id}', 'vencimento', this.value)">
+                                    <input type="date" value="${escapeKitAttribute(item.vencimento || '')}" oninput="updateNFXmlComplementarField('${item.id}', 'vencimento', this.value, false)" onchange="updateNFXmlComplementarField('${item.id}', 'vencimento', this.value, false)">
                                 </label>
                                 <label>
                                     <span>Forma</span>
-                                    <select onchange="updateNFXmlComplementarField('${item.id}', 'forma_pagamento', this.value)">
+                                    <select onchange="updateNFXmlComplementarField('${item.id}', 'forma_pagamento', this.value, false)">
                                         ${formas.map(f => `<option value="${f}" ${item.forma_pagamento === f ? 'selected' : ''}>${f}</option>`).join('')}
                                     </select>
                                 </label>
                                 <label class="wide">
                                     <span>Observação</span>
-                                    <input value="${escapeKitAttribute(item.observacoes || '')}" oninput="updateNFXmlComplementarField('${item.id}', 'observacoes', this.value)">
+                                    <input value="${escapeKitAttribute(item.observacoes || '')}" oninput="updateNFXmlComplementarField('${item.id}', 'observacoes', this.value, false)">
                                 </label>
                                 <label class="nfxml-paid-check">
-                                    <input type="checkbox" ${item.pago || item.status === 'pago' ? 'checked' : ''} onchange="updateNFXmlComplementarField('${item.id}', 'pago', this.checked)">
+                                    <input type="checkbox" ${item.pago || item.status === 'pago' ? 'checked' : ''} onchange="updateNFXmlComplementarField('${item.id}', 'pago', this.checked, false)">
                                     <span>Pago</span>
                                 </label>
                                 <button type="button" class="nfxml-payment-remove" onclick="removeNFXmlLancamentoComplementar('${escapeKitAttribute(item.id)}')" aria-label="Remover complementar">
@@ -22324,13 +24418,33 @@ async function salvarEntradaNFXml() {
         appData.historicoEntradasNFLoaded = false;
         DataClient.invalidateCache?.('nf');
         showToast('NF importada com sucesso.', 'success');
-        await showAppAlert({
+        const numeroNotaSalva = state.numero_nf || '';
+        const tipoLancamentoSalvo = state.tipo_lancamento;
+        entradaNfXmlState = null;
+
+        if (tipoLancamentoSalvo === 'somente_financeiro' || status === 'financeiro_lancado') {
+            await showAppAlert({
+                title: 'NF salva no financeiro',
+                message: `Nota ${numeroNotaSalva} salva. Como esta entrada não altera estoque, ela fica no Histórico de entradas.`,
+                buttonLabel: 'Importar outra NF',
+                icon: 'check_circle'
+            });
+            renderNFXmlUploadScreen();
+            return;
+        }
+
+        const importarOutra = await showAppConfirm({
             title: 'NF importada com sucesso',
-            message: `Nota ${state.numero_nf || ''} salva. Continue a conferência dos itens e finalize o recebimento quando estiver tudo certo.`,
-            buttonLabel: 'OK',
-            icon: 'check_circle'
+            message: `Nota ${numeroNotaSalva} salva. Ela ficará em Notas em aberto até concluir os vínculos e finalizar o estoque.`,
+            detail: 'Você pode importar outra nota agora ou ir para Notas em aberto para continuar esta entrada.',
+            confirmLabel: 'Importar outra NF',
+            cancelLabel: 'Ver notas em aberto'
         });
-        renderNFXmlPreview();
+        if (importarOutra) {
+            renderNFXmlUploadScreen();
+        } else {
+            renderNFAbertasList();
+        }
     } catch (error) {
         console.error('[ENTRADA_NF_XML] erro ao salvar entrada', error);
         await showAppAlert({
@@ -22639,6 +24753,26 @@ function confirmarFinalizarEntradaNFAberta(entradaId) {
     });
 }
 
+function getEntradaNFOpenStatusInfo(nf) {
+    const status = String(nf?.status || '').toLowerCase();
+    const tipo = String(nf?.tipo_lancamento || '').toLowerCase();
+    if (status === 'pendente_fornecedor') {
+        return { label: 'Fornecedor pendente', tone: '#f59e0b', action: 'Conferir fornecedor' };
+    }
+    if (status === 'pendente_vinculo') {
+        return { label: 'Vínculo pendente', tone: '#f59e0b', action: 'Vincular produtos' };
+    }
+    if (status === 'pronta_para_finalizar') {
+        return { label: 'Pronta para finalizar', tone: '#22c55e', action: 'Finalizar estoque' };
+    }
+    if (status === 'rascunho' || status === 'importada') {
+        return { label: 'Em andamento', tone: '#3b82f6', action: 'Continuar' };
+    }
+    if (tipo === 'somente_financeiro' || status === 'financeiro_lancado') {
+        return { label: 'Financeiro lançado', tone: '#64748b', action: 'Ver histórico' };
+    }
+    return { label: status ? status.replace(/_/g, ' ') : 'Pendente', tone: '#3b82f6', action: 'Abrir' };
+}
 async function renderNFAbertasList() {
     const currentUser = localStorage.getItem('currentUser');
     currentScreen = 'internal';
@@ -22650,6 +24784,10 @@ async function renderNFAbertasList() {
             <main class="container">
                 ${getStandardScreenTitleHTML('NOTAS EM ABERTO', menu3DIcons.abertas)}
                 <div id="nf-list-container" style="padding: 12px 20px 40px 20px;">
+                    <div style="background:#fff; border:1px solid rgba(15,23,42,0.08); border-radius:18px; padding:16px 18px; margin-bottom:16px; color:#334155; box-shadow:0 10px 24px rgba(15,23,42,0.05);">
+                        <strong style="display:block; color:#0f172a; font-size:0.9rem; margin-bottom:4px;">Pendências operacionais</strong>
+                        <span style="font-size:0.78rem;">Aqui aparecem somente notas que ainda precisam de fornecedor, vínculo de produtos ou finalização de estoque. Notas somente financeiro ficam no Histórico de entradas.</span>
+                    </div>
                     <div id="nf-list-items">
                         <div style="text-align: center; padding: 40px; color: var(--muted);">Carregando notas...</div>
                     </div>
@@ -22663,9 +24801,10 @@ async function renderNFAbertasList() {
 
     if (notas.length === 0) {
         container.innerHTML = `
-            <div style="text-align: center; padding: 60px 20px; background: rgba(255,255,255,0.03); border-radius: 24px; border: 1px dashed rgba(255,255,255,0.1);">
-                <span class="material-symbols-rounded" style="font-size: 48px; color: var(--muted); margin-bottom: 16px;">description</span>
-                <p style="color: var(--muted);">Nenhuma nota em aberto encontrada.</p>
+            <div style="text-align: center; padding: 60px 20px; background: #fff; border-radius: 24px; border: 1px dashed rgba(15,23,42,0.16); box-shadow:0 10px 24px rgba(15,23,42,0.04);">
+                <span class="material-symbols-rounded" style="font-size: 48px; color: #94a3b8; margin-bottom: 16px;">task_alt</span>
+                <p style="color: #0f172a; font-weight:800; margin:0 0 6px 0;">Nenhuma nota operacional em aberto.</p>
+                <p style="color: #64748b; margin:0;">Notas já lançadas somente no financeiro aparecem no Histórico de entradas.</p>
             </div>
         `;
         return;
@@ -22673,21 +24812,25 @@ async function renderNFAbertasList() {
 
     container.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 12px;">
-            ${notas.map(nf => `
-                <div class="nf-card" onclick="renderNFDetail('${nf.id}')" style="background: white; padding: 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s;">
-                    <div style="flex: 1;">
+            ${notas.map(nf => {
+                const statusInfo = getEntradaNFOpenStatusInfo(nf);
+                return `
+                <div class="nf-card" onclick="renderNFDetail('${nf.id}')" style="background: white; padding: 16px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: transform 0.2s; gap:16px;">
+                    <div style="flex: 1; min-width:0;">
                         <div style="font-weight: 800; color: #101018; font-size: 1rem;">NF ${nf.numero_nf}</div>
-                        <div style="font-size: 0.75rem; color: #666; text-transform: uppercase;">${nf.fornecedor_nome}</div>
+                        <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${nf.fornecedor_nome}</div>
                     </div>
-                    <div style="text-align: right;">
+                    <div style="text-align: right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
                         <div style="font-weight: 700; color: var(--primary); font-size: 0.9rem;">R$ ${parseFloat(nf.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                         <div style="display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 4px;">
-                            <span class="status-dot" style="width: 6px; height: 6px; background: ${nf.status === 'rascunho' ? '#f59e0b' : '#3b82f6'}; border-radius: 50%;"></span>
-                            <span style="font-size: 0.65rem; font-weight: 700; color: #999; text-transform: uppercase;">${nf.status}</span>
+                            <span class="status-dot" style="width: 6px; height: 6px; background: ${statusInfo.tone}; border-radius: 50%;"></span>
+                            <span style="font-size: 0.65rem; font-weight: 700; color: #64748b; text-transform: uppercase;">${statusInfo.label}</span>
                         </div>
+                        <span style="font-size:0.68rem; font-weight:800; color:${statusInfo.tone}; text-transform:uppercase;">${statusInfo.action}</span>
                     </div>
                 </div>
-            `).join('')}
+            `;
+            }).join('')}
         </div>
     `;
 }

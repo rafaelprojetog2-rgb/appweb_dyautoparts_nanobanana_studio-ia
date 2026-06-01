@@ -92,7 +92,7 @@ console.log(msg)
 
 function mostrarErro(msg){
 
-alert(msg)
+showAppAlert({ title: 'Aviso', message: msg, danger: true })
 
 }
 
