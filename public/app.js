@@ -934,6 +934,115 @@ function setImportantStyle(element, styles = {}) {
     });
 }
 
+const MATERIAL_ICON_FALLBACK_MAP = {
+    add: '+',
+    add_business: '+',
+    arrow_back: '<',
+    arrow_forward: '>',
+    barcode: '▦',
+    barcode_scanner: '▦',
+    bolt: '⚡',
+    calculate: '#',
+    chat: '...',
+    check: '✓',
+    check_circle: '✓',
+    chevron_left: '<',
+    chevron_right: '›',
+    close: '×',
+    dark_mode: '◐',
+    delete: '×',
+    devices: '▣',
+    directions_car: '◆',
+    error: '!',
+    expand_less: '⌃',
+    expand_more: '⌄',
+    filter_alt: '≡',
+    folder_open: '□',
+    fullscreen: '⛶',
+    graphic_eq: '▥',
+    history: '↺',
+    image: '□',
+    info: 'i',
+    inventory: '▦',
+    inventory_2: '▦',
+    keyboard: '⌨',
+    light_mode: '☼',
+    lightbulb: '◉',
+    local_shipping: '▰',
+    more_vert: '⋮',
+    percent: '%',
+    person: '◦',
+    person_add: '+',
+    phonelink_lock: '▣',
+    pin: '•',
+    power_settings_new: '⏻',
+    qr_code_scanner: '▦',
+    request_quote: '$',
+    save: '✓',
+    search: '⌕',
+    search_off: '⌕',
+    settings: '⚙',
+    speed: '◒',
+    swap_vert: '↕',
+    sync: '↻',
+    sync_alt: '↔',
+    warehouse: '▥'
+};
+
+let materialIconFallbackObserver = null;
+
+function shouldUseMaterialIconFallback() {
+    if (!window.matchMedia?.('(max-width: 900px)').matches) return false;
+    if (!document.body) return true;
+    try {
+        const probe = document.createElement('span');
+        probe.className = 'material-symbols-rounded';
+        probe.textContent = 'search';
+        probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;font-size:24px;line-height:1;visibility:hidden;';
+        document.body.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width > 34;
+    } catch (error) {
+        return true;
+    }
+}
+
+function applyMaterialIconFallbacks(root = document) {
+    if (!shouldUseMaterialIconFallback()) return;
+    root.querySelectorAll?.('.material-symbols-rounded:not([data-icon-fallback-ready])').forEach(icon => {
+        const iconName = (icon.getAttribute('data-icon-name') || icon.textContent || '').trim();
+        if (!iconName) return;
+        icon.setAttribute('data-icon-name', iconName);
+        icon.setAttribute('data-icon-fallback-ready', '1');
+        icon.classList.add('material-icon-fallback');
+        icon.textContent = MATERIAL_ICON_FALLBACK_MAP[iconName] || '';
+        icon.setAttribute('aria-hidden', 'true');
+    });
+}
+
+function startMaterialIconFallbackWatch() {
+    if (materialIconFallbackObserver || !window.matchMedia?.('(max-width: 900px)').matches) return;
+    const bootFallback = () => applyMaterialIconFallbacks(document);
+    bootFallback();
+    setTimeout(bootFallback, 800);
+    materialIconFallbackObserver = new MutationObserver(mutations => {
+        if (!shouldUseMaterialIconFallback()) return;
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType !== 1) return;
+                if (node.matches?.('.material-symbols-rounded')) {
+                    const nestedIcons = node.querySelectorAll ? Array.from(node.querySelectorAll('.material-symbols-rounded')) : [];
+                    [node, ...nestedIcons].forEach(icon => applyMaterialIconFallbacks({ querySelectorAll: () => [icon] }));
+                } else {
+                    applyMaterialIconFallbacks(node);
+                }
+            });
+        });
+    });
+    materialIconFallbackObserver.observe(document.body, { childList: true, subtree: true });
+}
+
 function applyPremiumMobileLoginLayout() {
     const loginScreen = document.getElementById('login-screen');
     if (!loginScreen || window.innerWidth > 900) return;
@@ -1697,6 +1806,7 @@ function withTimeout(promise, ms, label) {
 
 async function initApp() {
     applyAppFont();
+    startMaterialIconFallbackWatch();
     window.loginCustomBgImage = null;
     
     try {
