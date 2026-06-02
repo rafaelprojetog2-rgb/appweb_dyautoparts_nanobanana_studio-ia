@@ -29,6 +29,7 @@ const MATERIAL_ICON_FALLBACKS = {
     close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     delete: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 15h10l1-15M9 7V4h6v3"/></svg>',
     error: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></svg>',
+    inventory: '<svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
     inventory_2: '<svg viewBox="0 0 24 24"><path d="M4 8 12 4l8 4-8 4-8-4Z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/></svg>',
     keyboard_arrow_down: '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
     keyboard_arrow_up: '<svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></svg>',
@@ -49,17 +50,27 @@ const MATERIAL_ICON_FALLBACKS = {
     remove_circle: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
     remove_done: '<svg viewBox="0 0 24 24"><path d="M5 12h8"/><path d="m14 15 2 2 4-5"/></svg>',
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+    storefront: '<svg viewBox="0 0 24 24"><path d="M4 10h16l-1-6H5l-1 6Z"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/><path d="M3 10c0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0"/></svg>',
+    two_wheeler: '<svg viewBox="0 0 24 24"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17h4l3-7h3l2 7"/><path d="M11 10H8M14 7h3M13 10l-2-3"/></svg>',
+    touch_app: '<svg viewBox="0 0 24 24"><path d="M9 11V5a2 2 0 0 1 4 0v8"/><path d="M13 9h2a2 2 0 0 1 2 2v2"/><path d="M17 12h1a2 2 0 0 1 2 2v1"/><path d="M9 11 7.5 9.5a2 2 0 0 0-2.8 2.8l4.8 5.2A5 5 0 0 0 13.2 19H16a4 4 0 0 0 4-4"/></svg>',
+    verified: '<svg viewBox="0 0 24 24"><path d="m12 3 3 2 4 .5.5 4 2 3-2 3-.5 4-4 .5-3 2-3-2-4-.5-.5-4-2-3 2-3 .5-4 4-.5 3-2Z"/><path d="m8 12 3 3 6-7"/></svg>',
+    warehouse: '<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10H3z"/><path d="M7 20v-8h10v8M7 14h10M7 17h10"/></svg>',
     warning: '<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></svg>'
 };
 
 const DEFAULT_MATERIAL_ICON_FALLBACK = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>';
+
+function normalizeMaterialIconName(name) {
+    return String(name || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+}
 
 function ensureMaterialIconFallbacks(root = document) {
     const icons = root.matches?.('.material-symbols-rounded')
         ? [root]
         : (root.querySelectorAll?.('.material-symbols-rounded') || []);
     icons?.forEach(icon => {
-        const name = String(icon.textContent || '').trim();
+        const rawName = String(icon.textContent || icon.dataset.iconName || '').trim();
+        const name = normalizeMaterialIconName(rawName);
         const svg = MATERIAL_ICON_FALLBACKS[name] || DEFAULT_MATERIAL_ICON_FALLBACK;
         if (!name || (icon.querySelector('svg') && icon.dataset.iconName === name)) return;
         icon.dataset.iconName = name;
@@ -68,21 +79,31 @@ function ensureMaterialIconFallbacks(root = document) {
     });
 }
 
+function scheduleMaterialIconFallbacks(root = document) {
+    ensureMaterialIconFallbacks(root);
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => ensureMaterialIconFallbacks(root));
+    }
+    setTimeout(() => ensureMaterialIconFallbacks(root), 50);
+    setTimeout(() => ensureMaterialIconFallbacks(root), 250);
+}
+
 function startMaterialIconFallbackObserver() {
-    ensureMaterialIconFallbacks(document);
+    scheduleMaterialIconFallbacks(document);
     const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             mutation.addedNodes.forEach(node => {
                 if (node.nodeType !== Node.ELEMENT_NODE) return;
-                ensureMaterialIconFallbacks(node.matches?.('.material-symbols-rounded') ? node.parentElement || node : node);
+                scheduleMaterialIconFallbacks(node.matches?.('.material-symbols-rounded') ? node.parentElement || node : node);
             });
             if (mutation.type === 'characterData') {
                 const parent = mutation.target.parentElement;
-                if (parent?.matches?.('.material-symbols-rounded')) ensureMaterialIconFallbacks(parent);
+                if (parent?.matches?.('.material-symbols-rounded')) scheduleMaterialIconFallbacks(parent);
             }
         });
     });
     observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+    setInterval(() => ensureMaterialIconFallbacks(document), 1500);
 }
 
 // ==== AUXILIARY FUNCTIONS ====
@@ -12847,9 +12868,10 @@ async function resumePickingDraftFromServer(sessionId) {
     if (!session) {
         const localDraft = getDraftPickSession();
         if (String(localDraft?.sessionId || '') === String(sessionId || '')) {
+            const safeSessionId = getSafePickSessionId(localDraft.sessionId, localDraft.channelLabel);
             currentSessionItems = localDraft.items || [];
             currentPickingContext = {
-                sessionId: localDraft.sessionId,
+                sessionId: safeSessionId,
                 channelId: localDraft.channelId,
                 channelLabel: localDraft.channelLabel,
                 channelColor: localDraft.channelColor,
@@ -12858,7 +12880,8 @@ async function resumePickingDraftFromServer(sessionId) {
                 total_pacotes_montados: getPickPackageCountFrom(localDraft),
                 totalPacotesMontados: getPickPackageCountFrom(localDraft)
             };
-            renderPickingScreen(localDraft.sessionId, localDraft.channelId, localDraft.channelLabel, localDraft.channelColor);
+            saveDraftPickSession({ ...localDraft, sessionId: safeSessionId });
+            renderPickingScreen(safeSessionId, localDraft.channelId, localDraft.channelLabel, localDraft.channelColor);
             warnIfDraftPickWasNotSynced(localDraft);
             return;
         }
@@ -13728,6 +13751,16 @@ function generatePickSessionId(channelLabel) {
     return `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
 }
 
+function isTemporaryPickSessionId(sessionId) {
+    return /^SEP-TEMP?-/.test(String(sessionId || '').trim().toUpperCase());
+}
+
+function getSafePickSessionId(sessionId, channelLabel) {
+    const currentId = String(sessionId || '').trim();
+    if (currentId && !isTemporaryPickSessionId(currentId)) return currentId;
+    return generatePickSessionId(channelLabel);
+}
+
 function buildPickingSessionPayload(sessionId, channelId, channelLabel, status = PICK_STATUS_DRAFT, createdAt = null) {
     const now = getDataHoraBrasil();
     const currentUser = localStorage.getItem('currentUser') || 'N/A';
@@ -13760,12 +13793,12 @@ function getPickingScreenDataset() {
 }
 
 async function ensureActivePickingContext() {
-    if (currentPickingContext?.sessionId && !String(currentPickingContext.sessionId).startsWith('SEP-TEMP-') && currentPickingContext?.channelLabel) {
+    if (currentPickingContext?.sessionId && !isTemporaryPickSessionId(currentPickingContext.sessionId) && currentPickingContext?.channelLabel) {
         return currentPickingContext;
     }
 
     const data = getPickingScreenDataset();
-    if (data.sessionId && data.channelLabel && !String(data.sessionId).startsWith('SEP-TEMP-')) {
+    if (data.sessionId && data.channelLabel && !isTemporaryPickSessionId(data.sessionId)) {
         currentPickingContext = {
             sessionId: data.sessionId,
             channelId: data.channelId,
@@ -14450,6 +14483,7 @@ function focusPickManualInput() {
 function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
     const currentUser = localStorage.getItem('currentUser');
     pickRemovalModeActive = false;
+    sessionId = getSafePickSessionId(sessionId, channelLabel);
     const draft = getScopedDraftPickSession(sessionId, channelId, channelLabel);
     const packageCount = getCurrentPickPackageCount(sessionId, channelId, channelLabel);
     currentPickingContext = {
@@ -14765,13 +14799,19 @@ async function findProductForPicking(cleanCode) {
 
 function getCurrentPickDraftForUpdate(saveStatus = 'saving') {
     const existingDraft = getDraftPickSession() || {};
+    const contextSessionId = currentPickingContext?.sessionId;
+    const draftSessionId = existingDraft.sessionId;
+    const channelLabel = currentPickingContext?.channelLabel || existingDraft.channelLabel || '';
+    const sessionId = !isTemporaryPickSessionId(contextSessionId) && contextSessionId
+        ? contextSessionId
+        : (!isTemporaryPickSessionId(draftSessionId) && draftSessionId ? draftSessionId : getSafePickSessionId('', channelLabel));
     const packageCount = getCurrentPickPackageCount();
     const stats = getPickingOperationalStats(currentSessionItems);
     return saveDraftPickSession({
-        sessionId: existingDraft.sessionId || currentPickingContext?.sessionId || `SEP-TEMP-${Date.now()}`,
-        channelId: existingDraft.channelId || currentPickingContext?.channelId || '',
-        channelLabel: existingDraft.channelLabel || currentPickingContext?.channelLabel || 'OUTROS',
-        channelColor: existingDraft.channelColor || currentPickingContext?.channelColor || 'pdv',
+        sessionId,
+        channelId: currentPickingContext?.channelId || existingDraft.channelId || '',
+        channelLabel: channelLabel || 'OUTROS',
+        channelColor: currentPickingContext?.channelColor || existingDraft.channelColor || 'pdv',
         items: currentSessionItems,
         status: PICK_STATUS_DRAFT,
         operatorId: localStorage.getItem('currentUser'),
@@ -14914,7 +14954,7 @@ async function removePickItemByScan(cleanCode, input) {
 
 async function addPickItem(scannedEan = null) {
     const activeContext = await ensureActivePickingContext();
-    if (!activeContext?.sessionId || !activeContext?.channelLabel || String(activeContext.sessionId).startsWith('SEP-TEMP-')) {
+    if (!activeContext?.sessionId || !activeContext?.channelLabel || isTemporaryPickSessionId(activeContext.sessionId)) {
         showScanFeedback('error', 'Canal da separação inválido');
         await showAppModal({
             type: 'error',
@@ -15070,7 +15110,7 @@ async function addPickItem(scannedEan = null) {
             draft = scopedDraft;
         }
 
-        draft.sessionId = currentPickingContext?.sessionId || draft.sessionId;
+        draft.sessionId = getSafePickSessionId(currentPickingContext?.sessionId || draft.sessionId, currentPickingContext?.channelLabel || draft.channelLabel);
         draft.channelId = currentPickingContext?.channelId || draft.channelId;
         draft.channelLabel = currentPickingContext?.channelLabel || draft.channelLabel;
         draft.channelColor = currentPickingContext?.channelColor || draft.channelColor;

@@ -12676,7 +12676,7 @@ button.quick-action-item {
 
   #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -35656,7 +35656,7 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -40188,7 +40188,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -40373,7 +40373,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -40574,7 +40574,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -40882,7 +40882,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -45903,7 +45903,7 @@ html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pick-w
 
   html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -47986,7 +47986,7 @@ body:not(.login-active) #app > .dashboard-screen.nf-form-screen.entrada-nf-scree
 
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before {
     color: #ffffff !important;
-    content: "keyboard_arrow_up" !important;
+    content: none !important;
     display: block !important;
     font-family: 'Material Symbols Rounded' !important;
     font-feature-settings: 'liga' !important;
@@ -57548,4 +57548,106 @@ html body .fab-icon-btn .app-back-chevron {
   font-size: 26px !important;
   font-weight: 600 !important;
   transform: scaleX(0.9) !important;
+}
+
+@media (min-width: 769px) {
+  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+    height: 228px !important;
+    min-height: 228px !important;
+    min-width: 228px !important;
+    width: 228px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
+  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
+  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
+    height: 228px !important;
+    max-height: 228px !important;
+    max-width: 228px !important;
+    width: 228px !important;
+  }
+}
+
+/* Final mobile icon rendering repair */
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab::before,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab::before {
+  content: none !important;
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+    align-items: center !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+    box-shadow: none !important;
+    display: inline-flex !important;
+    height: 104px !important;
+    justify-content: center !important;
+    left: auto !important;
+    min-height: 104px !important;
+    min-width: 104px !important;
+    opacity: 1 !important;
+    padding: 0 !important;
+    pointer-events: auto !important;
+    position: fixed !important;
+    right: 12px !important;
+    top: auto !important;
+    transform: none !important;
+    visibility: visible !important;
+    width: 104px !important;
+    z-index: 100003 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
+  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
+  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
+    display: block !important;
+    height: 104px !important;
+    max-height: 104px !important;
+    max-width: 104px !important;
+    object-fit: contain !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: 104px !important;
+  }
+}
+
+html[data-theme="dark"] body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
+html[data-theme="dark"] body.login-active #app #login-screen.login-screen > .btn-floating-app img,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn svg,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn .app-inline-icon {
+  color: #ffffff !important;
+  filter: brightness(0) invert(1) !important;
+}
+
+html[data-theme="light"] body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
+html[data-theme="light"] body.login-active #app #login-screen.login-screen > .btn-floating-app img,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn svg,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn .app-inline-icon {
+  color: #111827 !important;
+  filter: brightness(0) !important;
+}
+
+.material-symbols-rounded.icon-fallback-ready {
+  font-size: inherit !important;
+  text-indent: 0 !important;
+}
+
+.material-symbols-rounded.icon-fallback-ready svg {
+  color: currentColor !important;
+  display: block !important;
+  fill: none !important;
+  height: 1em !important;
+  min-height: 1em !important;
+  min-width: 1em !important;
+  stroke: currentColor !important;
+  width: 1em !important;
 }
