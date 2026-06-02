@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dy-autoparts-v102';
+const CACHE_NAME = 'dy-autoparts-v103';
 
 // Pre-cache SEM query strings — o match usa ignoreSearch para funcionar
 // independentemente da versao usada pelo index.html
@@ -15,10 +15,9 @@ const ASSETS_TO_CACHE = [
   '/assets/images/login-bg-mobile-claro.png',
   '/assets/images/login-bg-mobile-escuro.png',
   '/assets/images/logo/logo_dybranco_app.png',
-  '/assets/images/logo/icon-192.png',
-  '/assets/images/logo/icon-512.png',
-  '/assets/images/logo/maskable-192.png',
-  '/assets/images/logo/maskable-512.png',
+  '/assets/images/logo/logo_dypreto_app.png',
+  '/assets/images/logo/maskable_icon_preto_x192.png',
+  '/assets/images/logo/maskable_icon_preto_x512.png',
   'https://unpkg.com/html5-qrcode',
   'https://cdn.jsdelivr.net/npm/chart.js',
   'https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap',

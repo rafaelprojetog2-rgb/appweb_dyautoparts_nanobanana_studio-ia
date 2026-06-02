@@ -52,12 +52,16 @@ const MATERIAL_ICON_FALLBACKS = {
     warning: '<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></svg>'
 };
 
+const DEFAULT_MATERIAL_ICON_FALLBACK = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></svg>';
+
 function ensureMaterialIconFallbacks(root = document) {
-    const icons = root.querySelectorAll?.('.material-symbols-rounded:not(.icon-fallback-ready)');
+    const icons = root.matches?.('.material-symbols-rounded')
+        ? [root]
+        : (root.querySelectorAll?.('.material-symbols-rounded') || []);
     icons?.forEach(icon => {
         const name = String(icon.textContent || '').trim();
-        const svg = MATERIAL_ICON_FALLBACKS[name];
-        if (!svg) return;
+        const svg = MATERIAL_ICON_FALLBACKS[name] || DEFAULT_MATERIAL_ICON_FALLBACK;
+        if (!name || (icon.querySelector('svg') && icon.dataset.iconName === name)) return;
         icon.dataset.iconName = name;
         icon.innerHTML = svg;
         icon.classList.add('icon-fallback-ready');
@@ -72,9 +76,13 @@ function startMaterialIconFallbackObserver() {
                 if (node.nodeType !== Node.ELEMENT_NODE) return;
                 ensureMaterialIconFallbacks(node.matches?.('.material-symbols-rounded') ? node.parentElement || node : node);
             });
+            if (mutation.type === 'characterData') {
+                const parent = mutation.target.parentElement;
+                if (parent?.matches?.('.material-symbols-rounded')) ensureMaterialIconFallbacks(parent);
+            }
         });
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
 }
 
 // ==== AUXILIARY FUNCTIONS ====
@@ -2381,7 +2389,7 @@ function getTopBarHTML(currentUser, backAction = null, screenType = 'internal') 
         <div class="top-action-group">
                 ${!isMenu && backAction ? `
                 <button class="fab-icon-btn fab-voltar" type="button" onclick="${backAction}" aria-label="Voltar">
-                    ${getInlineAppIconHTML('arrow_back')}
+                    <span class="app-inline-icon app-back-chevron" aria-hidden="true">&lt;</span>
                 </button>
                 ` : ''}
                 ${isMenu ? `
@@ -3400,8 +3408,8 @@ const menuRoutes = {
 
 function getQuickActionsHTML(modoRapidoAtivo) {
     const fastTone = modoRapidoAtivo ? 'is-on' : 'is-off';
-    const fastModeIcon = modoRapidoAtivo ? 'assets/icons/modo-rapido-on.png' : 'assets/icons/modo-rapido-off.png';
     const fastModeAlt = modoRapidoAtivo ? 'Modo rápido ativado' : 'Modo rápido desativado';
+    const fastModeIcon = modoRapidoAtivo ? '/assets/icons/modo-rapido-on.png' : '/assets/icons/modo-rapido-off.png';
     let pendingSeparationsCount = 0;
     try {
         pendingSeparationsCount = getDraftPickSessionsWithLocalDraft().length;
@@ -13471,7 +13479,13 @@ function syncPickPackageCount(count, persist = true) {
     }
 
     const packagesEl = document.getElementById('pick-summary-packages');
-    if (packagesEl) packagesEl.textContent = String(safeCount);
+    if (packagesEl) {
+        if (packagesEl.matches('input')) {
+            if (packagesEl.value !== String(safeCount)) packagesEl.value = String(safeCount);
+        } else {
+            packagesEl.textContent = String(safeCount);
+        }
+    }
 
     if (persist) {
         saveDraftPickSession({
@@ -13495,9 +13509,14 @@ function syncPickPackageCount(count, persist = true) {
 }
 
 function adjustPickPackageCount(delta) {
-    const nextCount = syncPickPackageCount(getCurrentPickPackageCount() + Number(delta || 0), true);
-    showToast(nextCount === 1 ? '1 pacote montado.' : `${nextCount} pacotes montados.`);
+    syncPickPackageCount(getCurrentPickPackageCount() + Number(delta || 0), true);
     setTimeout(() => document.getElementById('pick-ean-input')?.focus(), 60);
+}
+
+function setPickPackageCount(value, persist = true, refocusScanner = false) {
+    const nextCount = syncPickPackageCount(value, persist);
+    if (refocusScanner) setTimeout(() => document.getElementById('pick-ean-input')?.focus(), 60);
+    return nextCount;
 }
 
 function getDraftPickSession() {
@@ -13658,6 +13677,7 @@ function getPickSessionChannelPrefix(channelLabel) {
     const normalized = normalizeOperationalLabel(channelLabel);
     if (normalized.includes('CORREIOS')) return 'CORREIOS';
     if (normalized.includes('FLEX')) return 'FLEX';
+    if (normalized.includes('SHOPEE')) return 'SHOPEE';
     if (normalized.includes('MOTOBOY') || normalized.includes('MOTO')) return 'MOTOBOY';
     if (normalized.includes('TRANSPORTADORA')) return 'TRANSPORTADORA';
     if (normalized.includes('TURBO') || normalized.includes('ULTRA')) return 'TURBO';
@@ -13726,6 +13746,60 @@ function buildPickingSessionPayload(sessionId, channelId, channelLabel, status =
         total_pacotes_montados: stats.total_pacotes_montados,
         observacao: 'SEPARACAO MANUAL'
     };
+}
+
+function getPickingScreenDataset() {
+    const screen = document.querySelector('.pick-workflow-screen');
+    return {
+        sessionId: screen?.dataset.sessionId || '',
+        channelId: screen?.dataset.channelId || '',
+        channelLabel: screen?.dataset.channelLabel || '',
+        channelColor: screen?.dataset.channelColor || '',
+        createdAt: screen?.dataset.createdAt || ''
+    };
+}
+
+async function ensureActivePickingContext() {
+    if (currentPickingContext?.sessionId && !String(currentPickingContext.sessionId).startsWith('SEP-TEMP-') && currentPickingContext?.channelLabel) {
+        return currentPickingContext;
+    }
+
+    const data = getPickingScreenDataset();
+    if (data.sessionId && data.channelLabel && !String(data.sessionId).startsWith('SEP-TEMP-')) {
+        currentPickingContext = {
+            sessionId: data.sessionId,
+            channelId: data.channelId,
+            channelLabel: data.channelLabel,
+            channelColor: data.channelColor || getChannelConfig(data.channelLabel).color || 'pdv',
+            executionId: currentPickingContext?.executionId || generateExecutionId(),
+            createdAt: data.createdAt || currentPickingContext?.createdAt || getDataHoraBrasil(),
+            total_pacotes_montados: getCurrentPickPackageCount(data.sessionId, data.channelId, data.channelLabel),
+            totalPacotesMontados: getCurrentPickPackageCount(data.sessionId, data.channelId, data.channelLabel)
+        };
+        return currentPickingContext;
+    }
+
+    if (data.channelLabel) {
+        await refreshSeparacoesForPickSequence();
+        const sessionId = generatePickSessionId(data.channelLabel);
+        currentPickingContext = {
+            sessionId,
+            channelId: data.channelId || data.channelLabel,
+            channelLabel: data.channelLabel,
+            channelColor: data.channelColor || getChannelConfig(data.channelLabel).color || 'pdv',
+            executionId: currentPickingContext?.executionId || generateExecutionId(),
+            createdAt: data.createdAt || getDataHoraBrasil(),
+            total_pacotes_montados: 0,
+            totalPacotesMontados: 0
+        };
+        const screen = document.querySelector('.pick-workflow-screen');
+        if (screen) screen.dataset.sessionId = sessionId;
+        const sessionEl = document.getElementById('pick-session-id-label');
+        if (sessionEl) sessionEl.textContent = sessionId;
+        return currentPickingContext;
+    }
+
+    return null;
 }
 
 function buildPickingItemPayload(item) {
@@ -14393,7 +14467,12 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
     const operatorInitials = getPickOperatorInitials(currentUser);
     
     app.innerHTML = `
-        <div class="dashboard-screen fade-in internal no-top-bar picking-screen pick-workflow-screen">
+        <div class="dashboard-screen fade-in internal no-top-bar picking-screen pick-workflow-screen"
+             data-session-id="${escapeKitAttribute(sessionId)}"
+             data-channel-id="${escapeKitAttribute(channelId || '')}"
+             data-channel-label="${escapeKitAttribute(channelLabel || '')}"
+             data-channel-color="${escapeKitAttribute(channelColor || '')}"
+             data-created-at="${escapeKitAttribute(currentPickingContext.createdAt || '')}">
             ${getModuleSidebarHTML('pick')}
             ${getQuickActionsHTML(isModoRapidoAtivo())}
 
@@ -14438,7 +14517,7 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                     </article>
                     <article class="pick-info-card">
                         <span>ID DA SEPARACAO</span>
-                        <strong>${escapeKitAttribute(sessionId)}</strong>
+                        <strong id="pick-session-id-label">${escapeKitAttribute(sessionId)}</strong>
                     </article>
                     <article class="pick-info-card">
                         <span>OPERADOR</span>
@@ -14476,8 +14555,11 @@ function renderPickingScreen(sessionId, channelId, channelLabel, channelColor) {
                         <h2>RESUMO DA SEPARACAO</h2>
                         <div class="pick-summary-metrics">
                             <div><span>Produtos diferentes</span><strong id="pick-summary-items">${countDifferentPickProducts(currentSessionItems)}</strong></div>
-                            <div><span>Itens / bipes</span><strong id="pick-summary-qty">${getPickTotalQuantity()}</strong></div>
-                            <div><span>Pacotes montados</span><strong id="pick-summary-packages">${packageCount}</strong></div>
+                            <div><span>Itens / bips</span><strong id="pick-summary-qty">${getPickTotalQuantity()}</strong></div>
+                            <div class="pick-package-count-field">
+                                <span>Pacotes</span>
+                                <input id="pick-summary-packages" class="pick-package-count-input" type="number" inputmode="numeric" min="0" step="1" value="${packageCount}" aria-label="Pacotes" oninput="setPickPackageCount(this.value, false)" onchange="setPickPackageCount(this.value, true)" onblur="setPickPackageCount(this.value, true)" onkeydown="if(event.key === 'Enter'){ event.preventDefault(); setPickPackageCount(this.value, true, true); this.blur(); }">
+                            </div>
                         </div>
                         <div class="pick-summary-actions">
                             <button class="pick-package-btn pick-package-minus" type="button" onclick="adjustPickPackageCount(-1)" aria-label="Diminuir pacote montado">
@@ -14831,6 +14913,18 @@ async function removePickItemByScan(cleanCode, input) {
 }
 
 async function addPickItem(scannedEan = null) {
+    const activeContext = await ensureActivePickingContext();
+    if (!activeContext?.sessionId || !activeContext?.channelLabel || String(activeContext.sessionId).startsWith('SEP-TEMP-')) {
+        showScanFeedback('error', 'Canal da separação inválido');
+        await showAppModal({
+            type: 'error',
+            title: 'Canal da separação não identificado',
+            message: 'Volte para o menu de Separação e escolha o canal novamente antes de bipar.',
+            confirmText: 'Entendi'
+        });
+        return;
+    }
+
     const input = document.getElementById('pick-ean-input');
     const rawCode = (scannedEan ?? input?.value ?? '').toString();
     const ean = normalizePickCode(rawCode);
@@ -14957,10 +15051,10 @@ async function addPickItem(scannedEan = null) {
             console.log(`[PICKING DEBUG] primeiro item bipado, criando rascunho`);
             const now = new Date();
             draft = {
-                sessionId: currentPickingContext ? currentPickingContext.sessionId : `SEP-TEMP-${now.getTime()}`,
-                channelId: currentPickingContext ? currentPickingContext.channelId : '',
-                channelLabel: currentPickingContext ? currentPickingContext.channelLabel : 'OUTROS',
-                channelColor: currentPickingContext ? currentPickingContext.channelColor : 'pdv',
+                sessionId: activeContext.sessionId,
+                channelId: activeContext.channelId || '',
+                channelLabel: activeContext.channelLabel,
+                channelColor: activeContext.channelColor || 'pdv',
                 items: [],
                 operatorId: localStorage.getItem('currentUser'),
                 status: PICK_STATUS_DRAFT,

@@ -57055,3 +57055,497 @@ html body:not(.login-active) #app > .dashboard-screen.security-settings-screen >
     color: #fff !important;
   }
 }
+
+/* Final quick action FAB repair: always show the local fast-mode image, never a text ligature. */
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+  align-items: center !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  bottom: 24px !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  height: 87px !important;
+  justify-content: center !important;
+  left: auto !important;
+  min-height: 87px !important;
+  min-width: 87px !important;
+  opacity: 1 !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+  position: fixed !important;
+  right: 24px !important;
+  top: auto !important;
+  transform: none !important;
+  visibility: visible !important;
+  width: 87px !important;
+  z-index: 100003 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab::before,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab::before {
+  content: none !important;
+  display: none !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
+  display: block !important;
+  height: 87px !important;
+  max-height: 87px !important;
+  max-width: 87px !important;
+  object-fit: contain !important;
+  pointer-events: none !important;
+  width: 87px !important;
+}
+
+@media (max-width: 768px) {
+  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-summary-metrics .pick-package-count-field {
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-summary-metrics > div {
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 8px !important;
+  justify-content: space-between !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-summary-metrics span {
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-summary-metrics strong {
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-package-count-input {
+  appearance: textfield !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(15, 23, 42, 0.16) !important;
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08) !important;
+  color: #111827 !important;
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  height: 42px !important;
+  max-width: 96px !important;
+  min-width: 72px !important;
+  padding: 0 8px !important;
+  text-align: center !important;
+  width: 100% !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-package-count-input::-webkit-outer-spin-button,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-package-count-input::-webkit-inner-spin-button {
+  appearance: none !important;
+  margin: 0 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-package-count-input:focus {
+  border-color: #e30613 !important;
+  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.18) !important;
+  outline: none !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .fab-icon-btn .material-symbols-rounded,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .material-symbols-rounded,
+html body:not(.login-active) #app > .dashboard-screen .top-bar-controls .material-symbols-rounded {
+  align-items: center !important;
+  color: #ffffff !important;
+  display: inline-flex !important;
+  font-size: 22px !important;
+  height: 1em !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  width: 1em !important;
+}
+
+html body.login-active #app #login-screen.login-screen .btn-floating-app img,
+html body.login-active #app #login-screen.login-screen .btn-floating-app svg,
+html body.login-active #app #login-screen.login-screen .btn-floating-app .material-symbols-rounded,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app svg,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app .material-symbols-rounded {
+  color: #111827 !important;
+  display: inline-flex !important;
+  filter: brightness(0) saturate(100%) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+html body .fab-icon-btn,
+html body .top-action-group .fab-icon-btn,
+html body.login-active #app #login-screen.login-screen .btn-floating-app,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn,
+html body:not(.login-active) #app > .dashboard-screen button.fab-icon-btn {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+html body .fab-icon-btn::before,
+html body .fab-icon-btn::after,
+html body .top-action-group .fab-icon-btn::before,
+html body .top-action-group .fab-icon-btn::after,
+html body.login-active #app #login-screen.login-screen .btn-floating-app::before,
+html body.login-active #app #login-screen.login-screen .btn-floating-app::after,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app::before,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app::after {
+  content: none !important;
+  display: none !important;
+}
+
+html body .fab-icon-btn .app-back-chevron {
+  color: currentColor !important;
+  display: inline-flex !important;
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+}
+
+html body.login-active #app #login-screen.login-screen .btn-floating-app .material-symbols-rounded svg,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app .material-symbols-rounded svg {
+  stroke: #111827 !important;
+}
+
+html body.login-active #app #login-screen.login-screen > img.login-logo.dy-app-logo,
+html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
+  left: 50% !important;
+  max-height: clamp(58px, 10vh, 96px) !important;
+  max-width: clamp(170px, 46vw, 280px) !important;
+  top: clamp(70px, 9vh, 96px) !important;
+  transform: translateX(-50%) !important;
+  width: clamp(170px, 42vw, 260px) !important;
+}
+
+@media (max-width: 768px) {
+  html body.login-active #app #login-screen.login-screen > img.login-logo.dy-app-logo,
+  html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
+    max-height: clamp(48px, 8.5vh, 72px) !important;
+    max-width: clamp(144px, 50vw, 210px) !important;
+    top: 74px !important;
+    width: clamp(144px, 48vw, 200px) !important;
+  }
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .fab-icon-btn .material-symbols-rounded,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-action-group .material-symbols-rounded,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-bar-controls .material-symbols-rounded {
+  color: #ffffff !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .fab-icon-btn .material-symbols-rounded svg,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .material-symbols-rounded svg,
+html body:not(.login-active) #app > .dashboard-screen .top-bar-controls .material-symbols-rounded svg {
+  color: inherit !important;
+  display: block !important;
+  fill: none !important;
+  height: 1em !important;
+  min-height: 1em !important;
+  min-width: 1em !important;
+  opacity: 1 !important;
+  stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  stroke-width: 2.25 !important;
+  visibility: visible !important;
+  width: 1em !important;
+}
+
+/* Final inventory theme contrast pass */
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+html[data-theme="light"] body:not(.login-active) #inventory-setup-content {
+  background: linear-gradient(180deg, #ffffff 0%, #f4f7fb 100%) !important;
+  background-color: #f7f9fc !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+html[data-theme="dark"] body:not(.login-active) #inventory-setup-content {
+  background: linear-gradient(180deg, #111111 0%, #060606 100%) !important;
+  background-color: #080808 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inventory-scanning-screen,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-card,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-card,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-session-card {
+  background: #ffffff !important;
+  border-color: #dbe4ef !important;
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inventory-scanning-screen,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-card,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-card,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-session-card {
+  background: rgba(17, 17, 17, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-screen-title h1,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-product-name,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-card h1,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-card h1,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-session-head strong,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-row strong {
+  color: #0f172a !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-screen-title h1,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-product-name,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-card h1,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-card h1,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-session-head strong,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-row strong {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-screen-title span,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-product-code,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-product-meta,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-product-meta strong,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-subtitle,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-info,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-info p,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-description,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-row,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-safety {
+  color: #475569 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-screen-title span,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-product-code,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-product-meta,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-product-meta strong,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-subtitle,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-info,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-info p,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-description,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-row,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-safety {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-session-summary,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inventory-item,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-item-thumb,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-item-index,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-info,
+html[data-theme="light"] body:not(.login-active) #app .inv-setup-location-btn,
+html[data-theme="light"] body:not(.login-active) #app .inv-open-location-badge {
+  background: #ffffff !important;
+  border-color: #dbe4ef !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-session-summary,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inventory-item,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-item-thumb,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-item-index,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-info,
+html[data-theme="dark"] body:not(.login-active) #app .inv-setup-location-btn,
+html[data-theme="dark"] body:not(.login-active) #app .inv-open-location-badge {
+  background: #151515 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell #inv-ean-input {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell #inv-ean-input {
+  background: #0b0b0b !important;
+  border-color: #343434 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell #inv-ean-input::placeholder {
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell #inv-ean-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-cam-btn,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-control,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-num,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-btn {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-cam-btn,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-control,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-num,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-btn {
+  background: #101010 !important;
+  border-color: #333333 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-footer-bar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #dbe4ef !important;
+  box-shadow: 0 -10px 28px rgba(15, 23, 42, 0.10) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-footer-bar {
+  background: rgba(8, 8, 8, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-list-head,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-label,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-unit,
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell .inv-total-label {
+  color: #475569 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-list-head,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-label,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-qty-unit,
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell .inv-total-label {
+  color: #cbd5e1 !important;
+}
+
+@media (max-width: 768px) {
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+  html[data-theme="light"] body:not(.login-active) #inventory-setup-content {
+    background: #f7f9fc !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+  html[data-theme="dark"] body:not(.login-active) #inventory-setup-content {
+    background: #080808 !important;
+    color: #f8fafc !important;
+  }
+}
+
+/* Final icon-only controls correction */
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app,
+html body.login-active #app #login-screen.login-screen > .btn-floating-app,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn,
+html body:not(.login-active) #app > .dashboard-screen button.fab-icon-btn {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app::before,
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app::after,
+html body.login-active #app #login-screen.login-screen > .btn-floating-app::before,
+html body.login-active #app #login-screen.login-screen > .btn-floating-app::after,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn::before,
+html body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn::after,
+html body:not(.login-active) #app > .dashboard-screen button.fab-icon-btn::before,
+html body:not(.login-active) #app > .dashboard-screen button.fab-icon-btn::after {
+  content: none !important;
+  display: none !important;
+}
+
+html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
+html body.login-active #app #login-screen.login-screen > .btn-floating-app img {
+  display: block !important;
+  filter: brightness(0) !important;
+  height: 28px !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: 28px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+  height: 130px !important;
+  min-height: 130px !important;
+  min-width: 130px !important;
+  width: 130px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
+html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
+  height: 130px !important;
+  max-height: 130px !important;
+  max-width: 130px !important;
+  width: 130px !important;
+}
+
+html body.login-active #app #login-screen.login-screen > img.login-logo.dy-app-logo,
+html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
+  max-height: clamp(44px, 7.5vh, 72px) !important;
+  max-width: clamp(128px, 34vw, 210px) !important;
+  top: clamp(64px, 8vh, 86px) !important;
+  width: clamp(128px, 31.5vw, 195px) !important;
+}
+
+@media (max-width: 768px) {
+  html body.login-active #app #login-screen.login-screen > img.login-logo.dy-app-logo,
+  html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
+    max-height: clamp(36px, 6.5vh, 54px) !important;
+    max-width: clamp(108px, 37.5vw, 158px) !important;
+    top: 68px !important;
+    width: clamp(108px, 36vw, 150px) !important;
+  }
+}
+
+html body .fab-icon-btn .app-back-chevron {
+  color: #111827 !important;
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  transform: scaleX(0.9) !important;
+}
