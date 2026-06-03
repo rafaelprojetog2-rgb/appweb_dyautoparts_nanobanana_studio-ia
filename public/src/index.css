@@ -1208,7 +1208,427 @@ body.login-active #login-screen .top-hover-zone .btn-floating-app.btn-fullscreen
   right: 18px !important;
 }
 
+.config-settings-shell {
+  background: var(--bg);
+  min-height: 100vh;
+  padding: 96px 20px 48px !important;
+}
+
+.config-settings-header {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  margin: 0 auto 18px;
+  max-width: 1180px;
+}
+
+.config-settings-header > .material-symbols-rounded {
+  align-items: center;
+  background: #EF2B2D;
+  border-radius: 14px;
+  color: #FFFFFF;
+  display: inline-flex;
+  height: 46px;
+  justify-content: center;
+  width: 46px;
+}
+
+.config-settings-header h1 {
+  color: var(--text-main);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.config-settings-header p {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin: 5px 0 0;
+}
+
+.config-settings-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.config-settings-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.12);
+  color: var(--text-main);
+  min-width: 0;
+  padding: 18px;
+}
+
+.config-card-system,
+.config-card-security {
+  grid-column: span 2;
+}
+
+.config-card-head {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.config-card-head > .material-symbols-rounded {
+  align-items: center;
+  background: rgba(239, 43, 45, 0.12);
+  border: 1px solid rgba(239, 43, 45, 0.22);
+  border-radius: 8px;
+  color: #EF2B2D;
+  display: inline-flex;
+  height: 40px;
+  justify-content: center;
+  width: 40px;
+}
+
+.config-card-head h2 {
+  color: var(--text-main);
+  font-size: 1rem;
+  font-weight: 900;
+  margin: 0;
+}
+
+.config-card-head p,
+.config-card-note {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  margin: 3px 0 0;
+}
+
+.config-info-list {
+  display: grid;
+  gap: 8px;
+}
+
+.config-info-list > div {
+  align-items: center;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 12px;
+}
+
+.config-info-list span,
+.config-toggle-line span,
+.config-device-row span,
+.config-history-list span {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.config-info-list strong,
+.config-toggle-line strong,
+.config-device-row strong,
+.config-history-list strong {
+  color: var(--text-main);
+  font-size: 0.86rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.config-status-pill,
+.config-device-row em {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 999px;
+  color: #16A34A !important;
+  padding: 4px 9px;
+}
+
+.config-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.config-action-row button,
+.config-choice-row button,
+.config-device-row button {
+  align-items: center;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  color: var(--text-main);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 850;
+  gap: 7px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 13px;
+}
+
+.config-action-row button:hover,
+.config-choice-row button:hover,
+.config-device-row button:hover {
+  border-color: rgba(239, 43, 45, 0.35);
+}
+
+.config-action-row button.danger {
+  background: rgba(239, 43, 45, 0.12);
+  border-color: rgba(239, 43, 45, 0.28);
+  color: #EF2B2D;
+}
+
+.config-action-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.config-wide-control {
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+  width: 100%;
+}
+
+.config-wide-control button {
+  border-radius: 6px;
+}
+
+.config-field-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.config-field-group > label {
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.config-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.config-choice-row button {
+  min-height: 40px;
+}
+
+.config-choice-row button.active {
+  background: #EF2B2D;
+  border-color: #EF2B2D;
+  color: #FFFFFF;
+}
+
+.config-toggle-line {
+  align-items: center;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+}
+
+.config-toggle-line > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.config-toggle-line.danger {
+  border-color: rgba(239, 43, 45, 0.2);
+}
+
+.config-subsection {
+  border-top: 1px solid var(--border-soft);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.config-subsection h3 {
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+.config-device-row {
+  align-items: center;
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 12px;
+}
+
+.config-device-row > div {
+  display: grid;
+  gap: 4px;
+}
+
+.config-device-row small,
+.config-history-list small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.config-device-row button {
+  min-height: 40px;
+  padding: 0;
+  width: 40px;
+}
+
+.config-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.config-history-list > div,
+.config-empty-line,
+.config-locked-banner {
+  background: var(--bg-card-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.config-locked-banner {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+body.font-small {
+  font-size: 14px;
+}
+
+body.font-medium {
+  font-size: 16px;
+}
+
+body.font-large {
+  font-size: 18px;
+}
+
+body.compact-mode .config-settings-card {
+  padding: 14px;
+}
+
+body.compact-mode .config-toggle-line,
+body.compact-mode .config-info-list > div {
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+html[data-theme="light"] .config-settings-shell {
+  background: #F4F5F7;
+}
+
+html[data-theme="light"] .config-settings-card {
+  background: #FFFFFF;
+  border-color: #E5E7EB;
+}
+
+html[data-theme="dark"] .config-settings-shell {
+  background: #080808;
+}
+
+html[data-theme="dark"] .config-settings-card {
+  background: #141414;
+  border-color: #2A2A2A;
+}
+
 @media (max-width: 640px) {
+  .config-settings-shell {
+    padding: 82px 12px 28px !important;
+  }
+
+  .config-settings-header {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .config-settings-header > .material-symbols-rounded {
+    height: 40px;
+    width: 40px;
+  }
+
+  .config-settings-header h1 {
+    font-size: 1.12rem;
+  }
+
+  .config-settings-header p {
+    font-size: 0.78rem;
+  }
+
+  .config-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-card-system,
+  .config-card-security {
+    grid-column: auto;
+  }
+
+  .config-settings-card {
+    padding: 14px;
+  }
+
+  .config-info-list > div,
+  .config-toggle-line,
+  .config-device-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .config-info-list > div,
+  .config-toggle-line {
+    flex-direction: column;
+  }
+
+  .config-info-list strong {
+    text-align: left;
+  }
+
+  .config-action-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .config-action-row button {
+    width: 100%;
+  }
+
+  .config-choice-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .config-wide-control button {
+    font-size: 0.72rem;
+    padding: 0 6px;
+  }
+
   .config-theme-card {
     align-items: stretch;
     flex-direction: column;

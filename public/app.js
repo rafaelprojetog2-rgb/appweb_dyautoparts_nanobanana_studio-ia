@@ -191,6 +191,7 @@ function normalizeDyId(value) {
 }
 
 function playFeedbackSound(type) {
+    if (typeof getAppConfig === 'function' && getAppConfig().scan_sound_enabled === false) return;
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         if (ctx.state === 'suspended') ctx.resume();
@@ -274,6 +275,9 @@ function showScanFeedback(type, message) {
     document.body.appendChild(feedback);
 
     playFeedbackSound(type);
+    if (typeof getAppConfig === 'function' && getAppConfig().scan_vibration_enabled !== false && navigator.vibrate) {
+        navigator.vibrate(type === 'success' ? 35 : [45, 40, 45]);
+    }
 
     setTimeout(() => {
         feedback.classList.add('fade-out');
@@ -928,11 +932,29 @@ function criarStatusConexao() {
 const DEFAULT_APP_CONFIG = {
     permitir_saida_estoque_zero: false,
     permitir_estoque_negativo: false,
-    modo_rapido: false
+    modo_rapido: false,
+    quick_qty_after_beeps: 15,
+    scan_sound_enabled: true,
+    scan_vibration_enabled: true,
+    confirm_finish_inventory: true,
+    confirm_finish_picking: true,
+    confirm_finish_conference: true,
+    font_size: 'medium',
+    compact_mode: false,
+    local_pin_enabled: false,
+    auto_lock_minutes: 'never'
 };
 
 const DY_THEME_STORAGE_KEY = 'dyTheme';
 const DY_THEME_OPTIONS = ['auto', 'light', 'dark'];
+const DY_APP_VERSION = '2.0.0';
+const DY_UPDATE_STATUS_KEY = 'dy_update_status';
+const DY_UPDATE_LAST_CHECK_KEY = 'dy_update_last_check';
+const DY_LOCAL_HISTORY_KEY = 'dy_local_access_history';
+const DY_LOCAL_PIN_HASH_KEY = 'dy_local_pin_hash';
+const DY_LOCAL_PIN_SALT_KEY = 'dy_local_pin_salt';
+const DY_AUTO_LOCK_STATE_KEY = 'dy_auto_lock_state';
+const DY_FONT_SIZE_OPTIONS = ['small', 'medium', 'large'];
 
 function getStoredTheme() {
     try {
@@ -1279,6 +1301,7 @@ if (!window.__dyPremiumMobileLoginResizeBound) {
 }
 
 applyTheme();
+applyDisplayPreferences();
 
 if (window.matchMedia) {
     const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
@@ -1313,6 +1336,14 @@ function setAppConfig(config) {
         ...DEFAULT_APP_CONFIG,
         ...(config || {})
     }));
+}
+
+function applyDisplayPreferences() {
+    const config = getAppConfig();
+    const fontSize = DY_FONT_SIZE_OPTIONS.includes(config.font_size) ? config.font_size : 'medium';
+    document.body.classList.remove('font-small', 'font-medium', 'font-large', 'compact-mode');
+    document.body.classList.add(`font-${fontSize}`);
+    document.body.classList.toggle('compact-mode', config.compact_mode === true);
 }
 
 function isModoRapidoAtivo() {
@@ -2924,6 +2955,8 @@ async function setUser(userName, userId, userProfile) {
         localStorage.setItem('currentUser', userName);
         localStorage.setItem('currentUserId', userId || '');
         localStorage.setItem('currentUserProfile', userProfile || 'Operador');
+        localStorage.setItem('dy_last_login', new Date().toISOString());
+        if (typeof addLocalAccessEvent === 'function') addLocalAccessEvent('login', `Entrada de ${userName}`);
 
         const deviceStatus = await ensureCurrentDeviceRegistered({ userName, userId, silent: false, source: 'login_rapido', logUpdate: true });
         if (deviceStatus.allowed === false) return;
@@ -2947,6 +2980,7 @@ async function setUser(userName, userId, userProfile) {
     }
 }
 function logout() {
+    if (typeof addLocalAccessEvent === 'function') addLocalAccessEvent('logout', 'Sessao local encerrada');
     localStorage.removeItem('currentUser');
     localStorage.removeItem('currentUserId');
     localStorage.removeItem('currentUserProfile');
@@ -8398,7 +8432,7 @@ async function addInventoryItem(scannedEan = null) {
         appData.currentInventory.items.unshift(itemToSave);
     }
 
-    if ((Number(itemToSave.qty || 0) === HIGH_QTY_THRESHOLD) && !itemToSave.high_qty_prompted) {
+    if ((Number(itemToSave.qty || 0) === getHighQtyThreshold()) && !itemToSave.high_qty_prompted) {
         itemToSave.high_qty_prompted = true;
         await openHighQtyModal({
             item: itemToSave,
@@ -14323,6 +14357,13 @@ function getPickItemColor(item) {
 
 const HIGH_QTY_THRESHOLD = 15;
 
+function getHighQtyThreshold() {
+    const value = typeof getAppConfig === 'function' ? getAppConfig().quick_qty_after_beeps : HIGH_QTY_THRESHOLD;
+    if (value === 'never') return Number.POSITIVE_INFINITY;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : HIGH_QTY_THRESHOLD;
+}
+
 function getHighQtyProductInfo(item = {}) {
     const productId = item.id_interno || item.col_a || item.col_A || '';
     const product = productId
@@ -14435,7 +14476,7 @@ function openHighQtyModal({ item, currentQty, flow = 'pick', reason = 'quantidad
                 <button class="high-qty-close" type="button" aria-label="Fechar"><span class="material-symbols-rounded">close</span></button>
                 <div class="high-qty-icon"><span class="material-symbols-rounded">priority_high</span></div>
                 <h2>QUANTIDADE ALTA DETECTADA</h2>
-                <p>${isRemove ? `Você já bipou ${HIGH_QTY_THRESHOLD} unidades para remover deste produto.` : `Você já bipou ${HIGH_QTY_THRESHOLD} unidades deste produto.`}</p>
+                <p>${isRemove ? `Você já bipou ${getHighQtyThreshold()} unidades para remover deste produto.` : `Você já bipou ${getHighQtyThreshold()} unidades deste produto.`}</p>
                 ${renderHighQtyProductSummary(info, currentQty, summaryLabel)}
                 <div class="high-qty-actions">
                     <button type="button" class="high-qty-secondary" data-action="continue">${isRemove ? 'Continuar removendo' : 'Continuar bipando'}</button>
@@ -14961,7 +15002,7 @@ async function removePickItemByScan(cleanCode, input) {
         currentSessionItems.unshift(item);
     }
 
-    if (!removedAll && Number(item.remove_scan_count || 0) === HIGH_QTY_THRESHOLD && !item.high_remove_qty_prompted) {
+    if (!removedAll && Number(item.remove_scan_count || 0) === getHighQtyThreshold() && !item.high_remove_qty_prompted) {
         item.high_remove_qty_prompted = true;
         await openHighQtyModal({
             item,
@@ -15127,7 +15168,7 @@ async function addPickItem(scannedEan = null) {
         addPickScanHistory('add', currentSessionItems[0] || product);
         const scannedPickItem = currentSessionItems[0];
 
-        if ((Number(scannedPickItem?.qty || 0) === HIGH_QTY_THRESHOLD) && !scannedPickItem.high_qty_prompted) {
+        if ((Number(scannedPickItem?.qty || 0) === getHighQtyThreshold()) && !scannedPickItem.high_qty_prompted) {
             scannedPickItem.high_qty_prompted = true;
             await openHighQtyModal({
                 item: scannedPickItem,
@@ -16853,7 +16894,7 @@ async function addPackScan(scannedEan = null) {
         currentPackSession.conferenceRows.push(row);
     }
 
-    if ((Number(row.qtd_conferida || 0) === HIGH_QTY_THRESHOLD) && !row.high_qty_prompted) {
+    if ((Number(row.qtd_conferida || 0) === getHighQtyThreshold()) && !row.high_qty_prompted) {
         row.high_qty_prompted = true;
         await openHighQtyModal({
             item: row,
@@ -21925,10 +21966,496 @@ function renderProductSubMenu() {
   `;
 }
 
+function getConfigBoolean(key, fallback = false) {
+    const config = getAppConfig();
+    return typeof config[key] === 'boolean' ? config[key] : fallback;
+}
+
+function getConfigValue(key, fallback = '') {
+    const config = getAppConfig();
+    return config[key] ?? fallback;
+}
+
+function setLocalConfigValue(key, value, shouldRender = false) {
+    const config = getAppConfig();
+    setAppConfig({ ...config, [key]: value });
+    applyDisplayPreferences();
+    setupAutoLockTimer();
+    showToast('Preferencia atualizada', 'success');
+    if (shouldRender) renderConfigSubMenu();
+}
+
+function getAppEnvironmentLabel() {
+    const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone;
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return 'Local';
+    return standalone ? 'PWA' : 'Web';
+}
+
+function getBrowserLabel() {
+    const ua = navigator.userAgent || '';
+    if (/Edg/i.test(ua)) return 'Edge';
+    if (/Chrome/i.test(ua)) return 'Chrome';
+    if (/Firefox/i.test(ua)) return 'Firefox';
+    if (/Safari/i.test(ua)) return 'Safari';
+    return 'Navegador';
+}
+
+function getCurrentDeviceLabel() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    const type = isMobile ? 'Celular' : 'Desktop';
+    return `${type} - ${getBrowserLabel()}`;
+}
+
+function formatConfigDate(value) {
+    if (!value) return 'Nunca';
+    if (typeof formatDateTimeBR === 'function') return formatDateTimeBR(value) || value;
+    return new Date(value).toLocaleString('pt-BR');
+}
+
+function getUpdateStatusLabel() {
+    const status = localStorage.getItem(DY_UPDATE_STATUS_KEY) || 'updated';
+    if (status === 'available') return 'Atualizacao disponivel';
+    if (status === 'checking') return 'Verificando';
+    return 'Atualizado';
+}
+
+function getServiceWorkerStatusLabel() {
+    if (!('serviceWorker' in navigator)) return 'Indisponivel';
+    const controller = navigator.serviceWorker.controller;
+    return controller ? 'Ativo' : 'Nao controlado';
+}
+
+function addLocalAccessEvent(evento, detalhes = '') {
+    try {
+        const history = JSON.parse(localStorage.getItem(DY_LOCAL_HISTORY_KEY) || '[]');
+        history.unshift({
+            data: new Date().toISOString(),
+            usuario: localStorage.getItem('currentUser') || 'Sistema',
+            dispositivo: getCurrentDeviceLabel(),
+            evento,
+            detalhes
+        });
+        localStorage.setItem(DY_LOCAL_HISTORY_KEY, JSON.stringify(history.slice(0, 20)));
+    } catch (error) {
+        console.warn('[CONFIG] Falha ao registrar historico local:', error);
+    }
+}
+
+function getLocalAccessHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(DY_LOCAL_HISTORY_KEY) || '[]');
+    } catch (error) {
+        return [];
+    }
+}
+
+function getLocalDeviceRowsHTML() {
+    const current = {
+        nome: localStorage.getItem('dy_device_name') || 'Dispositivo atual',
+        browser: getBrowserLabel(),
+        ultimo: new Date().toISOString(),
+        status: 'Autorizado local'
+    };
+    return `
+        <div class="config-device-row">
+            <div>
+                <strong>${escapeKitAttribute(current.nome)}</strong>
+                <span>${escapeKitAttribute(current.browser)} - ${escapeKitAttribute(getCurrentDeviceLabel())}</span>
+            </div>
+            <div>
+                <small>${formatConfigDate(current.ultimo)}</small>
+                <em>${escapeKitAttribute(current.status)}</em>
+            </div>
+            <button type="button" onclick="renameLocalDevice()" title="Renomear dispositivo">
+                <span class="material-symbols-rounded">edit</span>
+            </button>
+        </div>
+        <p class="config-card-note">TODO Supabase: criar tabela dispositivos_autorizados para bloqueio real, status por dispositivo e revogacao remota.</p>
+    `;
+}
+
+function getLocalHistoryHTML() {
+    const rows = getLocalAccessHistory().slice(0, 5);
+    if (!rows.length) return '<div class="config-empty-line">Sem eventos locais registrados.</div><p class="config-card-note">TODO Supabase: criar tabela historico_acesso para auditoria centralizada.</p>';
+    return `
+        <div class="config-history-list">
+            ${rows.map(row => `
+                <div>
+                    <strong>${escapeKitAttribute(row.evento || 'Evento')}</strong>
+                    <span>${escapeKitAttribute(row.usuario || 'Sistema')} - ${escapeKitAttribute(row.dispositivo || 'Dispositivo')}</span>
+                    <small>${formatConfigDate(row.data)}</small>
+                </div>
+            `).join('')}
+        </div>
+        <p class="config-card-note">TODO Supabase: criar tabela historico_acesso para auditoria centralizada.</p>
+    `;
+}
+
+function renderConfigToggle(id, label, description, checked, onchange, danger = false) {
+    return `
+        <div class="config-toggle-line ${danger ? 'danger' : ''}">
+            <div>
+                <strong>${escapeKitAttribute(label)}</strong>
+                <span>${escapeKitAttribute(description)}</span>
+            </div>
+            <div class="toggle-switch">
+                <input type="checkbox" id="${escapeKitAttribute(id)}" ${checked ? 'checked' : ''} onchange="${escapeKitAttribute(onchange)}">
+                <label for="${escapeKitAttribute(id)}"></label>
+            </div>
+        </div>
+    `;
+}
+
+function renderConfigOptionButtons(name, options, current, handlerName) {
+    return `
+        <div class="config-choice-row" role="group" aria-label="${escapeKitAttribute(name)}">
+            ${options.map(option => `
+                <button type="button" class="${String(option.value) === String(current) ? 'active' : ''}" onclick="${handlerName}('${escapeKitAttribute(String(option.value))}')">
+                    ${escapeKitAttribute(option.label)}
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+async function checkAppUpdate() {
+    localStorage.setItem(DY_UPDATE_STATUS_KEY, 'checking');
+    localStorage.setItem(DY_UPDATE_LAST_CHECK_KEY, new Date().toISOString());
+    renderConfigSubMenu();
+    try {
+        let hasUpdate = false;
+        if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.getRegistration();
+            if (registration) {
+                await registration.update();
+                hasUpdate = !!(registration.waiting || registration.installing);
+            }
+        }
+        localStorage.setItem(DY_UPDATE_STATUS_KEY, hasUpdate ? 'available' : 'updated');
+        addLocalAccessEvent('verificacao_atualizacao', hasUpdate ? 'Atualizacao disponivel' : 'App atualizado');
+        showToast(hasUpdate ? 'Atualizacao disponivel.' : 'Aplicativo atualizado.', hasUpdate ? 'warning' : 'success');
+    } catch (error) {
+        console.warn('[UPDATE] Falha ao verificar atualizacao:', error);
+        localStorage.setItem(DY_UPDATE_STATUS_KEY, 'updated');
+        showToast('Nao foi possivel verificar atualizacao.', 'warning');
+    } finally {
+        renderConfigSubMenu();
+    }
+}
+
+async function deleteAppCaches() {
+    if (!('caches' in window)) return 0;
+    const keys = await caches.keys();
+    const appKeys = keys.filter(key => /dy|autoparts|wms|vite/i.test(key));
+    await Promise.all(appKeys.map(key => caches.delete(key)));
+    return appKeys.length;
+}
+
+async function clearLocalCache() {
+    const confirmed = await showAppConfirm({
+        title: 'Limpar cache local',
+        message: 'Isso limpa caches do navegador ligados ao app e dados temporarios. Sua sessao e configuracoes principais serao mantidas.',
+        confirmLabel: 'Limpar cache',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
+    const deleted = await deleteAppCaches();
+    ['dy_temp_scan_payload', 'dy_temp_last_search', 'tmp_config_preview'].forEach(key => localStorage.removeItem(key));
+    addLocalAccessEvent('limpeza_cache', `${deleted} cache(s) removido(s)`);
+    showToast('Cache local limpo.', 'success');
+}
+
+async function updateAppNow() {
+    const confirmed = await showAppConfirm({
+        title: 'Atualizar aplicativo',
+        message: 'O app vai limpar caches locais do PWA, atualizar o service worker e recarregar a pagina sem apagar sua sessao.',
+        confirmLabel: 'Atualizar agora',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
+    addLocalAccessEvent('atualizacao_app', 'Atualizacao manual solicitada');
+    try {
+        await deleteAppCaches();
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(async registration => {
+                if (registration.waiting) registration.waiting.postMessage({ action: 'skipWaiting' });
+                await registration.update().catch(() => null);
+                await registration.unregister().catch(() => null);
+            }));
+        }
+    } catch (error) {
+        console.warn('[UPDATE] Falha ao atualizar agora:', error);
+    } finally {
+        window.location.reload();
+    }
+}
+
+async function forceSystemSync() {
+    showToast('Sincronizacao iniciada...', 'info');
+    try {
+        // TODO: centralizar reload de produtos, usuarios, canais e configuracoes quando todos os modulos tiverem cache padronizado.
+        if (typeof processSyncQueue === 'function') await processSyncQueue('config_forced');
+        if (typeof loadAllData === 'function') await loadAllData(false, 'config_forced');
+        localStorage.setItem('dy_last_forced_sync', new Date().toISOString());
+        addLocalAccessEvent('sincronizacao_forcada', 'Dados principais recarregados');
+        showToast('Sincronizacao concluida.', 'success');
+    } catch (error) {
+        console.warn('[SYNC] Falha na sincronizacao forcada:', error);
+        showToast('Falha ao sincronizar.', 'error');
+    } finally {
+        renderConfigSubMenu();
+    }
+}
+
+function setConfigFontSize(value) {
+    if (!DY_FONT_SIZE_OPTIONS.includes(value)) return;
+    setLocalConfigValue('font_size', value, true);
+}
+
+function setQuickQtyBeeps(value) {
+    const parsed = value === 'never' ? 'never' : Number(value);
+    setLocalConfigValue('quick_qty_after_beeps', parsed, true);
+}
+
+function setAutoLockMinutes(value) {
+    const parsed = value === 'never' ? 'never' : Number(value);
+    setLocalConfigValue('auto_lock_minutes', parsed, true);
+}
+
+function togglePreference(key, checked) {
+    setLocalConfigValue(key, checked, false);
+}
+
+async function renameLocalDevice() {
+    const current = localStorage.getItem('dy_device_name') || 'Dispositivo atual';
+    const name = await showAppPrompt({
+        title: 'Renomear dispositivo',
+        label: 'Nome do dispositivo',
+        defaultValue: current,
+        confirmLabel: 'Salvar',
+        cancelLabel: 'Cancelar'
+    });
+    if (!name) return;
+    localStorage.setItem('dy_device_name', String(name).trim().slice(0, 48) || current);
+    addLocalAccessEvent('dispositivo_renomeado', localStorage.getItem('dy_device_name'));
+    renderConfigSubMenu();
+}
+
+async function hashLocalPin(pin, salt) {
+    if (!window.crypto?.subtle) return btoa(`${salt}:${pin}`);
+    const data = new TextEncoder().encode(`${salt}:${pin}`);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function activateLocalPin() {
+    const pin = await showAppPrompt({ title: 'Ativar PIN', message: 'Digite um PIN de 4 digitos.', inputType: 'password', confirmLabel: 'Continuar', cancelLabel: 'Cancelar' });
+    if (!pin || !/^\d{4}$/.test(String(pin))) return showToast('PIN deve ter 4 digitos.', 'warning');
+    const confirmPin = await showAppPrompt({ title: 'Confirmar PIN', message: 'Digite o PIN novamente.', inputType: 'password', confirmLabel: 'Ativar', cancelLabel: 'Cancelar' });
+    if (String(pin) !== String(confirmPin)) return showToast('PINs diferentes.', 'error');
+    const salt = `${Date.now()}-${Math.random()}`;
+    localStorage.setItem(DY_LOCAL_PIN_SALT_KEY, salt);
+    localStorage.setItem(DY_LOCAL_PIN_HASH_KEY, await hashLocalPin(String(pin), salt));
+    setLocalConfigValue('local_pin_enabled', true, true);
+    addLocalAccessEvent('pin_local_ativado', 'PIN local ativado');
+}
+
+async function disableLocalPin() {
+    const ok = await validateLocalPin('Desativar PIN');
+    if (!ok) return;
+    localStorage.removeItem(DY_LOCAL_PIN_HASH_KEY);
+    localStorage.removeItem(DY_LOCAL_PIN_SALT_KEY);
+    setLocalConfigValue('local_pin_enabled', false, true);
+    addLocalAccessEvent('pin_local_desativado', 'PIN local desativado');
+}
+
+async function changeLocalPin() {
+    const ok = await validateLocalPin('Alterar PIN');
+    if (!ok) return;
+    await activateLocalPin();
+}
+
+async function validateLocalPin(title = 'Validar PIN') {
+    const config = getAppConfig();
+    if (!config.local_pin_enabled) return true;
+    const savedHash = localStorage.getItem(DY_LOCAL_PIN_HASH_KEY);
+    const salt = localStorage.getItem(DY_LOCAL_PIN_SALT_KEY);
+    if (!savedHash || !salt) return false;
+    const pin = await showAppPrompt({ title, message: 'Informe o PIN de 4 digitos.', inputType: 'password', confirmLabel: 'Validar', cancelLabel: 'Cancelar' });
+    if (!pin) return false;
+    const hash = await hashLocalPin(String(pin), salt);
+    const valid = hash === savedHash;
+    addLocalAccessEvent(valid ? 'pin_local_validado' : 'pin_local_incorreto', title);
+    if (!valid) showToast('PIN incorreto.', 'error');
+    return valid;
+}
+
+async function lockAppByPin() {
+    if (localStorage.getItem(DY_AUTO_LOCK_STATE_KEY) === 'locked') return;
+    localStorage.setItem(DY_AUTO_LOCK_STATE_KEY, 'locked');
+    addLocalAccessEvent('bloqueio_pin', 'Bloqueio automatico por inatividade');
+    let unlocked = false;
+    while (!unlocked) {
+        unlocked = await validateLocalPin('App bloqueado');
+        if (!unlocked) await showAppAlert({ title: 'PIN necessario', message: 'Valide o PIN para continuar usando o app.', buttonLabel: 'Tentar novamente', icon: 'warning' });
+    }
+    localStorage.removeItem(DY_AUTO_LOCK_STATE_KEY);
+    addLocalAccessEvent('desbloqueio_pin', 'App desbloqueado');
+    showToast('App desbloqueado.', 'success');
+}
+
+let dyAutoLockTimer = null;
+function setupAutoLockTimer() {
+    clearTimeout(dyAutoLockTimer);
+    const config = getAppConfig();
+    if (!config.local_pin_enabled || config.auto_lock_minutes === 'never') return;
+    const minutes = Number(config.auto_lock_minutes);
+    if (!Number.isFinite(minutes) || minutes <= 0) return;
+    dyAutoLockTimer = setTimeout(lockAppByPin, minutes * 60 * 1000);
+}
+
+['click', 'keydown', 'touchstart', 'mousemove'].forEach(eventName => {
+    window.addEventListener(eventName, setupAutoLockTimer, { passive: true });
+});
+
+async function logoutAllDevicesLocal() {
+    const confirmed = await showAppConfirm({
+        title: 'Sair de todos os dispositivos',
+        message: 'Bloqueio real de outros dispositivos requer controle de sessao no Supabase. Por enquanto, esta acao encerra apenas a sessao local atual.',
+        confirmLabel: 'Encerrar sessao local',
+        cancelLabel: 'Cancelar',
+        danger: true
+    });
+    if (!confirmed) return;
+    addLocalAccessEvent('logout_local', 'Sessao local encerrada');
+    logout();
+}
+
 function renderConfigSubMenu() {
     const currentUser = localStorage.getItem('currentUser');
     const config = getAppConfig();
     currentScreen = 'internal';
+    const currentProfile = localStorage.getItem('currentUserProfile') || 'Operador';
+    const canManageSecurity = /admin|dono|gerente|master/i.test(currentProfile);
+    const quickBeeps = config.quick_qty_after_beeps === 'never' ? 'never' : Number(config.quick_qty_after_beeps || 15);
+    const lastCheck = localStorage.getItem(DY_UPDATE_LAST_CHECK_KEY);
+    const lastSync = localStorage.getItem('dy_last_forced_sync');
+    const localPinEnabled = config.local_pin_enabled === true && !!localStorage.getItem(DY_LOCAL_PIN_HASH_KEY);
+
+    app.innerHTML = `
+        <div class="dashboard-screen internal fade-in config-screen module-screen">
+            ${getTopBarHTML(currentUser, 'renderMenu()')}
+            ${getModuleSidebarHTML('configuracoes')}
+            <main class="container config-settings-shell">
+                <header class="config-settings-header">
+                    <span class="material-symbols-rounded">settings</span>
+                    <div>
+                        <h1>Configuracoes</h1>
+                        <p>Sistema, usuario, aparencia, operacao, seguranca e informacoes do aplicativo.</p>
+                    </div>
+                </header>
+
+                <div class="config-settings-grid">
+                    <section class="config-settings-card config-card-system">
+                        <div class="config-card-head"><span class="material-symbols-rounded">system_update</span><div><h2>Sistema</h2><p>Atualizacao do aplicativo</p></div></div>
+                        <div class="config-info-list">
+                            <div><span>Versao atual</span><strong>v${DY_APP_VERSION}</strong></div>
+                            <div><span>Ultima verificacao</span><strong>${formatConfigDate(lastCheck)}</strong></div>
+                            <div><span>Status</span><strong class="config-status-pill">${getUpdateStatusLabel()}</strong></div>
+                            <div><span>Service Worker/cache</span><strong>${getServiceWorkerStatusLabel()}</strong></div>
+                        </div>
+                        <div class="config-action-row">
+                            <button type="button" onclick="checkAppUpdate()"><span class="material-symbols-rounded">refresh</span>Verificar atualizacao</button>
+                            <button type="button" onclick="updateAppNow()"><span class="material-symbols-rounded">download</span>Atualizar agora</button>
+                            <button type="button" onclick="clearLocalCache()" class="danger"><span class="material-symbols-rounded">delete_sweep</span>Limpar cache local</button>
+                            <button type="button" onclick="forceSystemSync()"><span class="material-symbols-rounded">sync</span>Forcar sincronizacao</button>
+                        </div>
+                        <p class="config-card-note">Ultima sincronizacao forcada: ${formatConfigDate(lastSync)}.</p>
+                    </section>
+
+                    <section class="config-settings-card">
+                        <div class="config-card-head"><span class="material-symbols-rounded">account_circle</span><div><h2>Usuario</h2><p>Usuario atual</p></div></div>
+                        <div class="config-info-list">
+                            <div><span>Nome</span><strong>${escapeKitAttribute(currentUser || 'Nao identificado')}</strong></div>
+                            <div><span>Perfil/cargo</span><strong>${escapeKitAttribute(currentProfile)}</strong></div>
+                            <div><span>Ultimo acesso</span><strong>${formatConfigDate(localStorage.getItem('dy_last_login') || new Date().toISOString())}</strong></div>
+                            <div><span>Dispositivo atual</span><strong>${escapeKitAttribute(getCurrentDeviceLabel())}</strong></div>
+                        </div>
+                        <div class="config-action-row">
+                            <button type="button" onclick="logout()"><span class="material-symbols-rounded">switch_account</span>Trocar usuario</button>
+                            <button type="button" onclick="logout()" class="danger"><span class="material-symbols-rounded">logout</span>Encerrar sessao</button>
+                        </div>
+                    </section>
+
+                    <section class="config-settings-card config-card-appearance">
+                        <div class="config-card-head"><span class="material-symbols-rounded">palette</span><div><h2>Aparencia</h2><p>Tema, tela cheia e densidade visual</p></div></div>
+                        <div class="theme-segmented-control config-wide-control" role="group" aria-label="Tema do App">
+                            <button type="button" data-theme-option="auto" onclick="setAppTheme('auto')" aria-pressed="false"><span class="material-symbols-rounded">routine</span>Automatico</button>
+                            <button type="button" data-theme-option="light" onclick="setAppTheme('light')" aria-pressed="false"><span class="material-symbols-rounded">light_mode</span>Claro</button>
+                            <button type="button" data-theme-option="dark" onclick="setAppTheme('dark')" aria-pressed="false"><span class="material-symbols-rounded">dark_mode</span>Escuro</button>
+                        </div>
+                        <div class="config-field-group"><label>Tamanho da fonte</label>${renderConfigOptionButtons('Tamanho da fonte', [{ value: 'small', label: 'Pequena' }, { value: 'medium', label: 'Media' }, { value: 'large', label: 'Grande' }], config.font_size || 'medium', 'setConfigFontSize')}</div>
+                        ${renderConfigToggle('toggle-compact-mode', 'Modo compacto', 'Reduz espacamentos sem alterar fluxos.', config.compact_mode === true, "togglePreference('compact_mode', this.checked)")}
+                        <div class="config-action-row"><button type="button" onclick="toggleFullscreen()"><span class="material-symbols-rounded">fullscreen</span>Tela cheia</button></div>
+                    </section>
+
+                    <section class="config-settings-card">
+                        <div class="config-card-head"><span class="material-symbols-rounded">tune</span><div><h2>Operacao</h2><p>Preferencias dos fluxos de loja</p></div></div>
+                        ${renderConfigToggle('toggle-estoque-zero', 'Permitir estoque negativo', 'Permitir finalizar saidas mesmo sem saldo em estoque.', config.permitir_saida_estoque_zero || config.permitir_estoque_negativo, "toggleConfig('permitir_saida_estoque_zero', this.checked)", true)}
+                        ${renderConfigToggle('toggle-modo-rapido', 'Modo rapido', 'Simplifica fluxos e desabilita Separacao manual.', config.modo_rapido === true, "toggleConfig('modo_rapido', this.checked)")}
+                        <div class="config-field-group">
+                            <label>Quantidade rapida apos X bipes</label>
+                            ${renderConfigOptionButtons('Quantidade rapida apos X bipes', [{ value: 10, label: '10' }, { value: 15, label: '15' }, { value: 20, label: '20' }, { value: 30, label: '30' }, { value: 'never', label: 'Nunca' }], quickBeeps, 'setQuickQtyBeeps')}
+                            <p class="config-card-note">Configuracao pronta para Inventario, Separacao e Conferencia. Onde houver regra fixa de bipes, ler app_config.quick_qty_after_beeps.</p>
+                        </div>
+                        ${renderConfigToggle('toggle-scan-sound', 'Som ao bipar', 'Feedback sonoro em leituras e acoes de scan.', config.scan_sound_enabled !== false, "togglePreference('scan_sound_enabled', this.checked)")}
+                        ${renderConfigToggle('toggle-scan-vibration', 'Vibracao ao bipar', 'Usa vibracao quando o dispositivo permitir.', config.scan_vibration_enabled !== false, "togglePreference('scan_vibration_enabled', this.checked)")}
+                        ${renderConfigToggle('toggle-confirm-inv', 'Confirmar antes de finalizar inventario', 'Preferencia local para fluxos de finalizacao.', config.confirm_finish_inventory !== false, "togglePreference('confirm_finish_inventory', this.checked)")}
+                        ${renderConfigToggle('toggle-confirm-pick', 'Confirmar antes de finalizar separacao', 'Preferencia local para fluxos de finalizacao.', config.confirm_finish_picking !== false, "togglePreference('confirm_finish_picking', this.checked)")}
+                        ${renderConfigToggle('toggle-confirm-conf', 'Confirmar antes de finalizar conferencia', 'Preferencia local para fluxos de finalizacao.', config.confirm_finish_conference !== false, "togglePreference('confirm_finish_conference', this.checked)")}
+                    </section>
+
+                    <section class="config-settings-card config-card-security">
+                        <div class="config-card-head"><span class="material-symbols-rounded">security</span><div><h2>Seguranca</h2><p>Dispositivos, sessoes e PIN</p></div></div>
+                        ${canManageSecurity ? '' : '<div class="config-locked-banner"><span class="material-symbols-rounded">lock</span> Recursos criticos bloqueados para este perfil. TODO: integrar permissao fina por perfil.</div>'}
+                        <div class="config-subsection"><h3>Dispositivos autorizados</h3>${getLocalDeviceRowsHTML()}</div>
+                        <div class="config-action-row">
+                            <button type="button" onclick="openSecuritySettings()"><span class="material-symbols-rounded">admin_panel_settings</span>Seguranca avancada</button>
+                            <button type="button" onclick="logoutAllDevicesLocal()" class="danger"><span class="material-symbols-rounded">power_settings_new</span>Sair de todos os dispositivos</button>
+                        </div>
+                        <p class="config-card-note">Requer controle de sessao no Supabase para bloquear outros dispositivos de verdade.</p>
+                        <div class="config-subsection"><h3>Bloqueio por PIN</h3><div class="config-action-row">
+                            <button type="button" onclick="activateLocalPin()" ${localPinEnabled ? 'disabled' : ''}><span class="material-symbols-rounded">pin</span>Ativar PIN</button>
+                            <button type="button" onclick="changeLocalPin()" ${localPinEnabled ? '' : 'disabled'}><span class="material-symbols-rounded">password</span>Alterar PIN</button>
+                            <button type="button" onclick="disableLocalPin()" class="danger" ${localPinEnabled ? '' : 'disabled'}><span class="material-symbols-rounded">lock_open</span>Desativar PIN</button>
+                        </div></div>
+                        <div class="config-field-group"><label>Bloqueio automatico</label>${renderConfigOptionButtons('Bloqueio automatico', [{ value: 1, label: '1 min' }, { value: 5, label: '5 min' }, { value: 10, label: '10 min' }, { value: 'never', label: 'Nunca' }], config.auto_lock_minutes || 'never', 'setAutoLockMinutes')}</div>
+                        <div class="config-subsection"><h3>Historico de acesso</h3>${getLocalHistoryHTML()}</div>
+                    </section>
+
+                    <section class="config-settings-card">
+                        <div class="config-card-head"><span class="material-symbols-rounded">info</span><div><h2>Sobre</h2><p>Sobre o aplicativo</p></div></div>
+                        <div class="config-info-list">
+                            <div><span>Nome</span><strong>DY Auto Parts</strong></div>
+                            <div><span>Versao atual</span><strong>v${DY_APP_VERSION}</strong></div>
+                            <div><span>Ambiente</span><strong>${escapeKitAttribute(getAppEnvironmentLabel())}</strong></div>
+                            <div><span>Ultima atualizacao</span><strong>${formatConfigDate(lastCheck)}</strong></div>
+                            <div><span>Repositorio</span><strong>Nao informado no app</strong></div>
+                            <div><span>Status do cache</span><strong>${getServiceWorkerStatusLabel()}</strong></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    `;
+
+    updateThemeControlsUI();
+    applyDisplayPreferences();
+    setupAutoLockTimer();
+    return;
 
     app.innerHTML = `
         <div class="dashboard-screen internal fade-in config-screen module-screen">
