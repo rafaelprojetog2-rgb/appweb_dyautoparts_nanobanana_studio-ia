@@ -1,4 +1,4 @@
-﻿window.onerror = function (msg, url, lineNo, columnNo, error) {
+window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.error('Global Error:', msg, error);
     const app = document.getElementById('app');
     if (app) {
@@ -27,6 +27,7 @@ const MATERIAL_ICON_FALLBACKS = {
     check_circle: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 6-6"/></svg>',
     chevron_right: '<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+    conveyor_belt: '<svg viewBox="0 0 24 24"><path d="M19 15H5a4 4 0 0 1 0-8h14a4 4 0 0 1 0 8zm0-6H5a2 2 0 0 0 0 4h14a2 2 0 0 0 0-4zm-1 3a1 1 0 1 1-1-1 1 1 0 0 1 1 1zm-4 0a1 1 0 1 1-1-1 1 1 0 0 1 1 1zm-4 0a1 1 0 1 1-1-1 1 1 0 0 1 1 1z"/></svg>',
     delete: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 15h10l1-15M9 7V4h6v3"/></svg>',
     error: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 17h.01"/></svg>',
     inventory: '<svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
@@ -69,9 +70,11 @@ function ensureMaterialIconFallbacks(root = document) {
         ? [root]
         : (root.querySelectorAll?.('.material-symbols-rounded') || []);
     icons?.forEach(icon => {
-        const rawName = String(icon.textContent || icon.dataset.iconName || '').trim();
+        const rawName = String(icon.dataset.iconName || icon.getAttribute('data-icon-name') || icon.textContent || '').trim();
         const name = normalizeMaterialIconName(rawName);
         const svg = MATERIAL_ICON_FALLBACKS[name] || DEFAULT_MATERIAL_ICON_FALLBACK;
+        icon.classList.add('notranslate');
+        icon.setAttribute('translate', 'no');
         if (!name || (icon.querySelector('svg') && icon.dataset.iconName === name)) return;
         icon.dataset.iconName = name;
         icon.innerHTML = svg;
@@ -2396,9 +2399,9 @@ function updateMenuStatusUI() {
 
 function getInlineAppIconHTML(iconName) {
     const icons = {
-        arrow_back: '<svg viewBox="0 0 24 24" focusable="false"><path d="M15 6l-6 6 6 6"/><path d="M9 12h11"/></svg>',
-        settings: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .4 2l.1.1-2.2 2.2-.1-.1a1.8 1.8 0 0 0-2-.4 1.8 1.8 0 0 0-1.1 1.7v.2h-3v-.2a1.8 1.8 0 0 0-1.1-1.7 1.8 1.8 0 0 0-2 .4l-.1.1-2.2-2.2.1-.1a1.8 1.8 0 0 0 .4-2 1.8 1.8 0 0 0-1.7-1.1h-.2v-3h.2a1.8 1.8 0 0 0 1.7-1.1 1.8 1.8 0 0 0-.4-2l-.1-.1 2.2-2.2.1.1a1.8 1.8 0 0 0 2 .4 1.8 1.8 0 0 0 1.1-1.7V4h3v.2a1.8 1.8 0 0 0 1.1 1.7 1.8 1.8 0 0 0 2-.4l.1-.1 2.2 2.2-.1.1a1.8 1.8 0 0 0-.4 2 1.8 1.8 0 0 0 1.7 1.1h.2v3h-.2a1.8 1.8 0 0 0-1.7 1.2Z"/></svg>',
-        power_settings_new: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 3v8"/><path d="M7.1 6.5a8 8 0 1 0 9.8 0"/></svg>'
+        arrow_back: '<svg viewBox="0 0 24 24" focusable="false"><path d="M15 6.5 9.5 12 15 17.5"/><path d="M10 12h9"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" focusable="false"><path d="M4 7h4"/><path d="M12 7h8"/><circle cx="10" cy="7" r="2"/><path d="M4 17h8"/><path d="M16 17h4"/><circle cx="14" cy="17" r="2"/><path d="M4 12h10"/><path d="M18 12h2"/><circle cx="16" cy="12" r="2"/></svg>',
+        power_settings_new: '<svg viewBox="0 0 24 24" focusable="false"><path d="M12 4v8"/><path d="M7.4 7.8a7 7 0 1 0 9.2 0"/></svg>'
     };
     const svg = icons[iconName] || icons.settings;
     return `<span class="app-inline-icon" aria-hidden="true">${svg}</span>`;
@@ -2410,7 +2413,7 @@ function getTopBarHTML(currentUser, backAction = null, screenType = 'internal') 
         <div class="top-action-group">
                 ${!isMenu && backAction ? `
                 <button class="fab-icon-btn fab-voltar" type="button" onclick="${backAction}" aria-label="Voltar">
-                    <span class="app-inline-icon app-back-chevron" aria-hidden="true">&lt;</span>
+                    ${getInlineAppIconHTML('arrow_back')}
                 </button>
                 ` : ''}
                 ${isMenu ? `
@@ -3268,40 +3271,40 @@ async function renderAlerts() {
     const totalAlerts = criticalCount + pendingCount;
     
     app.innerHTML = `
-        <div class="dashboard-screen fade-in internal">
+        <div class="dashboard-screen fade-in internal operational-alerts-screen">
             ${getTopBarHTML(currentUser, 'renderMenu()')}
             <main class="container">
                 <div class="sub-menu-header">
                     <h2 style="font-size: 1.2rem; font-weight: 700;">ALERTAS OPERACIONAIS</h2>
-                    ${totalAlerts > 0 ? `<span style="background: #EF4444; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.8rem; font-weight: 700;">${totalAlerts}</span>` : ''}
+                    ${totalAlerts > 0 ? `<span class="operational-alerts-total">${totalAlerts}</span>` : ''}
                 </div>
                 
-                <div style="display: flex; flex-direction: column; gap: 24px;">
-                    <div class="menu-card" onclick="renderEstoqueAtual()" style="cursor: pointer;">
-                        <span class="material-symbols-rounded icon" style="font-size: 32px; color: #EF4444;">inventory</span>
-                        <div style="flex: 1;">
-                            <span class="label" style="font-size: 16px; font-weight: 700;">Estoque Crítico</span>
-                            <span style="display: block; font-size: 0.85rem; color: var(--muted);">Produtos abaixo do estoque mínimo</span>
+                <div class="operational-alerts-list">
+                    <div class="menu-card operational-alert-card operational-alert-card-critical" onclick="renderEstoqueAtual()" style="cursor: pointer;">
+                        <span class="material-symbols-rounded icon operational-alert-icon">inventory</span>
+                        <div class="operational-alert-copy">
+                            <span class="label operational-alert-title">Estoque Crítico</span>
+                            <span class="operational-alert-subtitle">Produtos abaixo do estoque mínimo</span>
                         </div>
-                        ${criticalCount > 0 ? `<span style="background: #EF4444; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.9rem; font-weight: 700;">${criticalCount}</span>` : '<span class="material-symbols-rounded" style="color: #22c55e;">check_circle</span>'}
+                        ${criticalCount > 0 ? `<span class="operational-alert-badge danger">${criticalCount}</span>` : '<span class="material-symbols-rounded operational-alert-ok">check_circle</span>'}
                     </div>
                     
-                    <div class="menu-card" onclick="renderPickMenu()" style="cursor: pointer;">
-                        <span class="material-symbols-rounded icon" style="font-size: 32px; color: #F59E0B;">conveyor_belt</span>
-                        <div style="flex: 1;">
-                            <span class="label" style="font-size: 16px; font-weight: 700;">Separações Pendentes</span>
-                            <span style="display: block; font-size: 0.85rem; color: var(--muted);">Filas de separação aguardando</span>
+                    <div class="menu-card operational-alert-card operational-alert-card-pending" onclick="renderPickMenu()" style="cursor: pointer;">
+                        <span class="material-symbols-rounded icon operational-alert-icon">conveyor_belt</span>
+                        <div class="operational-alert-copy">
+                            <span class="label operational-alert-title">Separações Pendentes</span>
+                            <span class="operational-alert-subtitle">Filas de separação aguardando</span>
                         </div>
-                        ${pendingCount > 0 ? `<span style="background: #F59E0B; color: black; padding: 4px 12px; border-radius: 12px; font-size: 0.9rem; font-weight: 700;">${pendingCount}</span>` : '<span class="material-symbols-rounded" style="color: #22c55e;">check_circle</span>'}
+                        ${pendingCount > 0 ? `<span class="operational-alert-badge warning">${pendingCount}</span>` : '<span class="material-symbols-rounded operational-alert-ok">check_circle</span>'}
                     </div>
                     
-                    <div class="menu-card" style="opacity: 0.5; cursor: default;">
-                        <span class="material-symbols-rounded icon" style="font-size: 32px; color: #94A3B8;">local_shipping</span>
-                        <div style="flex: 1;">
-                            <span class="label" style="font-size: 16px; font-weight: 700;">Compras a Caminho</span>
-                            <span style="display: block; font-size: 0.85rem; color: var(--muted);">Pedidos de compra em trânsito</span>
+                    <div class="menu-card operational-alert-card operational-alert-card-coming">
+                        <span class="material-symbols-rounded icon operational-alert-icon">local_shipping</span>
+                        <div class="operational-alert-copy">
+                            <span class="label operational-alert-title">Compras a Caminho</span>
+                            <span class="operational-alert-subtitle">Pedidos de compra em trânsito</span>
                         </div>
-                        <span style="background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); padding: 4px 12px; border-radius: 12px; font-size: 0.8rem;">Em breve</span>
+                        <span class="operational-alert-badge muted">Em breve</span>
                     </div>
                 </div>
                 
@@ -3488,7 +3491,8 @@ function getQuickActionsHTML(modoRapidoAtivo) {
         </div>
         
         <button class="quick-action-fab fab-icon-btn fab-funcoes ${modoRapidoAtivo ? 'fast-mode' : ''}" type="button" onclick="toggleQuickActions()" aria-label="Funções rápidas" title="Funções rápidas">
-            <img id="quick-action-icon" class="quick-action-mode-img quick-action-fab-img" src="${fastModeIcon}" alt="${fastModeAlt}" decoding="async">
+            <img id="quick-action-icon" class="quick-action-mode-img quick-action-fab-img" src="${fastModeIcon}" alt="${fastModeAlt}" decoding="async" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+            <span class="quick-action-fab-fallback material-symbols-rounded notranslate" translate="no" aria-hidden="true">bolt</span>
         </button>
     `;
 }
@@ -12836,9 +12840,16 @@ function isDraftPickStatus(status) {
     return ['em_separacao', 'rascunho', 'draft'].includes(String(status || '').toLowerCase());
 }
 
+function isDraftPickSession(session) {
+    if (!session || typeof session !== 'object') return false;
+    const status = String(session.status || '').toLowerCase();
+    if (!isDraftPickStatus(status)) return false;
+    return !session.finalizado_em && !session.finalizada_em && !session.data_finalizacao;
+}
+
 function getDraftPickSessionsFromCache() {
     return (appData.separacao || [])
-        .filter(session => isDraftPickStatus(session.status))
+        .filter(session => isDraftPickSession(session))
         .sort((a, b) => new Date(b.atualizado_em || b.criado_em || 0) - new Date(a.atualizado_em || a.criado_em || 0));
 }
 
@@ -13387,6 +13398,7 @@ let scanSuccessGlowTimeout = null;
 const PICK_STATUS_DRAFT = 'em_separacao';
 const PICK_STATUS_READY_FOR_PACK = 'aberta';
 const PICK_STATUS_FINISHED = 'finalizada';
+const PICK_PACKAGE_TOTALS_STORAGE_KEY = 'dyPickPackageTotalsBySession';
 
 function normalizePickPackageCount(value) {
     const count = Math.floor(Number(value || 0));
@@ -13398,16 +13410,48 @@ function getPickPackageCountFrom(source = {}) {
     return normalizePickPackageCount(
         source.total_pacotes_montados
         ?? source.totalPacotesMontados
+        ?? source.total_pacotes
+        ?? source.qtd_pacotes
+        ?? source.pacotes
+        ?? source.volumes
+        ?? source.packageCount
         ?? source.pacotesMontados
         ?? source.packagesMounted
         ?? 0
     );
 }
 
+function getPickPackageTotalsCache() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(PICK_PACKAGE_TOTALS_STORAGE_KEY) || '{}');
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (error) {
+        localStorage.removeItem(PICK_PACKAGE_TOTALS_STORAGE_KEY);
+        return {};
+    }
+}
+
+function rememberPickPackageTotal(sessionId, source = {}) {
+    const targetSessionId = String(sessionId || '').trim();
+    if (!targetSessionId) return;
+    const count = getPickPackageCountFrom(source);
+    const cache = getPickPackageTotalsCache();
+    cache[targetSessionId] = {
+        total_pacotes_montados: count,
+        atualizado_em: getDataHoraBrasil()
+    };
+    localStorage.setItem(PICK_PACKAGE_TOTALS_STORAGE_KEY, JSON.stringify(cache));
+}
+
 function hasPickPackageCount(source = {}) {
     if (!source || typeof source !== 'object') return false;
     return source.total_pacotes_montados !== undefined
         || source.totalPacotesMontados !== undefined
+        || source.total_pacotes !== undefined
+        || source.qtd_pacotes !== undefined
+        || source.pacotes !== undefined
+        || source.volumes !== undefined
+        || source.packageCount !== undefined
         || source.pacotesMontados !== undefined
         || source.packagesMounted !== undefined;
 }
@@ -13613,6 +13657,30 @@ async function removeQueuedPickingDraftOperations(sessionId) {
     }
 
     await refreshOutboxPendingCount();
+}
+
+async function clearFinishedPickingDraftState(sessionId, options = {}) {
+    const targetSessionId = String(sessionId || '');
+    if (!targetSessionId) return;
+
+    const draft = getDraftPickSession();
+    if (!draft || String(draft.sessionId || '') === targetSessionId) {
+        localStorage.removeItem('draft_pick_session');
+    }
+
+    if (!options.keepQueuedDraftOperations) {
+        await removeQueuedPickingDraftOperations(targetSessionId);
+    }
+
+    if (currentPickingContext?.sessionId === targetSessionId) {
+        currentPickingContext = null;
+    }
+    currentSessionItems = [];
+    lastScannedPickItemKey = null;
+    expandedPickItemKey = null;
+    pickRemovalModeActive = false;
+    lastPickScanAction = 'add';
+    pickScanHistory = [];
 }
 
 async function discardPickingDraft(sessionId, options = {}) {
@@ -15642,15 +15710,17 @@ async function createPickingConferenceWithoutStock(payload = {}) {
 async function finalizeFastPickingSession(sessionId, channelId, channelLabel, channelColor, draft, now) {
     const currentUser = localStorage.getItem('currentUser');
     const stats = getPickingOperationalStats(currentPickSession.items);
+    let draftPersistenceQueued = false;
 
     for (const item of currentPickSession.items) {
-        await persistPickingDraftItem({
+        const draftResult = await persistPickingDraftItem({
             ...draft,
             sessionId,
             channelId,
             channelLabel,
             channelColor
         }, item);
+        if (draftResult?.queued) draftPersistenceQueued = true;
     }
 
     const rows = buildFastPickingFinalRows(currentPickSession.items, sessionId);
@@ -15700,10 +15770,13 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
     const existingIndex = appData.separacao.findIndex(s => (s.separacao_id || s.col_a) === sessionId);
     if (existingIndex >= 0) appData.separacao[existingIndex] = { ...appData.separacao[existingIndex], ...localSession };
     else appData.separacao.unshift(localSession);
+    rememberPickPackageTotal(sessionId, localSession);
 
     const activeSessions = getActivePickSessions().filter(s => s.id !== sessionId);
     setActivePickSessions(activeSessions);
-    localStorage.removeItem('draft_pick_session');
+    await clearFinishedPickingDraftState(sessionId, {
+        keepQueuedDraftOperations: Boolean(finalizationResult?.queued || draftPersistenceQueued)
+    });
 
     showToast(finalizationResult?.queued
         ? `Saida rapida ${sessionId} salva localmente para sincronizar.`
@@ -15786,14 +15859,16 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
 
         console.log("[savePickResultFinal] currentPickSession.items:", currentPickSession.items);
 
+        let draftPersistenceQueued = false;
         for (const item of currentPickSession.items) {
-            await persistPickingDraftItem({
+            const draftResult = await persistPickingDraftItem({
                 ...draft,
                 sessionId,
                 channelId,
                 channelLabel,
                 channelColor
             }, item);
+            if (draftResult?.queued) draftPersistenceQueued = true;
         }
 
         const conferencePayload = {
@@ -15832,6 +15907,7 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
         const existingIndex = appData.separacao.findIndex(s => (s.separacao_id || s.col_a) === sessionId);
         if (existingIndex >= 0) appData.separacao[existingIndex] = { ...appData.separacao[existingIndex], ...localSession };
         else appData.separacao.unshift(localSession);
+        rememberPickPackageTotal(sessionId, localSession);
 
         const activeSessions = getActivePickSessions().filter(s => s.id !== sessionId);
         activeSessions.unshift({
@@ -15842,7 +15918,9 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
         });
         setActivePickSessions(activeSessions);
 
-        localStorage.removeItem('draft_pick_session');
+        await clearFinishedPickingDraftState(sessionId, {
+            keepQueuedDraftOperations: Boolean(finalResult?.queued || !navigator.onLine || draftPersistenceQueued)
+        });
         await showAppModal({
             type: 'success',
             title: 'Separação finalizada',
@@ -17436,6 +17514,7 @@ function quickActionGerarRomaneio() {
 
 const ROMANEIO_STORAGE_KEY = 'dyRomaneiosRetirada';
 let romaneioSignatureState = { dataUrl: '', redoDataUrl: '' };
+let romaneioPackagePhotoState = { dataUrl: '' };
 
 function getRomaneios() {
     try {
@@ -17457,11 +17536,64 @@ function isRomaneioPickupStatus(status) {
     return normalized && !['cancelada', 'rascunho', 'draft', 'em_separacao'].includes(normalized);
 }
 
-function getRomaneioTodayMetrics(channelName, withdrawalType = channelName) {
+function parseRomaneioSelectedChannels(value) {
+    return String(value || '')
+        .split('|')
+        .map(item => {
+            try {
+                return decodeURIComponent(item);
+            } catch (error) {
+                return item;
+            }
+        })
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function serializeRomaneioSelectedChannels(channels = []) {
+    return (channels || [])
+        .map(channel => String(channel || '').trim())
+        .filter(Boolean)
+        .map(channel => encodeURIComponent(channel))
+        .join('|');
+}
+
+function getRomaneioAvailableChannels() {
+    const unique = new Map();
+    (appData.separacao || []).forEach(session => {
+        const label = String(session.canal_nome || session.canal || session.col_c || '').trim();
+        const key = normalizeOperationalLabel(label);
+        if (label && key && !unique.has(key)) unique.set(key, label);
+    });
+
+    if (unique.size === 0) {
+        ['Correios', 'Flex', 'Turbo', 'Motoboy', 'Transportadora', 'Outros']
+            .forEach(label => unique.set(normalizeOperationalLabel(label), label));
+    }
+
+    return Array.from(unique.values()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+function getRomaneioLocalSessionSupplement(session) {
+    const sessionId = String(getPackSeparationSessionId(session) || '');
+    if (!sessionId) return {};
+    const active = getActivePickSessions()
+        .find(item => String(item.id || item.sessionId || item.pickingData?.separacao_id || '') === sessionId);
+    const cachedPackages = getPickPackageTotalsCache()[sessionId] || {};
+    return {
+        ...cachedPackages,
+        ...(active?.pickingData || active || {})
+    };
+}
+
+function getRomaneioTodayMetrics(channelNames, withdrawalType = channelNames) {
     const todayIso = getDataBrasilISO();
     const todayBr = formatDateBR(todayIso);
-    const target = normalizeOperationalLabel(channelName);
-    const typeTarget = normalizeOperationalLabel(withdrawalType);
+    const selectedChannels = Array.isArray(channelNames)
+        ? channelNames.map(item => String(item || '').trim()).filter(Boolean)
+        : [String(channelNames || '').trim()].filter(Boolean);
+    const targets = selectedChannels.map(normalizeOperationalLabel).filter(Boolean);
+    const typeTarget = normalizeOperationalLabel(Array.isArray(withdrawalType) ? withdrawalType.join(' ') : withdrawalType);
     const sessions = (appData.separacao || []).filter(session => {
         const channel = normalizeOperationalLabel(session.canal_nome || session.canal || session.col_c || '');
         const rawDate = String(session.data_separacao || session.criado_em || session.finalizado_em || session.col_b || '');
@@ -17469,24 +17601,27 @@ function getRomaneioTodayMetrics(channelName, withdrawalType = channelName) {
         const knownChannels = ['FLEX', 'CORREIOS', 'TURBO', 'MOTOBOY', 'TRANSPORTADORA'];
         const matchesChannel = typeTarget === 'OUTROS'
             ? channel && !knownChannels.some(known => channel.includes(known))
-            : channel && target && (channel.includes(target) || target.includes(channel));
+            : channel && targets.some(target => channel.includes(target) || target.includes(channel));
         return matchesDate && matchesChannel && isRomaneioPickupStatus(session.status || 'aberta');
     });
 
     return sessions.reduce((acc, session) => {
-        acc.produtos += getSeparationProductTotal(session);
-        acc.itens += getSeparationItemTotal(session);
-        acc.pacotes += getPickPackageCountFrom(session);
+        const supplement = getRomaneioLocalSessionSupplement(session);
+        const mergedSession = { ...session, ...supplement };
+        acc.produtos += getSeparationProductTotal(mergedSession);
+        acc.itens += getSeparationItemTotal(mergedSession);
+        acc.pacotes += getPickPackageCountFrom(mergedSession);
         acc.separacoes += 1;
         return acc;
     }, {
         data: todayBr,
-        canal: channelName,
+        canal: selectedChannels.join(' + '),
+        canais: selectedChannels,
         produtos: 0,
         itens: 0,
         pacotes: 0,
         separacoes: 0,
-        tipo_retirada: withdrawalType
+        tipo_retirada: Array.isArray(withdrawalType) ? withdrawalType.join(' + ') : withdrawalType
     });
 }
 
@@ -17504,9 +17639,11 @@ async function renderRomaneioScreen(selectedType = '', selectedId = '') {
         console.warn('[ROMANEIO] Falha ao atualizar separacoes:', error);
     }
 
+    const availableChannels = getRomaneioAvailableChannels();
+    const selectedChannels = parseRomaneioSelectedChannels(selectedType);
     const romaneios = getRomaneios().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     const selected = selectedId ? romaneios.find(item => item.id === selectedId) : null;
-    const metrics = selectedType ? getRomaneioTodayMetrics(selectedType, selectedType) : null;
+    const metrics = selectedChannels.length ? getRomaneioTodayMetrics(selectedChannels, selectedChannels) : null;
 
     app.innerHTML = `
         <div class="dashboard-screen internal fade-in module-screen romaneio-screen">
@@ -17521,13 +17658,17 @@ async function renderRomaneioScreen(selectedType = '', selectedId = '') {
                 </header>
 
                 <section class="romaneio-channel-step">
-                    <h2>Tipo de Retirada</h2>
+                    <h2>Canais da separacao</h2>
                     <div class="romaneio-channel-grid">
-                        ${['Correios', 'Flex', 'Turbo', 'Motoboy', 'Transportadora', 'Outros'].map(type => {
+                        ${availableChannels.map(type => {
                             const config = getRomaneioTypeConfig(type);
-                            const active = normalizeOperationalLabel(type) === normalizeOperationalLabel(selectedType);
+                            const active = selectedChannels.some(channel => normalizeOperationalLabel(channel) === normalizeOperationalLabel(type));
+                            const nextChannels = active
+                                ? selectedChannels.filter(channel => normalizeOperationalLabel(channel) !== normalizeOperationalLabel(type))
+                                : [...selectedChannels, type];
+                            const nextSelection = serializeRomaneioSelectedChannels(nextChannels);
                             return `
-                                <button class="romaneio-channel-card ${active ? 'is-active' : ''}" type="button" onclick="renderRomaneioScreen('${type}')">
+                                <button class="romaneio-channel-card ${active ? 'is-active' : ''}" type="button" onclick="renderRomaneioScreen(${quotePackInlineArg(nextSelection)})">
                                     <span>${config.svgIcon || `<span class="material-symbols-rounded">${config.icon}</span>`}</span>
                                     <strong>${type.toUpperCase()}</strong>
                                 </button>
@@ -17543,7 +17684,10 @@ async function renderRomaneioScreen(selectedType = '', selectedId = '') {
         </div>
     `;
 
-    if (metrics) setTimeout(() => initRomaneioSignaturePad(), 80);
+    if (metrics) {
+        romaneioPackagePhotoState = { dataUrl: '' };
+        setTimeout(() => initRomaneioSignaturePad(), 80);
+    }
 }
 
 function getRomaneioTypeConfig(type) {
@@ -17563,7 +17707,9 @@ function formatRomaneioShortDate(value) {
 }
 
 function renderRomaneioForm(metrics) {
-    const isOther = normalizeOperationalLabel(metrics.tipo_retirada) === 'OUTROS';
+    const selectedKey = serializeRomaneioSelectedChannels(metrics.canais || [metrics.tipo_retirada]);
+    const isOther = (metrics.canais || [metrics.tipo_retirada])
+        .some(channel => normalizeOperationalLabel(channel) === 'OUTROS');
     return `
         <section class="romaneio-form-card">
             <div class="romaneio-metrics-grid">
@@ -17574,7 +17720,7 @@ function renderRomaneioForm(metrics) {
                 <div><small>Data</small><strong>${escapeKitAttribute(formatRomaneioShortDate(metrics.data))}</strong><em>${escapeKitAttribute(metrics.data)}</em><span class="material-symbols-rounded">calendar_month</span></div>
             </div>
 
-            <form id="romaneio-form" class="romaneio-form" onsubmit="event.preventDefault(); saveRomaneioFromForm('${escapeKitAttribute(metrics.tipo_retirada)}')">
+            <form id="romaneio-form" class="romaneio-form" onsubmit="event.preventDefault(); saveRomaneioFromForm(${quotePackInlineArg(selectedKey)})">
                 ${isOther ? `
                     <label class="romaneio-field-full">
                         <span>Nome do Canal *</span>
@@ -17593,6 +17739,20 @@ function renderRomaneioForm(metrics) {
                     <span>Observação (opcional)</span>
                     <input name="observacao" type="text" autocomplete="off" placeholder="Retirado às 16:40, coleta agência central...">
                 </label>
+
+                <div class="romaneio-photo-box">
+                    <div>
+                        <strong>Foto do pacote</strong>
+                        <small>Opcional</small>
+                    </div>
+                    <label class="romaneio-photo-btn">
+                        <span class="material-symbols-rounded">photo_camera</span>
+                        Tirar foto
+                        <input id="romaneio-package-photo-input" type="file" accept="image/*" capture="environment" onchange="handleRomaneioPackagePhoto(this)">
+                    </label>
+                    <button class="romaneio-photo-clear" type="button" onclick="clearRomaneioPackagePhoto()">Limpar foto</button>
+                    <img id="romaneio-package-photo-preview" class="romaneio-package-photo-preview" alt="Foto do pacote" hidden>
+                </div>
 
                 <div class="romaneio-signature-box">
                     <div class="romaneio-signature-header">
@@ -17673,6 +17833,7 @@ function renderRomaneioDetail(item) {
                 <div><small>PDF</small><strong>${item.pdfDataUrl ? 'Disponível' : 'Ainda não gerado'}</strong></div>
             </div>
             ${item.assinatura ? `<img class="romaneio-signature-preview" src="${escapeKitAttribute(item.assinatura)}" alt="Assinatura do responsável">` : ''}
+            ${item.foto_pacote ? `<img class="romaneio-package-photo-saved" src="${escapeKitAttribute(item.foto_pacote)}" alt="Foto do pacote">` : ''}
             ${item.pdfDataUrl ? `<button class="romaneio-pdf-open-btn" type="button" onclick="openRomaneioPDF('${escapeKitAttribute(item.id)}')">Visualizar PDF</button>` : ''}
             ${renderRomaneioPostSaveActions(item)}
         </section>
@@ -17773,21 +17934,73 @@ function redoRomaneioSignature() {
     image.src = romaneioSignatureState.redoDataUrl;
 }
 
+function handleRomaneioPackagePhoto(input) {
+    const file = input?.files?.[0];
+    if (!file) return;
+    if (!String(file.type || '').startsWith('image/')) {
+        showToast('Selecione uma imagem valida.', 'warning');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+            const maxSide = 1280;
+            const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(image.width * scale));
+            canvas.height = Math.max(1, Math.round(image.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+            romaneioPackagePhotoState.dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+            const preview = document.getElementById('romaneio-package-photo-preview');
+            if (preview) {
+                preview.src = romaneioPackagePhotoState.dataUrl;
+                preview.hidden = false;
+            }
+            showToast('Foto do pacote anexada.');
+        };
+        image.onerror = () => showToast('Nao foi possivel carregar a foto.', 'warning');
+        image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearRomaneioPackagePhoto() {
+    romaneioPackagePhotoState = { dataUrl: '' };
+    const input = document.getElementById('romaneio-package-photo-input');
+    const preview = document.getElementById('romaneio-package-photo-preview');
+    if (input) input.value = '';
+    if (preview) {
+        preview.removeAttribute('src');
+        preview.hidden = true;
+    }
+}
+
 function getRomaneioText(item) {
-    return `Romaneio ${item.id}\nData: ${item.data} ${item.hora}\nCanal: ${item.canal}\nProdutos diferentes: ${item.produtos}\nItens/bipes: ${item.itens || 0}\nPacotes: ${item.pacotes}\nSeparacoes: ${item.separacoes || 0}\nResponsavel: ${item.responsavel}\nDocumento: ${item.documento || '-'}\nObservacao: ${item.observacao || '-'}\nStatus: ${item.status}`;
+    return `Romaneio ${item.id}\nData: ${item.data} ${item.hora}\nCanal: ${item.canal}\nProdutos diferentes: ${item.produtos}\nItens/bipes: ${item.itens || 0}\nPacotes: ${item.pacotes}\nSeparacoes: ${item.separacoes || 0}\nFoto do pacote: ${item.foto_pacote ? 'Anexada' : 'Nao anexada'}\nResponsavel: ${item.responsavel}\nDocumento: ${item.documento || '-'}\nObservacao: ${item.observacao || '-'}\nStatus: ${item.status}`;
 }
 
 function saveRomaneioFromForm(withdrawalType) {
     const form = document.getElementById('romaneio-form');
     if (!form) return;
     const data = new FormData(form);
-    const type = String(withdrawalType || '').trim();
+    const selectedChannels = parseRomaneioSelectedChannels(withdrawalType);
+    const type = selectedChannels.join(' + ');
     const customChannel = String(data.get('canal_personalizado') || '').trim();
-    const isOther = normalizeOperationalLabel(type) === 'OUTROS';
-    const finalChannel = isOther ? customChannel : type;
+    const isOther = selectedChannels.some(channel => normalizeOperationalLabel(channel) === 'OUTROS');
+    const finalChannels = selectedChannels.map(channel => (
+        normalizeOperationalLabel(channel) === 'OUTROS' ? customChannel : channel
+    )).filter(Boolean);
+    const finalChannel = finalChannels.join(' + ');
     const responsavel = String(data.get('responsavel') || '').trim();
     if (isOther && !customChannel) {
         showToast('Informe o nome do canal.', 'warning');
+        return;
+    }
+    if (!finalChannels.length) {
+        showToast('Selecione pelo menos um canal.', 'warning');
         return;
     }
     if (!responsavel) {
@@ -17799,13 +18012,14 @@ function saveRomaneioFromForm(withdrawalType) {
         return;
     }
 
-    const metrics = getRomaneioTodayMetrics(finalChannel || type, type);
+    const metrics = getRomaneioTodayMetrics(finalChannels, finalChannels);
     const now = new Date();
     const romaneio = {
         id: `ROM-${normalizeOperationalLabel(finalChannel || type).slice(0, 3)}-${Date.now()}`,
         data: metrics.data,
         hora: formatTimeBR(now),
         canal: finalChannel || metrics.canal,
+        canais: finalChannels,
         tipo_retirada: type,
         produtos: metrics.produtos,
         itens: metrics.itens,
@@ -17815,6 +18029,7 @@ function saveRomaneioFromForm(withdrawalType) {
         documento: String(data.get('documento') || '').trim(),
         observacao: String(data.get('observacao') || '').trim(),
         assinatura: romaneioSignatureState.dataUrl,
+        foto_pacote: romaneioPackagePhotoState.dataUrl || '',
         usuario: localStorage.getItem('currentUser') || '',
         status: 'Assinado',
         createdAt: now.toISOString()
@@ -17841,7 +18056,7 @@ function updateRomaneio(item) {
 function generateRomaneioPDF(id) {
     const item = findRomaneioById(id);
     if (!item) return;
-    const html = `<html><body><pre>${getRomaneioText(item)}</pre><img style="max-width:420px" src="${item.assinatura || ''}"></body></html>`;
+    const html = `<html><body><pre>${getRomaneioText(item)}</pre><img style="max-width:420px" src="${item.assinatura || ''}">${item.foto_pacote ? `<img style="display:block;max-width:420px;margin-top:16px" src="${item.foto_pacote}">` : ''}</body></html>`;
     item.pdfDataUrl = `data:text/html;base64,${btoa(unescape(encodeURIComponent(html)))}`;
     updateRomaneio(item);
     showToast('PDF preparado para geração futura.');

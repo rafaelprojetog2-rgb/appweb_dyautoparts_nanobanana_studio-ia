@@ -12689,33 +12689,7 @@ button.quick-action-item {
   #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    padding: 0 !important;
-    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
-    transform: translateX(-50%) !important;
-    width: 112px !important;
-  }
-
-  #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+#app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: auto !important;
     left: 10px !important;
     right: 10px !important;
@@ -35669,36 +35643,7 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: auto !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
-    transform: translateX(-50%) !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: auto !important;
     left: 10px !important;
     right: 10px !important;
@@ -40201,35 +40146,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    top: auto !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 130px) !important;
     left: 10px !important;
     right: 10px !important;
@@ -40386,35 +40303,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    top: auto !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 130px) !important;
     left: 10px !important;
     right: 10px !important;
@@ -40587,35 +40476,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    top: auto !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 130px) !important;
     left: 10px !important;
     right: 10px !important;
@@ -40757,15 +40618,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
     height: 132px !important;
     object-fit: contain !important;
   }
-
-  #app > .dashboard-screen.menu-screen .quick-action-fab:active,
-  #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    transform: scale(1.02) !important;
-    opacity: 1 !important;
-  }
-
-  #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+#app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     left: 10px !important;
     right: 10px !important;
     bottom: max(136px, calc(env(safe-area-inset-bottom, 0px) + 136px)) !important;
@@ -40895,36 +40748,7 @@ html body:not(.login-active) #app > .dashboard-screen.mov-history-screen {
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: auto !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
-    transform: translateX(-50%) !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: auto !important;
     left: 10px !important;
     right: 10px !important;
@@ -45947,32 +45771,6 @@ html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pick-w
   html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu.quick-actions-sheet.hidden {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    padding: 0 !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
 }
 
 /* Conferencia (cega): blind scan workflow. */
@@ -47999,36 +47797,7 @@ body:not(.login-active) #app > .dashboard-screen.nf-form-screen.entrada-nf-scree
   html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
     display: none !important;
   }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 50% !important;
-    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 10px)) !important;
-    box-shadow: none !important;
-    height: 112px !important;
-    max-height: 112px !important;
-    max-width: 112px !important;
-    min-height: 112px !important;
-    min-width: 112px !important;
-    padding: 0 !important;
-    top: auto !important;
-    transform: translateX(-50%) !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab::before {
-    display: none !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu:not(.hidden) ~ .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 112px !important;
-    width: 112px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
+html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 130px) !important;
     left: 10px !important;
     right: 10px !important;
@@ -51049,27 +50818,6 @@ html body.login-active #app #login-screen.login-screen .login-user-auto-icon {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-}
-
-/* DY visual/picking repair */
-.material-symbols-rounded.icon-fallback-ready {
-    line-height: 1 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-}
-
-.material-symbols-rounded.icon-fallback-ready svg {
-    width: 1em;
-    height: 1em;
-    min-width: 1em;
-    min-height: 1em;
-    display: block;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
 }
 
 @media (max-width: 768px) {
@@ -54252,6 +54000,86 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .me
   width: 100%;
 }
 
+.romaneio-photo-box {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 14px;
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  padding: 14px;
+}
+
+.romaneio-photo-box strong,
+.romaneio-photo-box small {
+  display: block;
+}
+
+.romaneio-photo-box small {
+  color: #64748b;
+  margin-top: 3px;
+}
+
+.romaneio-photo-btn,
+.romaneio-photo-clear {
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 14px;
+}
+
+.romaneio-photo-btn {
+  background: #111827;
+  color: #ffffff;
+}
+
+.romaneio-photo-btn input {
+  display: none;
+}
+
+.romaneio-photo-clear {
+  background: rgba(255, 255, 255, 0.72);
+  color: #334155;
+}
+
+.romaneio-package-photo-preview,
+.romaneio-package-photo-saved {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 14px;
+  grid-column: 1 / -1;
+  max-height: 320px;
+  object-fit: cover;
+  width: min(100%, 420px);
+}
+
+.romaneio-package-photo-saved {
+  display: block;
+  margin: 18px auto 0;
+}
+
+html[data-theme="dark"] .romaneio-photo-box {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+html[data-theme="dark"] .romaneio-photo-box small {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .romaneio-photo-clear {
+  background: rgba(30, 41, 59, 0.86);
+  color: #f8fafc;
+}
+
 @media (max-width: 980px) {
   .pick-draft-card {
     grid-template-columns: 1fr;
@@ -54324,6 +54152,15 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .me
 
   .romaneio-form {
     grid-template-columns: 1fr;
+  }
+
+  .romaneio-photo-box {
+    grid-template-columns: 1fr;
+  }
+
+  .romaneio-photo-btn,
+  .romaneio-photo-clear {
+    width: 100%;
   }
 
   .romaneio-signature-header {
@@ -56518,15 +56355,6 @@ html body:not(.login-active) #app > .dashboard-screen.security-settings-screen >
     text-rendering: optimizeLegibility !important;
   }
 
-  .material-symbols-rounded.material-icon-fallback {
-    font-family: 'Oswald', Arial, sans-serif !important;
-    font-feature-settings: normal !important;
-    font-variation-settings: normal !important;
-    font-weight: 900 !important;
-    letter-spacing: 0 !important;
-    text-align: center !important;
-    text-transform: none !important;
-  }
 }
 
 /* Product search: phone-only handling pass. */
@@ -56887,28 +56715,6 @@ html body:not(.login-active) #app > .dashboard-screen.security-settings-screen >
   }
 }
 
-/* Final DY repair overrides */
-.material-symbols-rounded.icon-fallback-ready {
-  line-height: 1 !important;
-  letter-spacing: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.material-symbols-rounded.icon-fallback-ready svg {
-  width: 1em !important;
-  height: 1em !important;
-  min-width: 1em !important;
-  min-height: 1em !important;
-  display: block !important;
-  fill: none !important;
-  stroke: currentColor !important;
-  stroke-width: 2 !important;
-  stroke-linecap: round !important;
-  stroke-linejoin: round !important;
-}
-
 @media (max-width: 768px) {
   html body:not(.login-active) #app > .dashboard-screen.menu-screen,
   html body:not(.login-active) #app > .dashboard-screen.internal,
@@ -57056,62 +56862,6 @@ html body:not(.login-active) #app > .dashboard-screen.security-settings-screen >
   }
 }
 
-/* Final quick action FAB repair: always show the local fast-mode image, never a text ligature. */
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
-  align-items: center !important;
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  bottom: 24px !important;
-  box-shadow: none !important;
-  display: inline-flex !important;
-  height: 87px !important;
-  justify-content: center !important;
-  left: auto !important;
-  min-height: 87px !important;
-  min-width: 87px !important;
-  opacity: 1 !important;
-  padding: 0 !important;
-  pointer-events: auto !important;
-  position: fixed !important;
-  right: 24px !important;
-  top: auto !important;
-  transform: none !important;
-  visibility: visible !important;
-  width: 87px !important;
-  z-index: 100003 !important;
-}
-
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab::before,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab::before {
-  content: none !important;
-  display: none !important;
-}
-
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
-  display: block !important;
-  height: 87px !important;
-  max-height: 87px !important;
-  max-width: 87px !important;
-  object-fit: contain !important;
-  pointer-events: none !important;
-  width: 87px !important;
-}
-
-@media (max-width: 768px) {
-  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
-    bottom: 16px !important;
-    right: 16px !important;
-  }
-}
-
 html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-summary-metrics .pick-package-count-field {
   align-items: center !important;
   display: flex !important;
@@ -57217,16 +56967,6 @@ html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floa
 html body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app::after {
   content: none !important;
   display: none !important;
-}
-
-html body .fab-icon-btn .app-back-chevron {
-  color: currentColor !important;
-  display: inline-flex !important;
-  font-family: Arial, Helvetica, sans-serif !important;
-  font-size: 32px !important;
-  font-weight: 700 !important;
-  line-height: 1 !important;
-  opacity: 1 !important;
 }
 
 html body.login-active #app #login-screen.login-screen .btn-floating-app .material-symbols-rounded svg,
@@ -57507,24 +57247,6 @@ html body.login-active #app #login-screen.login-screen > .btn-floating-app img {
   width: 28px !important;
 }
 
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
-  height: 130px !important;
-  min-height: 130px !important;
-  min-width: 130px !important;
-  width: 130px !important;
-}
-
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
-  height: 130px !important;
-  max-height: 130px !important;
-  max-width: 130px !important;
-  width: 130px !important;
-}
-
 html body.login-active #app #login-screen.login-screen > img.login-logo.dy-app-logo,
 html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
   max-height: clamp(44px, 7.5vh, 72px) !important;
@@ -57543,102 +57265,26 @@ html body.login-active #app #login-screen.login-screen .login-logo.dy-app-logo {
   }
 }
 
-html body .fab-icon-btn .app-back-chevron {
-  color: #111827 !important;
-  font-size: 26px !important;
-  font-weight: 600 !important;
-  transform: scaleX(0.9) !important;
-}
-
-@media (min-width: 769px) {
-  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
-    height: 228px !important;
-    min-height: 228px !important;
-    min-width: 228px !important;
-    width: 228px !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
-    height: 228px !important;
-    max-height: 228px !important;
-    max-width: 228px !important;
-    width: 228px !important;
-  }
-}
-
-/* Final mobile icon rendering repair */
-html body:not(.login-active) #app > .dashboard-screen .quick-action-fab::before,
-html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab::before,
-html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab::before {
-  content: none !important;
-  display: none !important;
-}
-
-@media (max-width: 768px) {
-  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
-    align-items: center !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
-    box-shadow: none !important;
-    display: inline-flex !important;
-    height: 104px !important;
-    justify-content: center !important;
-    left: auto !important;
-    min-height: 104px !important;
-    min-width: 104px !important;
-    opacity: 1 !important;
-    padding: 0 !important;
-    pointer-events: auto !important;
-    position: fixed !important;
-    right: 12px !important;
-    top: auto !important;
-    transform: none !important;
-    visibility: visible !important;
-    width: 104px !important;
-    z-index: 100003 !important;
-  }
-
-  html body:not(.login-active) #app > .dashboard-screen .quick-action-fab .quick-action-fab-img,
-  html body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-img,
-  html body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-img {
-    display: block !important;
-    height: 104px !important;
-    max-height: 104px !important;
-    max-width: 104px !important;
-    object-fit: contain !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-    width: 104px !important;
-  }
-}
-
 html[data-theme="dark"] body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
-html[data-theme="dark"] body.login-active #app #login-screen.login-screen > .btn-floating-app img,
-html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn svg,
-html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn .app-inline-icon {
+html[data-theme="dark"] body.login-active #app #login-screen.login-screen > .btn-floating-app img {
   color: #ffffff !important;
   filter: brightness(0) invert(1) !important;
 }
 
 html[data-theme="light"] body.login-active #app #login-screen.login-screen .top-hover-zone .btn-floating-app img,
-html[data-theme="light"] body.login-active #app #login-screen.login-screen > .btn-floating-app img,
-html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn svg,
-html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-action-group .fab-icon-btn .app-inline-icon {
+html[data-theme="light"] body.login-active #app #login-screen.login-screen > .btn-floating-app img {
   color: #111827 !important;
   filter: brightness(0) !important;
 }
 
 .material-symbols-rounded.icon-fallback-ready {
   font-size: inherit !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
   text-indent: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .material-symbols-rounded.icon-fallback-ready svg {
@@ -57649,5 +57295,551 @@ html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .top-a
   min-height: 1em !important;
   min-width: 1em !important;
   stroke: currentColor !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  stroke-width: 2 !important;
   width: 1em !important;
+}
+
+/* DY UI stabilization layer. Keep this at EOF for visual bug fixes only. */
+body:not(.login-active) #app > .dashboard-screen > .top-action-group {
+  position: fixed !important;
+  top: max(16px, env(safe-area-inset-top, 0px)) !important;
+  right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  z-index: 100020 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) {
+  position: static !important;
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #111827 !important;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: rgba(24, 24, 27, 0.96) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.38) !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-config {
+  border-color: rgba(227, 6, 19, 0.55) !important;
+  background: #e30613 !important;
+  color: #ffffff !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-desligar {
+  color: #e30613 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) .app-inline-icon,
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) svg {
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  display: block !important;
+  color: currentColor !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2.2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  filter: none !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) svg path,
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) svg circle {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+  position: fixed !important;
+  left: auto !important;
+  top: auto !important;
+  right: max(-24px, calc(env(safe-area-inset-right, 0px) - 24px)) !important;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+  width: 94px !important;
+  min-width: 94px !important;
+  height: 94px !important;
+  min-height: 94px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  z-index: 100010 !important;
+  overflow: visible !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab-img {
+  width: 94px !important;
+  height: 94px !important;
+  max-width: 94px !important;
+  max-height: 94px !important;
+  object-fit: contain !important;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-fallback,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab-fallback {
+  display: none !important;
+  width: 58px !important;
+  height: 58px !important;
+  border-radius: 50% !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #e30613 !important;
+  color: #ffffff !important;
+  box-shadow: 0 14px 30px rgba(227, 6, 19, 0.28) !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img[style*="display: none"] + .quick-action-fab-fallback,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab-img[style*="display: none"] + .quick-action-fab-fallback {
+  display: inline-flex !important;
+}
+
+@media (max-width: 768px) {
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet,
+  body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu.quick-actions-sheet {
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+    top: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(68dvh, 520px) !important;
+    padding: 14px !important;
+    border-radius: 18px !important;
+    background: rgba(15, 15, 17, 0.96) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42) !important;
+    transform: none !important;
+    overflow: hidden !important;
+    z-index: 100011 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu.quick-actions-sheet {
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet.hidden,
+  body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu.quick-actions-sheet.hidden {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-list,
+  body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-list {
+    max-height: calc(min(68dvh, 520px) - 32px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+  }
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alerts-total {
+  display: inline-flex !important;
+  min-width: 32px !important;
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 999px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #e30613 !important;
+  color: #ffffff !important;
+  font-size: 0.86rem !important;
+  font-weight: 900 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alerts-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  width: min(100%, 760px) !important;
+  margin: 0 auto !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alert-card {
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 16px !important;
+  border-radius: 14px !important;
+  background: #151515 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .operational-alert-card {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #111827 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alert-copy {
+  min-width: 0 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alert-title,
+body:not(.login-active) #app > .dashboard-screen .operational-alert-subtitle {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alert-title {
+  color: inherit !important;
+  font-size: 1rem !important;
+  font-weight: 900 !important;
+  white-space: nowrap !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen .operational-alert-subtitle {
+  color: #cbd5e1 !important;
+  font-size: 0.86rem !important;
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen .operational-alert-subtitle {
+  color: #64748b !important;
+}
+
+@media (max-width: 767px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen > main.container.product-search-center {
+    padding: calc(env(safe-area-inset-top, 0px) + 78px) 10px calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-workbench {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    position: sticky !important;
+    top: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    border-radius: 14px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-bar {
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 12px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input {
+    font-size: 16px !important;
+    line-height: 48px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chips,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-filter-list {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    margin: 0 -10px !important;
+    padding: 2px 10px 4px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip {
+    flex: 0 0 auto !important;
+    min-width: auto !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    padding: 0 11px !important;
+    border-radius: 999px !important;
+  }
+}
+
+/* Product search contrast stabilization for desktop and mobile. */
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+  background: #07090d !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+  background: #f6f8fb !important;
+  color: #111827 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-main-panel,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-side-panel,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+  background: #11151c !important;
+  border-color: rgba(226, 232, 240, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #111827 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-bar {
+  background: #07090d !important;
+  border-color: rgba(226, 232, 240, 0.18) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-bar {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #111827 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-heading,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-heading-main,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric strong,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-content h3 {
+  color: inherit !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input::placeholder,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-search-help,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric small,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-content p {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input::placeholder,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-search-help,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric small,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-content p {
+  color: #475569 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip {
+  background: #151a22 !important;
+  border-color: rgba(226, 232, 240, 0.16) !important;
+  color: #e5e7eb !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #111827 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip.active {
+  background: #e30613 !important;
+  border-color: #e30613 !important;
+  color: #ffffff !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-count {
+  background: rgba(227, 6, 19, 0.14) !important;
+  color: inherit !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip.active .product-stock-filter-count {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* Inventory and operational alert contrast guard. */
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen {
+  background: #070707 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.inventory-setup-screen,
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen {
+  background: #f6f8fb !important;
+  color: #111827 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell :where(.inventory-scanning-screen,.inventory-item,.inv-session-summary,.inv-footer-bar,.inv-setup-card,.inv-open-card,.inv-open-session-card),
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(main.container,.menu-card) {
+  background-color: #121212 !important;
+  border-color: rgba(226, 232, 240, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell :where(.inventory-scanning-screen,.inventory-item,.inv-session-summary,.inv-footer-bar,.inv-setup-card,.inv-open-card,.inv-open-session-card),
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(main.container,.menu-card) {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  color: #111827 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell :where(.inv-product-name,.inv-screen-title h1,.inv-open-session-head strong,.inv-open-row strong),
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(h1,h2,h3,.label,.operational-alert-title) {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell :where(.inv-product-name,.inv-screen-title h1,.inv-open-session-head strong,.inv-open-row strong),
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(h1,h2,h3,.label,.operational-alert-title) {
+  color: #111827 !important;
+  text-shadow: none !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell :where(.inv-product-code,.inv-product-meta,.inv-info-label,.inv-info-val,.inv-list-head,.inv-qty-label,.inv-qty-unit,.inv-total-label,.inv-open-description,.inv-open-row),
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(p,small,.operational-alert-subtitle) {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell :where(.inv-product-code,.inv-product-meta,.inv-info-label,.inv-info-val,.inv-list-head,.inv-qty-label,.inv-qty-unit,.inv-total-label,.inv-open-description,.inv-open-row),
+html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.operational-alerts-screen :where(p,small,.operational-alert-subtitle) {
+  color: #475569 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app .inventory-screen-shell :where(input,#inv-ean-input,.inv-cam-btn,.inv-qty-control,.inv-qty-num,.inv-qty-btn) {
+  background: #080808 !important;
+  border-color: rgba(226, 232, 240, 0.18) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="light"] body:not(.login-active) #app .inventory-screen-shell :where(input,#inv-ean-input,.inv-cam-btn,.inv-qty-control,.inv-qty-num,.inv-qty-btn) {
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+  color: #111827 !important;
+}
+
+/* Top controls refinement: discreet icons and larger quick-action image. */
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14) !important;
+  color: #111827 !important;
+  backdrop-filter: blur(12px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(125%) !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) {
+  background: rgba(24, 24, 27, 0.84) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36) !important;
+  color: #f8fafc !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-config,
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-desligar {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #111827 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-config,
+html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-desligar {
+  background: rgba(24, 24, 27, 0.84) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) .app-inline-icon,
+body:not(.login-active) #app > .dashboard-screen > .top-action-group .fab-icon-btn:not(.quick-action-fab) svg {
+  height: 21px !important;
+  min-height: 21px !important;
+  min-width: 21px !important;
+  width: 21px !important;
+  stroke-width: 1.9 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab {
+  width: 141px !important;
+  min-width: 141px !important;
+  height: 141px !important;
+  min-height: 141px !important;
+  right: max(-38px, calc(env(safe-area-inset-right, 0px) - 38px)) !important;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px)) !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab-img {
+  width: 141px !important;
+  height: 141px !important;
+  max-width: 141px !important;
+  max-height: 141px !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-fallback,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab-fallback {
+  width: 86px !important;
+  height: 86px !important;
+}
+
+@media (max-width: 768px) {
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-actions-menu.quick-actions-sheet,
+  body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-actions-menu.quick-actions-sheet {
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
