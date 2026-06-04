@@ -947,7 +947,7 @@ const DEFAULT_APP_CONFIG = {
 
 const DY_THEME_STORAGE_KEY = 'dyTheme';
 const DY_THEME_OPTIONS = ['auto', 'light', 'dark'];
-const DY_APP_VERSION = '2.0.0';
+const DY_APP_VERSION = '2.0.2';
 const DY_UPDATE_STATUS_KEY = 'dy_update_status';
 const DY_UPDATE_LAST_CHECK_KEY = 'dy_update_last_check';
 const DY_LOCAL_HISTORY_KEY = 'dy_local_access_history';
@@ -1642,7 +1642,7 @@ let hasCriticalStock = false;
 let cameraStream = null;
 
 const SPREADSHEET_ID = '1NK_rmdEfZYQPnFEil5pDWF1rIt9adajd1GpkcObSkv0';
-const CACHE_NAME = 'dy-autoparts-v9';
+const CACHE_NAME = 'dy-autoparts-v10';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbznHLTXr_--3PrR8GAz4-TrtX4jttC5cg7CH8cPa7KzoRQPQMZrmtEPBAMWE5KqMTUXwA/exec'; // URL do Google Apps Script para salvar dados
 const API_BASE = "https://script.google.com/macros/s/AKfycbznHLTXr_--3PrR8GAz4-TrtX4jttC5cg7CH8cPa7KzoRQPQMZrmtEPBAMWE5KqMTUXwA/exec";
 
@@ -12920,11 +12920,13 @@ async function resumePickingDraftFromServer(sessionId) {
                 channelId: localDraft.channelId,
                 channelLabel: localDraft.channelLabel,
                 channelColor: localDraft.channelColor,
-                executionId: localDraft.executionId || generateExecutionId(),
-                createdAt: localDraft.createdAt || getDataHoraBrasil(),
-                total_pacotes_montados: getPickPackageCountFrom(localDraft),
-                totalPacotesMontados: getPickPackageCountFrom(localDraft)
-            };
+            executionId: localDraft.executionId || generateExecutionId(),
+            createdAt: localDraft.createdAt || getDataHoraBrasil(),
+            isFastMode: isPickingFastModeSource(localDraft),
+            modo_rapido: isPickingFastModeSource(localDraft),
+            total_pacotes_montados: getPickPackageCountFrom(localDraft),
+            totalPacotesMontados: getPickPackageCountFrom(localDraft)
+        };
             saveDraftPickSession({ ...localDraft, sessionId: safeSessionId });
             renderPickingScreen(safeSessionId, localDraft.channelId, localDraft.channelLabel, localDraft.channelColor);
             warnIfDraftPickWasNotSynced(localDraft);
@@ -12958,6 +12960,8 @@ async function resumePickingDraftFromServer(sessionId) {
         channelColor,
         executionId: generateExecutionId(),
         createdAt: session.criado_em || session.data_separacao || getDataHoraBrasil(),
+        isFastMode: isPickingFastModeSource(session),
+        modo_rapido: isPickingFastModeSource(session),
         total_pacotes_montados: getPickPackageCountFrom(session),
         totalPacotesMontados: getPickPackageCountFrom(session)
     };
@@ -12971,6 +12975,8 @@ async function resumePickingDraftFromServer(sessionId) {
         operatorId: localStorage.getItem('currentUser'),
         createdAt: currentPickingContext.createdAt,
         executionId: currentPickingContext.executionId,
+        isFastMode: isPickingFastModeSource(session),
+        modo_rapido: isPickingFastModeSource(session),
         total_pacotes_montados: getPickPackageCountFrom(session),
         totalPacotesMontados: getPickPackageCountFrom(session),
         saveStatus: 'synced'
@@ -13432,7 +13438,29 @@ let scanSuccessGlowTimeout = null;
 const PICK_STATUS_DRAFT = 'em_separacao';
 const PICK_STATUS_READY_FOR_PACK = 'aberta';
 const PICK_STATUS_FINISHED = 'finalizada';
+const PICK_FAST_OBSERVATION = 'SAIDA_RAPIDA AUTOMATICA';
+const PICK_MANUAL_OBSERVATION = 'SEPARACAO MANUAL';
 const PICK_PACKAGE_TOTALS_STORAGE_KEY = 'dyPickPackageTotalsBySession';
+
+function isPickingFastModeSource(source = {}) {
+    if (!source || typeof source !== 'object') return false;
+    const observation = String(source.observacao || source.pickingData?.observacao || '').toUpperCase();
+    return source.isFastMode === true
+        || source.fastMode === true
+        || source.modo_rapido === true
+        || source.pickingData?.isFastMode === true
+        || source.pickingData?.modo_rapido === true
+        || observation.includes('SAIDA_RAPIDA')
+        || observation.includes('MODO RAPIDO')
+        || observation.includes('MODO_RAPIDO');
+}
+
+function getActivePickingFastMode(draft = null) {
+    return isPickingFastModeSource(currentPickingContext)
+        || isPickingFastModeSource(draft)
+        || isPickingFastModeSource(currentPickSession)
+        || isPickingFastModeSource(currentPickSession?.pickingData);
+}
 
 function normalizePickPackageCount(value) {
     const count = Math.floor(Number(value || 0));
@@ -13599,6 +13627,8 @@ function syncPickPackageCount(count, persist = true) {
             operatorId: localStorage.getItem('currentUser'),
             createdAt: currentPickingContext?.createdAt || getDraftPickSession()?.createdAt || getDataHoraBrasil(),
             executionId: currentPickingContext?.executionId || getDraftPickSession()?.executionId || generateExecutionId(),
+            isFastMode: getActivePickingFastMode(getDraftPickSession()),
+            modo_rapido: getActivePickingFastMode(getDraftPickSession()),
             total_produtos_separados: countDifferentPickProducts(currentSessionItems),
             total_itens_separados: getPickItemsTotal(currentSessionItems),
             total_pacotes_montados: safeCount,
@@ -13867,6 +13897,7 @@ function buildPickingSessionPayload(sessionId, channelId, channelLabel, status =
     const now = getDataHoraBrasil();
     const currentUser = localStorage.getItem('currentUser') || 'N/A';
     const stats = getPickingOperationalStats();
+    const isFastMode = getActivePickingFastMode(getDraftPickSession());
     return {
         separacao_id: sessionId,
         pedido_referencia: '',
@@ -13879,7 +13910,7 @@ function buildPickingSessionPayload(sessionId, channelId, channelLabel, status =
         total_produtos_separados: stats.total_produtos_separados,
         total_itens_separados: stats.total_itens_separados,
         total_pacotes_montados: stats.total_pacotes_montados,
-        observacao: 'SEPARACAO MANUAL'
+        observacao: isFastMode ? PICK_FAST_OBSERVATION : PICK_MANUAL_OBSERVATION
     };
 }
 
@@ -14300,7 +14331,9 @@ async function startPickingSession(channelId, channelLabel, channelColor) {
         channelColor,
         sessionId: generatePickSessionId(channelLabel),
         executionId: generateExecutionId(),
-        createdAt: getDataHoraBrasil()
+        createdAt: getDataHoraBrasil(),
+        isFastMode: isModoRapidoAtivo(),
+        modo_rapido: isModoRapidoAtivo()
     };
     
     currentSessionItems = [];
@@ -14923,6 +14956,8 @@ function getCurrentPickDraftForUpdate(saveStatus = 'saving') {
         channelColor: currentPickingContext?.channelColor || existingDraft.channelColor || 'pdv',
         items: currentSessionItems,
         status: PICK_STATUS_DRAFT,
+        isFastMode: getActivePickingFastMode(existingDraft),
+        modo_rapido: getActivePickingFastMode(existingDraft),
         operatorId: localStorage.getItem('currentUser'),
         createdAt: existingDraft.createdAt || currentPickingContext?.createdAt || getDataHoraBrasil(),
         executionId: existingDraft.executionId || currentPickingContext?.executionId || generateExecutionId(),
@@ -15210,6 +15245,8 @@ async function addPickItem(scannedEan = null) {
                 timestamp: getDataHoraBrasil(now),
                 createdAt: currentPickingContext?.createdAt || getDataHoraBrasil(now),
                 executionId: currentPickingContext?.executionId || generateExecutionId(),
+                isFastMode: getActivePickingFastMode(),
+                modo_rapido: getActivePickingFastMode(),
                 total_produtos_separados: 0,
                 total_itens_separados: 0,
                 total_pacotes_montados: getCurrentPickPackageCount(),
@@ -15225,6 +15262,8 @@ async function addPickItem(scannedEan = null) {
         draft.channelColor = currentPickingContext?.channelColor || draft.channelColor;
         draft.items = currentSessionItems;
         draft.status = PICK_STATUS_DRAFT;
+        draft.isFastMode = getActivePickingFastMode(draft);
+        draft.modo_rapido = getActivePickingFastMode(draft);
         draft.timestamp = getDataHoraBrasil();
         draft.createdAt = draft.createdAt || getDataHoraBrasil();
         draft.executionId = draft.executionId || currentPickingContext?.executionId || generateExecutionId();
@@ -15414,7 +15453,7 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
 
         const currentUser = localStorage.getItem('currentUser');
         const now = getDataHoraBrasil();
-        const modoRapidoAtivo = isModoRapidoAtivo();
+        const modoRapidoAtivo = getActivePickingFastMode(getDraftPickSession());
         const stats = getPickingOperationalStats(currentSessionItems);
 
         const pickingData = {
@@ -15433,7 +15472,9 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
             total_produtos_separados: stats.total_produtos_separados,
             total_itens_separados: stats.total_itens_separados,
             total_pacotes_montados: stats.total_pacotes_montados,
-            observacao: modoRapidoAtivo ? 'SAIDA_RAPIDA AUTOMATICA' : 'SEPARACAO MANUAL POR NF'
+            observacao: modoRapidoAtivo ? PICK_FAST_OBSERVATION : 'SEPARACAO MANUAL POR NF',
+            isFastMode: modoRapidoAtivo,
+            modo_rapido: modoRapidoAtivo
         };
 
         const groupedItems = currentSessionItems.reduce((acc, item) => {
@@ -15465,6 +15506,8 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
             time: now,
             pickingData,
             conferenceRows,
+            isFastMode: modoRapidoAtivo,
+            modo_rapido: modoRapidoAtivo,
             total_produtos_separados: stats.total_produtos_separados,
             total_itens_separados: stats.total_itens_separados,
             total_pacotes_montados: stats.total_pacotes_montados
@@ -15806,7 +15849,9 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
         total_produtos_separados: stats.total_produtos_separados,
         total_itens_separados: stats.total_itens_separados,
         total_pacotes_montados: stats.total_pacotes_montados,
-        observacao: 'SAIDA_RAPIDA AUTOMATICA'
+        observacao: PICK_FAST_OBSERVATION,
+        isFastMode: true,
+        modo_rapido: true
     };
     const existingIndex = appData.separacao.findIndex(s => (s.separacao_id || s.col_a) === sessionId);
     if (existingIndex >= 0) appData.separacao[existingIndex] = { ...appData.separacao[existingIndex], ...localSession };
@@ -15873,7 +15918,7 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             createdAt: currentPickSession?.pickingData?.criado_em || now,
             executionId: generateExecutionId()
         };
-        const modoRapidoAtivo = isModoRapidoAtivo();
+        const modoRapidoAtivo = getActivePickingFastMode(draft);
         console.log('[SEPARACAO] modo selecionado', {
             sessionId,
             modo: modoRapidoAtivo ? 'rapido' : 'normal'
@@ -16017,6 +16062,7 @@ async function renderPackMenu() {
 
     const activeSessions = (appData.separacao || []).filter(s => {
         const st = String(s.status || '').toLowerCase();
+        if (isPickingFastModeSource(s)) return false;
         return st === 'aberta' || st === 'pendente' || st === 'pronta_conferencia';
     });
 
@@ -16169,14 +16215,14 @@ async function renderPackSessionsList(channelName) {
         activeSessions = (appData.separacao || []).filter(s => {
             const chan = s.canal_nome || s.col_c || s.canal || 'Outros';
             const st = String(s.status || '').toLowerCase();
-            return chan === channelName && st === 'aberta';
+            return chan === channelName && st === 'aberta' && !isPickingFastModeSource(s);
         });
     }
 
     activeSessions = activeSessions.filter(s => {
         const chan = s.canal_nome || s.col_c || s.canal || 'Outros';
         const st = String(s.status || '').toLowerCase();
-        return chan === channelName && st === 'aberta';
+        return chan === channelName && st === 'aberta' && !isPickingFastModeSource(s);
     });
 
     const channelConfig = getChannelConfig(channelName);
@@ -20165,6 +20211,8 @@ function applyLabelTemplate(key, keepPaper = true) {
 
 function getLabelTemplateConfig() {
     return {
+        codigo: String(labelGeneratorState.codigo || '').trim(),
+        descricao: String(labelGeneratorState.descricao || '').trim(),
         paperType: labelGeneratorState.paperType,
         pageWidth: Number(labelGeneratorState.pageWidth) || 0,
         pageHeight: Number(labelGeneratorState.pageHeight) || 0,
@@ -20181,6 +20229,10 @@ function getLabelTemplateConfig() {
         offsetX: Number(labelGeneratorState.offsetX) || 0,
         offsetY: Number(labelGeneratorState.offsetY) || 0
     };
+}
+
+function isA4356LabelTemplate(cfg = getLabelTemplateConfig()) {
+    return String(cfg.codigo || labelGeneratorState.codigo || '').trim().toUpperCase() === 'A4356';
 }
 
 function getExpandedLabelItems(includeFill = true) {
@@ -20296,7 +20348,7 @@ function applyEtiquetaLoteToState(lote, options = {}) {
 }
 
 function getProductLabelName(product) {
-    return String(product?.descricao_completa || product?.nome || product?.name || 'Produto sem nome').trim();
+    return String(product?.etiqueta_nome || product?.descricao_completa || product?.descricao_base || product?.nome || product?.name || 'Produto sem nome').trim();
 }
 
 function getProductLabelCode(product) {
@@ -20355,13 +20407,219 @@ function getLabelCatalogProducts() {
 function findLabelCatalogProductById(idInterno) {
     const normalized = String(idInterno || '').trim().toLowerCase();
     if (!normalized) return null;
-    return getLabelCatalogProducts().find(product => product.idInterno.toLowerCase() === normalized) || null;
+    return getLabelCatalogProducts().find(product => String(product.idInterno || '').toLowerCase() === normalized) || null;
 }
 
 function findLabelCatalogProductByName(name) {
     const normalized = safeText(name);
     if (!normalized) return null;
     return getLabelCatalogProducts().find(product => safeText(product.name) === normalized) || null;
+}
+
+function normalizeLabelImportId(value) {
+    return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function parseLabelImportIds(text) {
+    const counts = new Map();
+    String(text || '')
+        .split(/[\s,;]+/g)
+        .map(normalizeLabelImportId)
+        .filter(Boolean)
+        .forEach(id => counts.set(id, (counts.get(id) || 0) + 1));
+    return counts;
+}
+
+function getLabelProductNameFromRow(product, fallbackId = '') {
+    return String(product?.etiqueta_nome || product?.descricao_completa || product?.descricao_base || product?.nome || product?.name || fallbackId || 'Produto sem nome').trim();
+}
+
+function findLabelProductInLocalCache(idInterno) {
+    const normalized = normalizeLabelImportId(idInterno);
+    if (!normalized) return null;
+    return (Array.isArray(appData.products) ? appData.products : []).find(product => {
+        return normalizeLabelImportId(product?.id_interno || product?.col_A || product?.col_a || product?.id) === normalized;
+    }) || null;
+}
+
+async function fetchLabelProductByIdInterno(idInterno) {
+    const normalized = normalizeLabelImportId(idInterno);
+    if (!normalized) return null;
+    try {
+        if (window.supabaseClientReady) await window.supabaseClientReady;
+        const client = window.supabaseClient;
+        if (!client?.from) return null;
+        const { data, error } = await client
+            .from('produtos')
+            .select('id_interno,etiqueta_nome,descricao_completa,descricao_base,nome')
+            .eq('id_interno', normalized)
+            .limit(1);
+        if (error) throw error;
+        return Array.isArray(data) && data.length ? data[0] : null;
+    } catch (error) {
+        console.warn('[ETIQUETAS] erro ao buscar produto importado:', normalized, error);
+        return null;
+    }
+}
+
+async function resolveLabelImportedProducts(idCounts) {
+    const found = [];
+    const notFound = [];
+
+    for (const [idInterno, quantity] of idCounts.entries()) {
+        let product = findLabelProductInLocalCache(idInterno);
+        if (!product) product = await fetchLabelProductByIdInterno(idInterno);
+        if (!product) {
+            notFound.push(idInterno);
+            continue;
+        }
+        const resolvedId = normalizeLabelImportId(product.id_interno || idInterno);
+        found.push({
+            idInterno: resolvedId,
+            name: getLabelProductNameFromRow(product, resolvedId),
+            quantity
+        });
+    }
+
+    return { found, notFound };
+}
+
+function mergeImportedLabelItems(products) {
+    let addedProducts = 0;
+    let summedQuantity = 0;
+    labelGeneratorState.items = (labelGeneratorState.items || []).filter(item => {
+        return String(item?.name || item?.idInterno || item?.id_interno || item?.code || '').trim();
+    });
+
+    products.forEach(product => {
+        const idInterno = normalizeLabelImportId(product.idInterno);
+        const quantity = Math.max(1, Math.floor(Number(product.quantity) || 1));
+        const index = (labelGeneratorState.items || []).findIndex(item => {
+            return normalizeLabelImportId(item?.idInterno || item?.id_interno || item?.code) === idInterno;
+        });
+
+        if (index >= 0) {
+            labelGeneratorState.items[index].quantity = Math.max(0, Math.floor(Number(labelGeneratorState.items[index].quantity) || 0)) + quantity;
+            if (!String(labelGeneratorState.items[index].name || '').trim()) labelGeneratorState.items[index].name = product.name;
+            summedQuantity += quantity;
+            return;
+        }
+
+        labelGeneratorState.items.push({
+            name: product.name,
+            idInterno,
+            quantity
+        });
+        addedProducts += 1;
+    });
+
+    if (!labelGeneratorState.items.length) {
+        labelGeneratorState.items.push({ name: '', idInterno: '', quantity: 1 });
+    }
+
+    return { addedProducts, summedQuantity };
+}
+
+function openLabelImportIdsModal() {
+    document.getElementById('label-import-ids-modal')?.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'label-import-ids-modal';
+    overlay.className = 'label-import-overlay';
+    overlay.innerHTML = `
+        <div class="label-import-dialog" role="dialog" aria-modal="true" aria-labelledby="label-import-title">
+            <button type="button" class="label-import-close" onclick="closeLabelImportIdsModal()" aria-label="Fechar">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+            <div class="label-import-heading">
+                <span class="material-symbols-rounded">upload_file</span>
+                <div>
+                    <h2 id="label-import-title">Importar IDs</h2>
+                    <p>Cole IDs ou escolha um arquivo .txt/.csv.</p>
+                </div>
+            </div>
+            <textarea id="label-import-ids-text" placeholder="DY-000.128&#10;DY-000.129&#10;DY-000.130"></textarea>
+            <label class="label-import-file">
+                <span class="material-symbols-rounded">attach_file</span>
+                <span id="label-import-file-name">Escolher arquivo .txt ou .csv</span>
+                <input id="label-import-ids-file" type="file" accept=".txt,.csv,text/plain,text/csv" onchange="handleLabelImportFileChange(this)">
+            </label>
+            <div class="label-import-actions">
+                <button type="button" class="label-tool-btn secondary" onclick="closeLabelImportIdsModal()">Cancelar</button>
+                <button type="button" class="label-tool-btn" onclick="importLabelIdsFromModal()">
+                    <span class="material-symbols-rounded">check_circle</span>
+                    Importar
+                </button>
+            </div>
+        </div>
+    `;
+    overlay.addEventListener('click', event => {
+        if (event.target === overlay) closeLabelImportIdsModal();
+    });
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => overlay.classList.add('open'));
+    setTimeout(() => overlay.querySelector('#label-import-ids-text')?.focus(), 60);
+}
+
+function closeLabelImportIdsModal() {
+    const overlay = document.getElementById('label-import-ids-modal');
+    if (!overlay) return;
+    overlay.classList.add('closing');
+    setTimeout(() => overlay.remove(), 160);
+}
+
+function handleLabelImportFileChange(input) {
+    const file = input?.files?.[0];
+    const nameEl = document.getElementById('label-import-file-name');
+    if (nameEl) nameEl.textContent = file ? file.name : 'Escolher arquivo .txt ou .csv';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        const textarea = document.getElementById('label-import-ids-text');
+        if (!textarea) return;
+        const current = String(textarea.value || '').trim();
+        const incoming = String(reader.result || '').trim();
+        textarea.value = current && incoming ? `${current}\n${incoming}` : (current || incoming);
+    };
+    reader.readAsText(file);
+}
+
+async function importLabelIdsFromModal() {
+    const textarea = document.getElementById('label-import-ids-text');
+    const ids = parseLabelImportIds(textarea?.value || '');
+    if (!ids.size) {
+        showToast('Cole ou selecione pelo menos um ID para importar.', 'warning');
+        return;
+    }
+
+    const importButton = document.querySelector('#label-import-ids-modal .label-import-actions .label-tool-btn:not(.secondary)');
+    if (importButton) {
+        importButton.disabled = true;
+        importButton.innerHTML = `<span class="material-symbols-rounded">hourglass_top</span> Importando`;
+    }
+
+    const { found, notFound } = await resolveLabelImportedProducts(ids);
+    const { addedProducts, summedQuantity } = mergeImportedLabelItems(found);
+    if (labelGeneratorState.activeLoteId) labelGeneratorState.status = 'rascunho';
+    saveLabelDraft();
+    closeLabelImportIdsModal();
+    renderLabelGeneratorScreenKeepingPosition();
+
+    const summary = `${addedProducts} produto(s) adicionado(s)\n${summedQuantity} quantidade(s) somada(s)\n${notFound.length} nao encontrado(s)`;
+    await showAppAlert({
+        title: 'Importacao concluida',
+        message: 'Resumo da importacao de IDs.',
+        detail: summary,
+        icon: notFound.length ? 'warning' : 'check_circle'
+    });
+
+    if (notFound.length) {
+        await showAppAlert({
+            title: `${notFound.length} IDs nao encontrados`,
+            message: notFound.slice(0, 30).join(', '),
+            detail: notFound.length > 30 ? `Mais ${notFound.length - 30} ID(s) oculto(s).` : '',
+            icon: 'warning'
+        });
+    }
 }
 
 function formatLabelMm(valueMm) {
@@ -20389,6 +20647,10 @@ function renderLabelGeneratorScreen() {
     const paperTemplates = getLabelTemplatesByPaper();
     updateLabelPrintPageStyle(cfg);
     const isPreview = labelGeneratorState.viewMode === 'preview';
+    const screenTitle = isPreview ? 'PR&Eacute;-VISUALIZA&Ccedil;&Atilde;O DE ETIQUETAS' : 'ETIQUETAS PRODUTOS';
+    const screenSubtitle = isPreview
+        ? 'Confira a folha A4 antes de imprimir.'
+        : 'Gera&ccedil;&atilde;o de etiquetas profissional com gabaritos Pimaco.';
     const currentLoteName = String(labelGeneratorState.nomeLote || '').trim();
     const loteStatus = labelGeneratorState.status || 'rascunho';
     const savedLabel = labelGeneratorState.activeLoteId
@@ -20403,31 +20665,37 @@ function renderLabelGeneratorScreen() {
                     <div class="label-generator-heading">
                         <span class="material-symbols-rounded">barcode</span>
                         <div>
-                            <h1>ETIQUETAS PRODUTOS</h1>
-                            <p>Geração de etiquetas profissional com gabaritos Pimaco.</p>
+                            <h1>${screenTitle}</h1>
+                            <p>${screenSubtitle}</p>
                         </div>
                     </div>
                     <div class="label-page-actions">
+                        ${isPreview ? '' : `
+                        <button type="button" class="label-tool-btn" onclick="startNewEtiquetaLote()">
+                            <span class="material-symbols-rounded">add</span>
+                            Novo Lote
+                        </button>
                         <button type="button" class="label-tool-btn secondary" onclick="renderLabelHistoryScreen()">
                             <span class="material-symbols-rounded">history</span>
-                            Histórico
+                            Hist&oacute;rico
                         </button>
                         <button type="button" class="label-tool-btn secondary" onclick="saveCurrentEtiquetaLote()">
                             <span class="material-symbols-rounded">save</span>
                             Salvar Lote
                         </button>
+                        `}
                         ${isPreview ? `
                             <button type="button" class="label-tool-btn secondary" onclick="editLabelList()">
-                                <span class="material-symbols-rounded">edit</span>
-                                Editar lista
+                                <span class="material-symbols-rounded">arrow_back</span>
+                                Voltar
                             </button>
-                            <button type="button" class="label-tool-btn secondary" onclick="duplicateCurrentEtiquetaLote()">
-                                <span class="material-symbols-rounded">content_copy</span>
-                                Duplicar Lote
-                            </button>
-                            <button type="button" class="label-tool-btn" onclick="reprintCurrentEtiquetaLote()">
+                            <button type="button" class="label-tool-btn" onclick="printLabelSheet()">
                                 <span class="material-symbols-rounded">print</span>
-                                Reimprimir
+                                Imprimir
+                            </button>
+                            <button type="button" class="label-tool-btn" onclick="downloadLabelPdf()">
+                                <span class="material-symbols-rounded">picture_as_pdf</span>
+                                Gerar PDF
                             </button>
                         ` : ''}
                     </div>
@@ -20437,7 +20705,7 @@ function renderLabelGeneratorScreen() {
                     <section class="label-preview-panel label-generator-card">
                         <div class="label-preview-head no-print">
                             <div>
-                                <div class="label-section-title">Preview da folha</div>
+                                <div class="label-section-title">Folha A4</div>
                                 <p class="label-helper-text">${labels.length} etiqueta(s) | ${hasTemplate ? `${totalCells} por folha | ${pageCount} folha(s)` : 'Sem gabarito selecionado'}</p>
                             </div>
                             <div class="label-preview-options">
@@ -20504,14 +20772,20 @@ function renderLabelGeneratorScreen() {
                         </aside>
 
                         <section class="label-generator-card label-list-panel no-print">
-                            <div class="label-section-title">Lista de impressão</div>
+                            <div class="label-list-title-row">
+                                <div class="label-section-title">Lista de impressão</div>
+                                <button type="button" class="label-import-btn" onclick="openLabelImportIdsModal()">
+                                    <span class="material-symbols-rounded">upload_file</span>
+                                    Importar IDs
+                                </button>
+                            </div>
                             ${renderSavedLabelProductsDatalist()}
                             <div class="label-items-table">
                                 <div class="label-items-head">
-                                    <span>Produto</span>
                                     <span>ID interno</span>
+                                    <span>Produto</span>
                                     <span>Qtd.</span>
-                                    <span></span>
+                                    <span>A&ccedil;&otilde;es</span>
                                 </div>
                                 <div id="label-items-list">
                                     ${(labelGeneratorState.items || []).length ? (labelGeneratorState.items || []).map((item, index) => renderLabelItemRow(item, index)).join('') : renderLabelItemRow({ name: '', idInterno: '', quantity: 1 }, 0)}
@@ -20540,9 +20814,9 @@ function renderLabelItemRow(item, index) {
     const canRemove = (labelGeneratorState.items || []).length > 1 && !isLastRow;
     return `
         <div class="label-item-row">
-            <input list="label-product-names" value="${escapeKitAttribute(item.name || '')}" placeholder="Produto" oninput="updateLabelItem(${index}, 'name', this.value)" onchange="applyLabelProductByName(${index}, this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
-            <input list="label-product-ids" value="${escapeKitAttribute(item.idInterno || item.id_interno || item.code || '')}" placeholder="ID interno" oninput="updateLabelItem(${index}, 'idInterno', this.value)" onchange="applyLabelProductById(${index}, this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
-            <input type="number" min="0" step="1" value="${Number(item.quantity) || 0}" oninput="updateLabelItem(${index}, 'quantity', this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
+            <input data-label-field="idInterno" list="label-product-ids" value="${escapeKitAttribute(item.idInterno || item.id_interno || item.code || '')}" placeholder="ID interno" oninput="updateLabelItem(${index}, 'idInterno', this.value)" onchange="applyLabelProductById(${index}, this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
+            <input data-label-field="name" list="label-product-names" value="${escapeKitAttribute(item.name || '')}" placeholder="Produto" oninput="updateLabelItem(${index}, 'name', this.value)" onchange="applyLabelProductByName(${index}, this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
+            <input data-label-field="quantity" type="number" min="0" step="1" value="${Number(item.quantity) || 0}" oninput="updateLabelItem(${index}, 'quantity', this.value)" onkeydown="handleLabelRowKeydown(event, ${index})">
             ${isLastRow ? `
                 <button type="button" class="label-row-add-btn" onclick="addLabelGeneratorRow()" title="Adicionar próxima linha">
                     <span class="material-symbols-rounded">add</span>
@@ -20650,6 +20924,10 @@ function renderPrintLabelCell(label, cfg) {
 
     const name = String(label.name || '');
     const idInterno = String(label.idInterno || label.id_interno || label.code || '').trim();
+    if (isA4356LabelTemplate(cfg)) {
+        return renderPrintLabelCellA4356({ name, idInterno }, cfg);
+    }
+
     const bottomPadding = cfg.labelHeight > 30 ? '1.5mm' : cfg.labelHeight > 20 ? '0.8mm' : '0.6mm';
     const nameFontSize = cfg.labelHeight > 30 ? '12px' : cfg.labelHeight > 20 ? '11px' : '10px';
     const codeFontSize = cfg.labelHeight > 30 ? '11px' : cfg.labelHeight > 20 ? '10.5px' : '10px';
@@ -20671,6 +20949,121 @@ function renderPrintLabelCell(label, cfg) {
             </div>
         </div>
     `;
+}
+
+function renderPrintLabelCellA4356(label, cfg) {
+    const name = String(label.name || '');
+    const idInterno = String(label.idInterno || '').trim();
+    const title = formatEtiquetaTitulo(name);
+
+    return `
+        <div class="print-label-cell print-label-cell-a4356" style="
+            width:${cfg.labelWidth}mm;
+            height:${cfg.labelHeight}mm;
+            padding: 1.15mm 0.9mm 0.55mm 0.9mm;
+        ">
+            <div class="print-label-name print-label-name-a4356 ${title.mode === 'single' ? 'single-line' : 'two-line'}" style="font-size:${title.fontSize}px;">
+                ${title.lines.map(line => `<span>${escapeKitAttribute(line)}</span>`).join('')}
+            </div>
+            <div class="print-label-media-row-a4356">
+                <div class="print-label-barcode print-label-barcode-a4356">
+                    ${renderCode128BarcodeSvg(idInterno)}
+                </div>
+                <div class="print-label-qr-a4356">
+                    ${renderQrCodeSvg(idInterno)}
+                </div>
+            </div>
+            <div class="print-label-code print-label-code-a4356">
+                ${escapeKitAttribute(idInterno)}
+            </div>
+        </div>
+    `;
+}
+
+function splitEtiquetaTituloInTwoLines(text) {
+    const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length <= 1) return [String(text || '').trim(), ''];
+
+    const totalLength = words.join(' ').length;
+    const target = Math.ceil(totalLength / 2);
+    let bestIndex = 1;
+    let bestScore = Infinity;
+
+    for (let i = 1; i < words.length; i++) {
+        const first = words.slice(0, i).join(' ');
+        const second = words.slice(i).join(' ');
+        const balanceScore = Math.abs(first.length - second.length);
+        const targetScore = Math.abs(first.length - target);
+        const score = balanceScore * 1.35 + targetScore;
+        if (score < bestScore) {
+            bestScore = score;
+            bestIndex = i;
+        }
+    }
+
+    return [
+        words.slice(0, bestIndex).join(' '),
+        words.slice(bestIndex).join(' ')
+    ];
+}
+
+function formatEtiquetaTitulo(texto) {
+    const normalized = String(texto || '').trim().replace(/\s+/g, ' ');
+    const length = normalized.length;
+
+    if (length <= 30) {
+        return {
+            mode: 'single',
+            lines: [normalized],
+            fontSize: length <= 24 ? 16.4 : 15.4
+        };
+    }
+
+    const lines = splitEtiquetaTituloInTwoLines(normalized).filter(Boolean).slice(0, 2);
+    const longestLine = Math.max(...lines.map(line => line.length), 0);
+    const fontSize = longestLine <= 26 ? 13 : longestLine <= 32 ? 12.4 : 11.6;
+
+    return {
+        mode: 'double',
+        lines,
+        fontSize
+    };
+}
+
+function getLabelScrollPosition() {
+    return {
+        x: window.scrollX || document.documentElement.scrollLeft || 0,
+        y: window.scrollY || document.documentElement.scrollTop || 0
+    };
+}
+
+function renderLabelGeneratorScreenKeepingPosition(options = {}) {
+    const scroll = getLabelScrollPosition();
+    renderLabelGeneratorScreen();
+    requestAnimationFrame(() => {
+        window.scrollTo(scroll.x, scroll.y);
+        if (Number.isInteger(options.focusRowIndex)) {
+            const row = document.querySelectorAll('.label-item-row')[options.focusRowIndex];
+            const field = options.focusField || 'idInterno';
+            const input = row?.querySelector(`[data-label-field="${field}"]`) || row?.querySelector('input');
+            if (input) {
+                input.focus({ preventScroll: true });
+                if (typeof input.select === 'function') input.select();
+            }
+        }
+    });
+}
+
+function syncLabelRowInputs(index) {
+    const item = labelGeneratorState.items[index];
+    const row = document.querySelectorAll('.label-item-row')[index];
+    if (!item || !row) return;
+    const idInput = row.querySelector('[data-label-field="idInterno"]');
+    const nameInput = row.querySelector('[data-label-field="name"]');
+    const quantityInput = row.querySelector('[data-label-field="quantity"]');
+    if (idInput) idInput.value = item.idInterno || item.id_interno || item.code || '';
+    if (nameInput) nameInput.value = item.name || '';
+    if (quantityInput) quantityInput.value = Number(item.quantity) || 0;
 }
 
 function updateLabelItem(index, field, value) {
@@ -20833,7 +21226,10 @@ function addLabelGeneratorRow() {
     if (labelGeneratorState.activeLoteId) labelGeneratorState.status = 'rascunho';
     labelGeneratorState.items.push({ name: '', idInterno: '', quantity: 1 });
     saveLabelDraft();
-    renderLabelGeneratorScreen();
+    renderLabelGeneratorScreenKeepingPosition({
+        focusRowIndex: labelGeneratorState.items.length - 1,
+        focusField: 'idInterno'
+    });
 }
 
 function handleLabelRowKeydown(event, index) {
@@ -20844,11 +21240,10 @@ function handleLabelRowKeydown(event, index) {
         labelGeneratorState.items.push({ name: '', idInterno: '', quantity: 1 });
     }
     saveLabelDraft();
-    renderLabelGeneratorScreen();
-    setTimeout(() => {
-        const rows = document.querySelectorAll('.label-item-row');
-        rows[index + 1]?.querySelector('input')?.focus();
-    }, 0);
+    renderLabelGeneratorScreenKeepingPosition({
+        focusRowIndex: Math.min(index + 1, labelGeneratorState.items.length - 1),
+        focusField: 'idInterno'
+    });
 }
 
 function getSavedLabelProducts() {
@@ -20887,7 +21282,8 @@ function applyLabelProductToRow(index, match) {
     labelGeneratorState.items[index].name = match.name;
     labelGeneratorState.items[index].idInterno = match.idInterno;
     saveLabelDraft();
-    renderLabelGeneratorScreen();
+    syncLabelRowInputs(index);
+    refreshLabelPreview();
 }
 
 function applyLabelProductByName(index, name) {
@@ -20929,6 +21325,33 @@ function clearLabelGeneratorRows() {
     labelGeneratorState.lastSavedAt = null;
     saveLabelDraft();
     renderLabelGeneratorScreen();
+}
+
+async function startNewEtiquetaLote() {
+    const hasDraft = !!(
+        labelGeneratorState.activeLoteId ||
+        String(labelGeneratorState.nomeLote || '').trim() ||
+        String(labelGeneratorState.observacoes || '').trim() ||
+        (labelGeneratorState.items || []).some(item => {
+            const text = String(item?.name || item?.idInterno || item?.id_interno || item?.code || '').trim();
+            return text || Number(item?.quantity || 0) > 0;
+        })
+    );
+
+    if (hasDraft) {
+        const confirmed = await showAppConfirm({
+            title: 'Iniciar novo lote?',
+            message: 'A lista atual sera limpa para voce comecar etiquetas do zero.',
+            detail: 'Se precisar manter este lote, salve antes de iniciar um novo.',
+            confirmLabel: 'Novo lote',
+            cancelLabel: 'Cancelar',
+            danger: true
+        });
+        if (!confirmed) return;
+    }
+
+    clearLabelGeneratorRows();
+    showToast('Novo lote iniciado.');
 }
 
 async function saveCurrentEtiquetaLote({ silent = false } = {}) {
@@ -21067,8 +21490,8 @@ async function renderLabelHistoryScreen() {
                     <div class="label-generator-heading">
                         <span class="material-symbols-rounded">history</span>
                         <div>
-                            <h1>HISTÓRICO DE ETIQUETAS</h1>
-                            <p>Lotes salvos no Supabase para edição e reimpressão multiusuário.</p>
+                            <h1>HIST&Oacute;RICO DE ETIQUETAS</h1>
+                            <p>Lotes salvos no Supabase para edi&ccedil;&atilde;o e reimpress&atilde;o multiusu&aacute;rio.</p>
                         </div>
                     </div>
                     <div class="label-page-actions">
@@ -21221,10 +21644,26 @@ function renderLabelBarcodes() {
             console.warn('[ETIQUETAS] codigo invalido para CODE128:', code, error);
         }
     });
+
+    document.querySelectorAll('canvas[data-label-qr]').forEach(canvas => {
+        const code = String(canvas.dataset.labelQr || '').trim();
+        const ctx = canvas.getContext('2d');
+        if (!code) {
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            return;
+        }
+
+        try {
+            renderQrCodeCanvas(canvas, code);
+        } catch (error) {
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            console.warn('[ETIQUETAS] QR Code invalido:', code, error);
+        }
+    });
 }
 
-function renderCode128BarcodeFallback(canvas, code, options = {}) {
-    const patterns = [
+function getCode128Patterns() {
+    return [
         '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213',
         '221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
         '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211',
@@ -21237,7 +21676,9 @@ function renderCode128BarcodeFallback(canvas, code, options = {}) {
         '214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
         '114131','311141','411131','211412','211214','211232','2331112'
     ];
+}
 
+function getCode128CodeValues(code) {
     const normalized = String(code || '').trim();
     if (!normalized) throw new Error('Codigo vazio');
 
@@ -21251,12 +21692,53 @@ function renderCode128BarcodeFallback(canvas, code, options = {}) {
     let checksum = codes[0];
     for (let i = 1; i < codes.length; i++) checksum += codes[i] * i;
     codes.push(checksum % 103, 106);
+    return codes;
+}
 
+function getCode128BarcodeModules(code) {
+    const patterns = getCode128Patterns();
+    return getCode128CodeValues(code).flatMap(value => {
+        const pattern = patterns[value];
+        if (!pattern) throw new Error('Padrao CODE128 indisponivel');
+        return pattern.split('').map((digit, index) => ({
+            width: Number(digit),
+            black: index % 2 === 0
+        }));
+    });
+}
+
+function renderCode128BarcodeSvg(code) {
+    try {
+        const modules = getCode128BarcodeModules(code);
+        const quietModules = 10;
+        const height = 48;
+        const totalModules = modules.reduce((sum, module) => sum + module.width, 0);
+        const viewWidth = totalModules + quietModules * 2;
+        let x = quietModules;
+        const rects = modules.map(module => {
+            const currentX = x;
+            x += module.width;
+            if (!module.black) return '';
+            return `<rect x="${currentX}" y="0" width="${module.width}" height="${height}"></rect>`;
+        }).join('');
+
+        return `
+            <svg class="label-barcode-svg-a4356" viewBox="0 0 ${viewWidth} ${height}" preserveAspectRatio="none" role="img" aria-label="${escapeKitAttribute(code)}" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="${viewWidth}" height="${height}" fill="#fff"></rect>
+                <g fill="#000">${rects}</g>
+            </svg>
+        `;
+    } catch (error) {
+        console.warn('[ETIQUETAS] codigo invalido para SVG CODE128:', code, error);
+        return '';
+    }
+}
+
+function renderCode128BarcodeFallback(canvas, code, options = {}) {
+    const modules = getCode128BarcodeModules(code);
     const barWidth = Number(options.width) || 3;
     const height = Number(options.height) || 100;
-    const totalModules = codes.reduce((sum, value) => {
-        return sum + patterns[value].split('').reduce((acc, digit) => acc + Number(digit), 0);
-    }, 0);
+    const totalModules = modules.reduce((sum, module) => sum + module.width, 0);
 
     canvas.width = totalModules * barWidth;
     canvas.height = height;
@@ -21269,14 +21751,469 @@ function renderCode128BarcodeFallback(canvas, code, options = {}) {
     ctx.fillStyle = '#000000';
 
     let x = 0;
-    codes.forEach(value => {
-        const pattern = patterns[value];
-        for (let i = 0; i < pattern.length; i++) {
-            const width = Number(pattern[i]) * barWidth;
-            if (i % 2 === 0) ctx.fillRect(x, 0, width, height);
-            x += width;
+    modules.forEach(module => {
+        const width = module.width * barWidth;
+        if (module.black) ctx.fillRect(x, 0, width, height);
+        x += width;
+    });
+}
+
+function getQrTextBytes(text) {
+    const normalized = String(text || '');
+    if (typeof TextEncoder !== 'undefined') return Array.from(new TextEncoder().encode(normalized));
+    return Array.from(normalized).map(char => char.charCodeAt(0) & 0xff);
+}
+
+function appendQrBits(bits, value, length) {
+    for (let i = length - 1; i >= 0; i--) bits.push((value >>> i) & 1);
+}
+
+function makeQrDataCodewords(text, dataCodewords) {
+    const bytes = getQrTextBytes(text);
+    if (bytes.length > dataCodewords - 2) throw new Error('Conteudo maior que a capacidade do QR');
+
+    const bits = [];
+    appendQrBits(bits, 0x4, 4);
+    appendQrBits(bits, bytes.length, 8);
+    bytes.forEach(byte => appendQrBits(bits, byte, 8));
+
+    const capacityBits = dataCodewords * 8;
+    appendQrBits(bits, 0, Math.min(4, capacityBits - bits.length));
+    while (bits.length % 8) bits.push(0);
+
+    const data = [];
+    for (let i = 0; i < bits.length; i += 8) {
+        data.push(bits.slice(i, i + 8).reduce((value, bit) => (value << 1) | bit, 0));
+    }
+    for (let pad = 0; data.length < dataCodewords; pad++) data.push(pad % 2 ? 0x11 : 0xec);
+    return data;
+}
+
+function qrGfMultiply(x, y) {
+    let result = 0;
+    for (let i = 0; i < 8; i++) {
+        if (y & 1) result ^= x;
+        const carry = x & 0x80;
+        x = (x << 1) & 0xff;
+        if (carry) x ^= 0x1d;
+        y >>>= 1;
+    }
+    return result;
+}
+
+function qrGfPow(power) {
+    let value = 1;
+    for (let i = 0; i < power; i++) value = qrGfMultiply(value, 2);
+    return value;
+}
+
+function makeQrGeneratorPolynomial(degree) {
+    const poly = new Array(degree).fill(0);
+    poly[degree - 1] = 1;
+    let root = 1;
+    for (let i = 0; i < degree; i++) {
+        for (let j = 0; j < degree; j++) {
+            poly[j] = qrGfMultiply(poly[j], root);
+            if (j + 1 < degree) poly[j] ^= poly[j + 1];
+        }
+        root = qrGfMultiply(root, 2);
+    }
+    return poly;
+}
+
+function makeQrErrorCorrection(data, degree) {
+    const generator = makeQrGeneratorPolynomial(degree);
+    const remainder = new Array(degree).fill(0);
+    data.forEach(byte => {
+        const factor = byte ^ remainder.shift();
+        remainder.push(0);
+        for (let i = 0; i < degree; i++) {
+            remainder[i] ^= qrGfMultiply(generator[i], factor);
         }
     });
+    return remainder;
+}
+
+function placeQrFinder(matrix, reserved, row, col) {
+    const size = matrix.length;
+    for (let y = -1; y <= 7; y++) {
+        for (let x = -1; x <= 7; x++) {
+            const r = row + y;
+            const c = col + x;
+            if (r < 0 || r >= size || c < 0 || c >= size) continue;
+            const inFinder = y >= 0 && y <= 6 && x >= 0 && x <= 6;
+            const dark = inFinder && (y === 0 || y === 6 || x === 0 || x === 6 || (y >= 2 && y <= 4 && x >= 2 && x <= 4));
+            matrix[r][c] = dark;
+            reserved[r][c] = true;
+        }
+    }
+}
+
+function placeQrAlignment(matrix, reserved, row, col) {
+    for (let y = -2; y <= 2; y++) {
+        for (let x = -2; x <= 2; x++) {
+            const r = row + y;
+            const c = col + x;
+            if (reserved[r]?.[c]) continue;
+            matrix[r][c] = Math.max(Math.abs(x), Math.abs(y)) !== 1;
+            reserved[r][c] = true;
+        }
+    }
+}
+
+function placeQrFunctionPatterns(matrix, reserved, config) {
+    const size = matrix.length;
+    placeQrFinder(matrix, reserved, 0, 0);
+    placeQrFinder(matrix, reserved, 0, size - 7);
+    placeQrFinder(matrix, reserved, size - 7, 0);
+
+    for (let i = 8; i < size - 8; i++) {
+        const dark = i % 2 === 0;
+        matrix[6][i] = dark;
+        reserved[6][i] = true;
+        matrix[i][6] = dark;
+        reserved[i][6] = true;
+    }
+
+    config.alignment.forEach(row => {
+        config.alignment.forEach(col => {
+            if (reserved[row]?.[col]) return;
+            placeQrAlignment(matrix, reserved, row, col);
+        });
+    });
+
+    matrix[size - 8][8] = true;
+    reserved[size - 8][8] = true;
+
+    for (let i = 0; i < 9; i++) {
+        if (i !== 6) {
+            reserved[8][i] = true;
+            reserved[i][8] = true;
+        }
+    }
+    for (let i = 0; i < 8; i++) {
+        reserved[8][size - 1 - i] = true;
+        reserved[size - 1 - i][8] = true;
+    }
+}
+
+function placeQrFormatBits(matrix, bits = 0x5412) {
+    const size = matrix.length;
+    const getBit = index => ((bits >> index) & 1) === 1;
+
+    for (let i = 0; i <= 5; i++) matrix[8][i] = getBit(i);
+    matrix[8][7] = getBit(6);
+    matrix[8][8] = getBit(7);
+    matrix[7][8] = getBit(8);
+    for (let i = 9; i < 15; i++) matrix[14 - i][8] = getBit(i);
+
+    for (let i = 0; i < 8; i++) matrix[size - 1 - i][8] = getBit(i);
+    for (let i = 8; i < 15; i++) matrix[8][size - 15 + i] = getBit(i);
+}
+
+function getQrConfigForText(text) {
+    const length = getQrTextBytes(text).length;
+    if (length <= 26) {
+        return { version: 2, size: 25, dataCodewords: 28, ecCodewords: 16, alignment: [6, 18], formatBits: 0x5412 };
+    }
+    return { version: 3, size: 29, dataCodewords: 44, ecCodewords: 26, alignment: [6, 22], formatBits: 0x5412 };
+}
+
+function makeQrMatrix(text) {
+    const config = getQrConfigForText(text);
+    const size = config.size;
+    const matrix = Array.from({ length: size }, () => Array(size).fill(false));
+    const reserved = Array.from({ length: size }, () => Array(size).fill(false));
+    placeQrFunctionPatterns(matrix, reserved, config);
+
+    const data = makeQrDataCodewords(text, config.dataCodewords);
+    const codewords = data.concat(makeQrErrorCorrection(data, config.ecCodewords));
+    const bits = [];
+    codewords.forEach(byte => appendQrBits(bits, byte, 8));
+
+    let bitIndex = 0;
+    let upward = true;
+    for (let col = size - 1; col > 0; col -= 2) {
+        if (col === 6) col--;
+        for (let rowOffset = 0; rowOffset < size; rowOffset++) {
+            const row = upward ? size - 1 - rowOffset : rowOffset;
+            for (let dx = 0; dx < 2; dx++) {
+                const c = col - dx;
+                if (reserved[row][c]) continue;
+                let dark = bits[bitIndex++] === 1;
+                if ((row + c) % 2 === 0) dark = !dark;
+                matrix[row][c] = dark;
+            }
+        }
+        upward = !upward;
+    }
+
+    placeQrFormatBits(matrix, config.formatBits);
+    return matrix;
+}
+
+function renderQrCodeSvg(text) {
+    try {
+        const matrix = makeQrMatrix(text);
+        const quiet = 4;
+        const size = matrix.length + quiet * 2;
+        const path = matrix.map((row, r) => {
+            return row.map((dark, c) => {
+                if (!dark) return '';
+                return `M${c + quiet} ${r + quiet}h1v1h-1z`;
+            }).join('');
+        }).join('');
+
+        return `
+            <svg class="label-qr-svg-a4356" viewBox="0 0 ${size} ${size}" role="img" aria-label="${escapeKitAttribute(text)}" xmlns="http://www.w3.org/2000/svg">
+                <rect x="0" y="0" width="${size}" height="${size}" fill="#fff"></rect>
+                <path d="${path}" fill="#000"></path>
+            </svg>
+        `;
+    } catch (error) {
+        console.warn('[ETIQUETAS] QR Code SVG invalido:', text, error);
+        return '';
+    }
+}
+
+function renderQrCodeCanvas(canvas, text) {
+    const matrix = makeQrMatrix(text);
+    const quiet = 4;
+    const moduleSize = 6;
+    const size = matrix.length + quiet * 2;
+    canvas.width = size * moduleSize;
+    canvas.height = size * moduleSize;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    matrix.forEach((row, r) => {
+        row.forEach((dark, c) => {
+            if (dark) ctx.fillRect((c + quiet) * moduleSize, (r + quiet) * moduleSize, moduleSize, moduleSize);
+        });
+    });
+}
+
+const labelPdfFontCache = {};
+
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+}
+
+async function ensureLabelPdfFont(doc, family, url, fileName, style = 'normal') {
+    if (!doc?.addFileToVFS || !doc?.addFont) return false;
+    const cacheKey = `${family}:${style}`;
+    try {
+        if (!labelPdfFontCache[cacheKey]) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Fonte indisponivel: ${url}`);
+            labelPdfFontCache[cacheKey] = arrayBufferToBase64(await response.arrayBuffer());
+        }
+        doc.addFileToVFS(fileName, labelPdfFontCache[cacheKey]);
+        doc.addFont(fileName, family, style);
+        return true;
+    } catch (error) {
+        console.warn('[ETIQUETAS] nao foi possivel carregar fonte do PDF:', url, error);
+        return false;
+    }
+}
+
+async function prepareLabelPdfFonts(doc) {
+    const fjallaLoaded = await ensureLabelPdfFont(doc, 'DYFjallaPdf', '/assets/fontes/FjallaOne-Regular.ttf', 'FjallaOne-Regular.ttf');
+    const oswaldLoaded = await ensureLabelPdfFont(doc, 'DYOswaldPdf', '/assets/fontes/Oswald-Bold.ttf', 'Oswald-Bold.ttf');
+    return {
+        title: fjallaLoaded ? 'DYFjallaPdf' : 'helvetica',
+        code: oswaldLoaded ? 'DYOswaldPdf' : 'helvetica'
+    };
+}
+
+function getLabelPdfFileName(cfg) {
+    const code = String(cfg.codigo || 'etiquetas').toLowerCase();
+    const lote = String(labelGeneratorState.nomeLote || getLabelLoteDefaultName() || 'lote')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9_-]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase();
+    return `${code}-${lote || 'lote'}.pdf`;
+}
+
+function splitPdfLabelText(doc, text, maxWidth, maxLines = 2) {
+    const normalized = String(text || '').trim().toUpperCase();
+    if (!normalized) return [];
+    const lines = doc.splitTextToSize(normalized, maxWidth).slice(0, maxLines);
+    return lines.map(line => String(line || '').trim()).filter(Boolean);
+}
+
+function drawPdfCode128(doc, code, x, y, width, height) {
+    const normalized = String(code || '').trim();
+    if (!normalized) return;
+    const modules = getCode128BarcodeModules(normalized);
+    const quietModules = 10;
+    const totalModules = modules.reduce((sum, module) => sum + module.width, 0) + quietModules * 2;
+    const moduleWidth = width / totalModules;
+    let currentX = x + quietModules * moduleWidth;
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(x, y, width, height, 'F');
+    doc.setFillColor(0, 0, 0);
+    modules.forEach(module => {
+        const moduleMm = module.width * moduleWidth;
+        if (module.black) doc.rect(currentX, y, Math.max(moduleMm, 0.01), height, 'F');
+        currentX += moduleMm;
+    });
+}
+
+function drawPdfQrCode(doc, code, x, y, sizeMm) {
+    const normalized = String(code || '').trim();
+    if (!normalized) return;
+    const matrix = makeQrMatrix(normalized);
+    const quiet = 4;
+    const totalModules = matrix.length + quiet * 2;
+    const moduleSize = sizeMm / totalModules;
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(x, y, sizeMm, sizeMm, 'F');
+    doc.setFillColor(0, 0, 0);
+    matrix.forEach((row, r) => {
+        row.forEach((dark, c) => {
+            if (!dark) return;
+            doc.rect(x + (c + quiet) * moduleSize, y + (r + quiet) * moduleSize, moduleSize, moduleSize, 'F');
+        });
+    });
+}
+
+function drawPdfLabelA4356(doc, label, cfg, x, y, fonts) {
+    const name = String(label?.name || '');
+    const idInterno = String(label?.idInterno || label?.id_interno || label?.code || '').trim();
+    const labelWidth = Number(cfg.labelWidth) || 63.5;
+    const labelHeight = Number(cfg.labelHeight) || 25.4;
+    const padX = 1.05;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(fonts.title, 'normal');
+    const title = formatEtiquetaTitulo(name);
+    const nameLines = title.lines.map(line => String(line || '').trim().toUpperCase()).filter(Boolean);
+    doc.setFontSize(title.fontSize * 0.78);
+    const nameLineHeight = nameLines.length > 1 ? 3.15 : 3.6;
+    const nameStartY = y + (nameLines.length > 1 ? 3.45 : 4.85);
+    nameLines.forEach((line, index) => {
+        doc.text(line, x + labelWidth / 2, nameStartY + index * nameLineHeight, {
+            align: 'center',
+            baseline: 'middle',
+            maxWidth: labelWidth - padX * 2
+        });
+    });
+
+    drawPdfCode128(doc, idInterno, x + 1.15, y + 9.2, labelWidth - 16.3, 8.9);
+    drawPdfQrCode(doc, idInterno, x + labelWidth - 13.1, y + 8.55, 12);
+
+    doc.setFont(fonts.code, 'normal');
+    doc.setFontSize(10.2);
+    doc.text(idInterno, x + labelWidth / 2, y + labelHeight - 2.35, {
+        align: 'center',
+        baseline: 'middle',
+        maxWidth: labelWidth - 2
+    });
+}
+
+function drawPdfLabelGeneric(doc, label, cfg, x, y, fonts) {
+    const name = String(label?.name || '');
+    const idInterno = String(label?.idInterno || label?.id_interno || label?.code || '').trim();
+    const labelWidth = Number(cfg.labelWidth) || 38.1;
+    const labelHeight = Number(cfg.labelHeight) || 21.2;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont(fonts.title, 'normal');
+    doc.setFontSize(labelHeight > 20 ? 8.2 : 7.5);
+    splitPdfLabelText(doc, name, labelWidth - 2, 2).forEach((line, index) => {
+        doc.text(line, x + labelWidth / 2, y + 3.4 + index * 3, {
+            align: 'center',
+            baseline: 'middle',
+            maxWidth: labelWidth - 2
+        });
+    });
+
+    drawPdfCode128(doc, idInterno, x + 1.2, y + labelHeight * 0.47, labelWidth - 2.4, labelHeight * 0.28);
+
+    doc.setFont(fonts.code, 'normal');
+    doc.setFontSize(labelHeight > 20 ? 8 : 7.4);
+    doc.text(idInterno, x + labelWidth / 2, y + labelHeight - 2.2, {
+        align: 'center',
+        baseline: 'middle',
+        maxWidth: labelWidth - 2
+    });
+}
+
+function drawPdfLabelCell(doc, label, cfg, x, y, fonts) {
+    if (!label) return;
+    if (isA4356LabelTemplate(cfg)) {
+        drawPdfLabelA4356(doc, label, cfg, x, y, fonts);
+        return;
+    }
+    drawPdfLabelGeneric(doc, label, cfg, x, y, fonts);
+}
+
+async function downloadLabelPdf() {
+    const cfg = getLabelTemplateConfig();
+    const labels = getExpandedLabelItems(true);
+    const totalCells = cfg.cols * cfg.rows;
+    const jsPDF = window.jspdf?.jsPDF;
+
+    if (!cfg.pageWidth || !cfg.pageHeight || !totalCells) {
+        showToast('Selecione um gabarito ativo antes de gerar o PDF.');
+        return;
+    }
+    if (!labels.length) {
+        showToast('Adicione pelo menos um produto antes de gerar o PDF.');
+        return;
+    }
+    if (!jsPDF) {
+        showToast('Biblioteca de PDF nao carregada.', 'error');
+        return;
+    }
+
+    try {
+        const doc = new jsPDF({
+            orientation: cfg.pageWidth > cfg.pageHeight ? 'landscape' : 'portrait',
+            unit: 'mm',
+            format: [cfg.pageWidth, cfg.pageHeight],
+            compress: true
+        });
+        const fonts = await prepareLabelPdfFonts(doc);
+        const pages = Math.ceil(labels.length / totalCells);
+
+        for (let page = 0; page < pages; page++) {
+            if (page > 0) doc.addPage([cfg.pageWidth, cfg.pageHeight], cfg.pageWidth > cfg.pageHeight ? 'landscape' : 'portrait');
+            doc.setFillColor(255, 255, 255);
+            doc.rect(0, 0, cfg.pageWidth, cfg.pageHeight, 'F');
+
+            for (let index = 0; index < totalCells; index++) {
+                const label = labels[page * totalCells + index];
+                if (!label) continue;
+                const col = index % cfg.cols;
+                const row = Math.floor(index / cfg.cols);
+                const x = cfg.marginLeft + cfg.offsetX + col * cfg.pitchX;
+                const y = cfg.marginTop + cfg.offsetY + row * cfg.pitchY;
+                drawPdfLabelCell(doc, label, cfg, x, y, fonts);
+            }
+        }
+
+        doc.save(getLabelPdfFileName(cfg));
+    } catch (error) {
+        console.error('[ETIQUETAS] falha ao gerar PDF:', error);
+        showToast('Nao foi possivel gerar o PDF das etiquetas.', 'error');
+    }
 }
 
 async function printLabelSheet() {

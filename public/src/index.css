@@ -31094,6 +31094,171 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   margin-bottom: 12px;
 }
 
+.label-list-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.label-list-title-row .label-section-title {
+  margin-bottom: 0;
+}
+
+.label-import-btn {
+  min-height: 36px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #f8fafc;
+  color: #111827;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.76rem;
+  font-weight: 950;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.label-import-btn .material-symbols-rounded {
+  color: #ef2b2d;
+  font-size: 20px;
+}
+
+.label-import-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.68);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+}
+
+.label-import-overlay.open {
+  opacity: 1;
+}
+
+.label-import-overlay.closing {
+  opacity: 0;
+}
+
+.label-import-dialog {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.34);
+  padding: 18px;
+}
+
+.label-import-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #111827;
+  cursor: pointer;
+}
+
+.label-import-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 46px;
+  margin-bottom: 14px;
+}
+
+.label-import-heading > .material-symbols-rounded {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #ef2b2d;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 24px rgba(239, 43, 45, 0.2);
+}
+
+.label-import-heading h2 {
+  margin: 0;
+  color: #111827;
+  font-family: 'Fjalla One', sans-serif;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.label-import-heading p {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.label-import-dialog textarea {
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  border: 1px solid #d7dde7;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 12px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.86rem;
+  font-weight: 800;
+  line-height: 1.5;
+  outline: 0;
+  box-sizing: border-box;
+}
+
+.label-import-file {
+  min-height: 48px;
+  margin-top: 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.label-import-file .material-symbols-rounded {
+  color: #ef2b2d;
+}
+
+.label-import-file input {
+  display: none;
+}
+
+.label-import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
 .label-items-table {
   display: flex;
   flex-direction: column;
@@ -31103,7 +31268,7 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
 .label-items-head,
 .label-item-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(120px, 0.9fr) 76px 38px;
+  grid-template-columns: minmax(130px, 0.85fr) minmax(0, 1.55fr) 76px 54px;
   gap: 8px;
   align-items: center;
 }
@@ -31113,6 +31278,13 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   font-size: 0.68rem;
   font-weight: 950;
   text-transform: uppercase;
+}
+
+.label-items-head span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .label-item-row {
@@ -31605,6 +31777,12 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   image-rendering: pixelated;
 }
 
+.print-label-barcode svg {
+  display: block;
+  max-width: 100%;
+  height: 100%;
+}
+
 .print-label-code {
   height: 20%;
   flex-shrink: 0;
@@ -31623,6 +31801,122 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   text-align: center;
   text-overflow: clip;
   max-width: 100%;
+}
+
+.print-label-cell-a4356 {
+  display: grid;
+  grid-template-rows: 7mm 11.2mm 4.1mm;
+  align-content: stretch;
+  gap: 0.45mm;
+  justify-content: stretch;
+}
+
+.print-label-name-a4356 {
+  height: 7mm;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.25mm;
+  transform: none;
+  font-family: 'DY Fjalla', 'Fjalla One', 'Arial Narrow', sans-serif;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
+  -webkit-line-clamp: 2;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.print-label-name-a4356.single-line {
+  display: flex;
+  white-space: nowrap;
+  -webkit-line-clamp: 1;
+}
+
+.print-label-name-a4356.two-line {
+  display: flex;
+  flex-direction: column;
+  padding-top: 0.1mm;
+  white-space: nowrap;
+}
+
+.print-label-name-a4356 span {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: clip;
+}
+
+.print-label-media-row-a4356 {
+  height: 11.2mm;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 13.4mm;
+  align-items: center;
+  column-gap: 1mm;
+  min-width: 0;
+}
+
+.print-label-barcode-a4356 {
+  height: 10.7mm;
+  width: 100%;
+  padding: 0 0.15mm 0 0.2mm;
+}
+
+.label-barcode-svg-a4356 {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  shape-rendering: crispEdges;
+}
+
+.label-barcode-svg-a4356 rect,
+.label-barcode-svg-a4356 path {
+  shape-rendering: crispEdges;
+}
+
+.print-label-code-a4356 {
+  height: 4.1mm;
+  align-items: center;
+  justify-content: center;
+  padding-top: 0;
+  font-family: 'DY Oswald', 'Oswald', 'PT Sans Narrow', 'Arial Narrow', sans-serif;
+  font-size: 12.4px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  color: #000;
+}
+
+.print-label-qr-a4356 {
+  width: 13.4mm;
+  height: 11.2mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.print-label-qr-a4356 canvas,
+.print-label-qr-a4356 svg {
+  width: 12mm;
+  height: 12mm;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.label-qr-svg-a4356 {
+  background: #fff;
+  shape-rendering: crispEdges;
+}
+
+.label-qr-svg-a4356 path,
+.label-qr-svg-a4356 rect {
+  shape-rendering: crispEdges;
 }
 
 @media (max-width: 1280px) {
@@ -31700,6 +31994,30 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
   .label-list-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .label-list-title-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .label-import-btn,
+  .label-import-actions .label-tool-btn {
+    width: 100%;
+  }
+
+  .label-import-overlay {
+    padding: 10px;
+  }
+
+  .label-import-dialog {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+    padding: 16px;
+  }
+
+  .label-import-actions {
+    flex-direction: column-reverse;
   }
 
   .label-page-actions {
@@ -35045,6 +35363,12 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
     overflow: hidden !important;
     break-after: page !important;
     transform: none !important;
+  }
+
+  #label-print-area svg,
+  #label-print-area svg rect,
+  #label-print-area svg path {
+    shape-rendering: crispEdges !important;
   }
 
   .label-print-page:last-child {
@@ -50428,6 +50752,60 @@ html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-s
 html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.compras-screen :where(input,select,textarea)::placeholder,
 html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.module-screen.compras-screen :where(input,select,textarea)::placeholder {
   color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-screen,.dashboard-screen.label-generator-screen) :where(.label-history-card,.label-history-metrics span) {
+  background: #111827 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-screen,.dashboard-screen.label-generator-screen) :where(.label-history-card h2,.label-history-metrics strong) {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-screen,.dashboard-screen.label-generator-screen) :where(.label-history-card p,.label-history-metrics span) {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-screen,.dashboard-screen.label-generator-screen) .label-history-status {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] body:not(.login-active) #app > :where(.label-generator-screen,.dashboard-screen.label-generator-screen) .label-history-status.printed {
+  background: rgba(34, 197, 94, 0.16) !important;
+  color: #86efac !important;
+}
+
+html[data-theme="dark"] .label-import-dialog {
+  background: #111827 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .label-import-heading h2,
+html[data-theme="dark"] .label-import-btn,
+html[data-theme="dark"] .label-import-close,
+html[data-theme="dark"] .label-import-file {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .label-import-heading p {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .label-import-dialog textarea,
+html[data-theme="dark"] .label-import-file,
+html[data-theme="dark"] .label-import-btn,
+html[data-theme="dark"] .label-import-close {
+  background: #0b1220 !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html[data-theme="dark"] .label-import-dialog textarea {
+  color: #f8fafc !important;
 }
 
 /* Mobile-only final pass: centered module headers and tappable product search. */
