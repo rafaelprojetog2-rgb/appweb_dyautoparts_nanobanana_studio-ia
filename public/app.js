@@ -51,9 +51,12 @@ const MATERIAL_ICON_FALLBACKS = {
     remove_circle: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
     remove_done: '<svg viewBox="0 0 24 24"><path d="M5 12h8"/><path d="m14 15 2 2 4-5"/></svg>',
     search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>',
+    sell: '<svg viewBox="0 0 24 24"><path d="M20 10 12 2H4v8l8 8 8-8Z"/><circle cx="8" cy="6" r="1.5"/></svg>',
     storefront: '<svg viewBox="0 0 24 24"><path d="M4 10h16l-1-6H5l-1 6Z"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/><path d="M3 10c0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0 0 2 3 2 3 0"/></svg>',
     two_wheeler: '<svg viewBox="0 0 24 24"><circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17h4l3-7h3l2 7"/><path d="M11 10H8M14 7h3M13 10l-2-3"/></svg>',
     touch_app: '<svg viewBox="0 0 24 24"><path d="M9 11V5a2 2 0 0 1 4 0v8"/><path d="M13 9h2a2 2 0 0 1 2 2v2"/><path d="M17 12h1a2 2 0 0 1 2 2v1"/><path d="M9 11 7.5 9.5a2 2 0 0 0-2.8 2.8l4.8 5.2A5 5 0 0 0 13.2 19H16a4 4 0 0 0 4-4"/></svg>',
+    trending_down: '<svg viewBox="0 0 24 24"><path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/></svg>',
+    trending_up: '<svg viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>',
     verified: '<svg viewBox="0 0 24 24"><path d="m12 3 3 2 4 .5.5 4 2 3-2 3-.5 4-4 .5-3 2-3-2-4-.5-.5-4-2-3 2-3 .5-4 4-.5 3-2Z"/><path d="m8 12 3 3 6-7"/></svg>',
     warehouse: '<svg viewBox="0 0 24 24"><path d="M3 10 12 4l9 6v10H3z"/><path d="M7 20v-8h10v8M7 14h10M7 17h10"/></svg>',
     warning: '<svg viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5M12 18h.01"/></svg>'
@@ -336,16 +339,15 @@ async function handleProductScan(rawValue, context = 'search') {
     if (product) {
         showScanFeedback('success', 'Produto Encontrado');
         
-        // Se estiver na busca, abre detalhes
+        // Na busca, leitura por scanner/camera deve voltar para a lista de resultados.
         if (context === 'search') {
             const input = document.getElementById('search-input');
-            if (input) input.value = '';
-            
-            // Pequeno delay para o usuário ver o feedback verde antes do modal
-            setTimeout(() => {
-                stopScanner();
-                renderProductDetails(product);
-            }, 600);
+            if (input) {
+                input.value = rawValue;
+                input.focus();
+            }
+            await stopScanner();
+            performSearch();
         } else if (context === 'garantia') {
             const input = document.getElementById('garantia-search-input');
             if (input) input.value = '';
@@ -883,14 +885,14 @@ async function revertStockMovement(sessionId, row, operatorId) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(normalizePayloadForSheet({
                 action: 'movimento',
-                tipo: 'saida', // Normalizado para 'saida' (estorno é uma saída de correção)
+                tipo: 'SAIDA', // Normalizado para 'saida' (estorno é uma saída de correção)
                 id_interno: row.id_interno,
                 local: '1andar', // Canonical 1andar
                 quantidade: row.qtd_conferida, 
                 data_hora: now,
                 usuario: operatorId,
-                origem: `REVERSAO-${sessionId}`,
-                observacao: `Correção de erro operacional da sessao ${sessionId}`
+                origem: 'MANUAL',
+                observacao: `REVERSAO-${sessionId} | Correção de erro operacional da sessao ${sessionId}`
             }))
         });
         showToast(`Estorno concluído (sincronizado).`);
@@ -1622,6 +1624,17 @@ function formatPrice(value, prefix = 'R$ ') {
     return prefix + num.toFixed(2).replace('.', ',');
 }
 
+function formatCurrency(value) {
+    const number = Number(value || 0);
+
+    return number.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
 function formatUnityWithQty(unidade, qtdEmbalagem) {
     const u = unidade || 'UN';
     const q = parseInt(qtdEmbalagem) || 1;
@@ -2115,6 +2128,10 @@ async function refreshOutboxPendingCount() {
 
 async function executeQueuedOperation(operation) {
     if (operation.type === 'supabase_rpc' && operation.meta?.rpcName === 'finalizar_conferencia') {
+        const payload = operation.payload || {};
+        if (isFastPickingPayload(payload) || (isModoRapidoAtivo() && payload.modo_rapido !== false && payload.isFastMode !== false)) {
+            throw new Error(`Bloqueado: operacao offline nao pode finalizar conferencia no modo rapido ${payload.sessionId || ''}.`);
+        }
         return DataClient.finalizarConferenciaSupabase(operation.payload);
     }
 
@@ -2123,6 +2140,10 @@ async function executeQueuedOperation(operation) {
     }
 
     if (operation.type === 'supabase_pick_create_conference') {
+        const payload = operation.payload || {};
+        if (isFastPickingPayload(payload) || (isModoRapidoAtivo() && payload.modo_rapido !== false && payload.isFastMode !== false)) {
+            throw new Error(`Bloqueado: operacao offline nao pode criar conferencia para separacao rapida ${payload.sessionId || ''}.`);
+        }
         return createPickingConferenceWithoutStock(operation.payload);
     }
 
@@ -2985,7 +3006,8 @@ function logout() {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('currentUserId');
     localStorage.removeItem('currentUserProfile');
-    localStorage.removeItem('draft_pick_session');
+    localStorage.removeItem(PICK_CURRENT_DRAFT_STORAGE_KEY);
+    localStorage.removeItem(PICK_DRAFT_SESSIONS_STORAGE_KEY);
     
     // Limpar estados de memória
     currentPackSession = null;
@@ -4186,11 +4208,15 @@ function renderMovimentacoesList(history) {
             'AJUSTE': { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
             'AJUSTE+': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
             'AJUSTE-': { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
+            'AJUSTE_POSITIVO': { bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
+            'AJUSTE_NEGATIVO': { bg: 'rgba(239,68,68,0.15)', color: '#ef4444' },
             'AJUSTE_ESTOQUE': { bg: 'rgba(59,130,246,0.15)', color: '#3b82f6' }
         };
         const c = colors[tipo] || { bg: 'rgba(255,255,255,0.1)', color: 'white' };
         const labels = {
             'ENTRADA_NF': 'ENTRADA NF',
+            'AJUSTE_POSITIVO': 'AJUSTE +',
+            'AJUSTE_NEGATIVO': 'AJUSTE -',
             'ajuste_estoque': 'AJUSTE'
         };
         return `<span style="background: ${c.bg}; color: ${c.color}; padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; font-weight: 700;">${labels[tipo] || tipo}</span>`;
@@ -6211,7 +6237,7 @@ async function saveNovaMovimentacao(tipo) {
     }
 
     const movData = {
-        tipo: tipo,
+        tipo: tipo === 'AJUSTE' ? ((tipoAjusteInput?.value || 'positivo') === 'positivo' ? 'AJUSTE_POSITIVO' : 'AJUSTE_NEGATIVO') : tipo,
         id_interno: selectedProductForMov.id_interno || selectedProductForMov.col_a,
         local_origem: localOrigem,
         local_destino: localDestino,
@@ -6477,7 +6503,7 @@ async function saveMovimentacao(tipo) {
         local_destino: localDestino,
         quantidade: qty,
         usuario: localStorage.getItem('currentUser'),
-        origem: 'APP_MOBILE',
+        origem: 'MANUAL',
         observacao: obs
     };
 
@@ -7498,7 +7524,7 @@ async function saveAjusteEstoque() {
 
         // 1. Salvar movimento
         const movData = {
-            tipo: 'ajuste_estoque',
+            tipo: diferenca >= 0 ? 'AJUSTE_POSITIVO' : 'AJUSTE_NEGATIVO',
             id_interno: idInterno,
             local_origem: localRaw,
             local_destino: '',
@@ -7625,6 +7651,7 @@ function buildInventoryItemFromRow(row) {
         ean: product?.ean || row.ean || row.id_interno,
         name: product?.descricao_completa || product?.nome || row.name || `PRODUTO ID: ${row.id_interno} (NÃO CARREGADO)`,
         brand: product?.marca || row.brand || '',
+        local: row.local || '',
         db_ids: row.id ? [row.id] : (Array.isArray(row.db_ids) ? row.db_ids : [])
     };
 }
@@ -7636,7 +7663,9 @@ function groupInventoryItemsByProduct(rows = []) {
         if (!idInterno) continue;
 
         const item = buildInventoryItemFromRow({ ...row, id_interno: idInterno });
-        const current = grouped.get(idInterno);
+        const localKey = normalizeLocal(row?.local || '');
+        const groupKey = `${idInterno}::${localKey}`;
+        const current = grouped.get(groupKey);
         if (current) {
             current.qty += item.qty;
             current.diferenca = current.qty - Number(current.saldo_sistema || 0);
@@ -7644,7 +7673,7 @@ function groupInventoryItemsByProduct(rows = []) {
             current.db_ids = Array.from(new Set([...(current.db_ids || []), ...(item.db_ids || [])]));
             continue;
         }
-        grouped.set(idInterno, applyInventoryCostToItem(item));
+        grouped.set(groupKey, applyInventoryCostToItem(item));
     }
     return Array.from(grouped.values());
 }
@@ -8264,6 +8293,7 @@ async function renderInventarioInicialScreen(sessionId, mode = 'edit') {
                             <div style="font-weight: 800; color: #eab308; font-size: 1rem;">${invTypeLabel}</div>
                         </div>
                     </div>
+                    ${isView ? renderInventoryFinancialSummaryPanel(inv) : ''}
                     ${isView ? `
                         <div class="inv-view-owner-banner">
                             <span class="material-symbols-rounded">visibility</span>
@@ -8408,10 +8438,12 @@ async function gerarPdfPreInventario() {
         doc.text(`Responsável: ${currentUser}`, 14, 45);
         doc.text(`Local: ${inv.local || '-'}`, 14, 50);
         doc.text(`Gerado em: ${timestamp}`, 14, 55);
+        doc.text(`Ajuste positivo: ${formatCurrency(inv.valor_ajuste_positivo)}`, 14, 60);
+        doc.text(`Ajuste negativo: ${formatCurrency(inv.valor_ajuste_negativo)}`, 14, 65);
 
         doc.setFont("helvetica", "bold");
-        doc.text(`Total de produtos diferentes: ${reportItems.length}`, 14, 65);
-        doc.text(`Quantidade total contada: ${formatStockNumber(totalUnidades)} UN`, 14, 70);
+        doc.text(`Total de produtos diferentes: ${reportItems.length}`, 14, 75);
+        doc.text(`Quantidade total contada: ${formatStockNumber(totalUnidades)} UN`, 14, 80);
         doc.setFont("helvetica", "normal");
 
         const tableData = [];
@@ -8431,7 +8463,7 @@ async function gerarPdfPreInventario() {
         });
 
         doc.autoTable({
-            startY: 80,
+            startY: 90,
             head: [['ID Interno', 'Produto', 'SKU', 'EAN', 'Qtd']],
             body: tableData,
             theme: 'grid',
@@ -8952,27 +8984,20 @@ window.finishInventorySession = async function () {
                 else valor_ajuste_negativo += (Math.abs(diferenca) * valor_unitario);
             }
 
-            // 1. Atualizar estoque_atual (Trava: se falhar, interrompe)
-            console.log('[INV-DIAG] estoque payload:', { id_interno: item.id_interno, local, quantidade: saldo_fisico });
-            const stockResult = await DataClient.updateEstoqueSupabase(item.id_interno, local, 'ajuste', saldo_fisico);
-            console.log('[INV-DIAG] estoque result:', stockResult);
-            if (!stockResult) throw new Error(`Falha ao atualizar estoque do item ${item.id_interno}`);
+            // 1. Refletir saldo fisico em estoque_atual (inventario e fonte de verdade)
+            const itemLocal = item.local || local;
+            console.log('[INV-DIAG] estoque inventario payload:', { id_interno: item.id_interno, local: itemLocal, saldo_fisico });
+            const stockResult = await DataClient.aplicarSaldoFisicoInventarioSupabase(item.id_interno, itemLocal, saldo_fisico);
+            console.log('[INV-DIAG] estoque inventario result:', stockResult);
+            if (!stockResult) throw new Error(`Falha ao refletir inventario no estoque do item ${item.id_interno}`);
 
             // 2. Gerar movimento (Trava: se falhar, interrompe)
             if (diferenca !== 0) {
-                // Mapeamento de tipo de movimento de inventário
-                const invType = (appData.currentInventory.type || '').toLowerCase();
-                let movTipo = '';
-                if (invType === 'inicial') movTipo = 'INVENTARIO_INICIAL';
-                else if (invType === 'parcial') movTipo = 'INVENTARIO_PARCIAL';
-                else if (invType === 'geral') movTipo = 'INVENTARIO_GERAL';
-                else movTipo = diferenca > 0 ? 'AJUSTE+' : 'AJUSTE-'; // Fallback seguro
-
                 const movPayload = {
-                    tipo: movTipo,
+                    tipo: diferenca > 0 ? 'AJUSTE_POSITIVO' : 'AJUSTE_NEGATIVO',
                     id_interno: item.id_interno,
-                    local_origem: null,
-                    local_destino: null,
+                    local_origem: diferenca < 0 ? itemLocal : null,
+                    local_destino: diferenca > 0 ? itemLocal : null,
                     quantidade: Math.abs(diferenca),
                     usuario: user,
                     origem: 'APP_INVENTARIO',
@@ -9250,6 +9275,28 @@ function getFilteredInventoryHistory(history) {
     });
 }
 
+function getInventoryFinancialValues(inv = {}) {
+    return {
+        positivo: Number(inv.valor_ajuste_positivo || 0),
+        negativo: Number(inv.valor_ajuste_negativo || 0)
+    };
+}
+
+function renderInventoryFinancialMeta(inv = {}) {
+    const values = getInventoryFinancialValues(inv);
+    return `
+                <div class="inventory-money-field inventory-money-positive"><span>Ajuste positivo</span><strong>${formatCurrency(values.positivo)}</strong></div>
+                <div class="inventory-money-field inventory-money-negative"><span>Ajuste negativo</span><strong>${formatCurrency(values.negativo)}</strong></div>`;
+}
+
+function renderInventoryFinancialSummaryPanel(inv = {}) {
+    const values = getInventoryFinancialValues(inv);
+    return `
+                    <div class="inv-financial-summary" aria-label="Resumo financeiro do inventario">
+                        <div class="inventory-money-field inventory-money-positive"><span>Ajuste positivo</span><strong>${formatCurrency(values.positivo)}</strong></div>
+                        <div class="inventory-money-field inventory-money-negative"><span>Ajuste negativo</span><strong>${formatCurrency(values.negativo)}</strong></div>
+                    </div>`;
+}
 function renderInventoryHistoryFilters() {
     const filters = [
         { id: 'todos', label: 'Todos' },
@@ -9278,7 +9325,9 @@ function getInventoryHistorySummary(history) {
         todos: history.length,
         abertos: history.filter(inv => isOpenInventoryStatus(getInventoryStatus(inv))).length,
         fechados: history.filter(inv => !isOpenInventoryStatus(getInventoryStatus(inv))).length,
-        meus: history.filter(inv => isInventoryOwnedByCurrentUser(inv)).length
+        meus: history.filter(inv => isInventoryOwnedByCurrentUser(inv)).length,
+        ajustePositivo: history.reduce((sum, inv) => sum + getInventoryFinancialValues(inv).positivo, 0),
+        ajusteNegativo: history.reduce((sum, inv) => sum + getInventoryFinancialValues(inv).negativo, 0)
     };
 }
 
@@ -9288,13 +9337,15 @@ function renderInventoryHistorySummary(history) {
         { label: 'Todos', value: summary.todos, icon: 'inventory_2', tone: 'all' },
         { label: 'Abertos', value: summary.abertos, icon: 'pending_actions', tone: 'open' },
         { label: 'Fechados', value: summary.fechados, icon: 'task_alt', tone: 'closed' },
-        { label: 'Meus inventários', value: summary.meus, icon: 'person_check', tone: 'mine' }
+        { label: 'Meus inventários', value: summary.meus, icon: 'person_check', tone: 'mine' },
+        { label: 'Ajuste positivo', value: formatCurrency(summary.ajustePositivo), icon: 'trending_up', tone: 'money-positive', money: true },
+        { label: 'Ajuste negativo', value: formatCurrency(summary.ajusteNegativo), icon: 'trending_down', tone: 'money-negative', money: true }
     ];
 
     return `
         <section class="inventory-history-summary-grid" aria-label="Resumo do histórico de inventário">
             ${cards.map(card => `
-                <article class="inventory-history-summary-card tone-${card.tone}">
+                <article class="inventory-history-summary-card tone-${card.tone} ${card.money ? 'inventory-history-summary-money' : ''}">
                     <span class="material-symbols-rounded">${card.icon}</span>
                     <div>
                         <small>${card.label}</small>
@@ -9340,6 +9391,7 @@ function renderInventoryHistoryCard(inv, options = {}) {
                 <div><span>Local</span><strong>${getInventoryLocalRaw(inv) || 'N/A'}</strong></div>
                 <div><span>Iniciado por</span><strong>${getInventoryStartedBy(inv)}${ownerSuffix}</strong></div>
                 <div><span>Data e horário</span><strong>${formatDateTimeBR(inv.data_inicio)}</strong></div>
+                ${renderInventoryFinancialMeta(inv)}
             </div>
             <footer class="inventory-history-card-footer">
                 ${renderInventoryHistoryAction(inv)}
@@ -9501,6 +9553,9 @@ async function viewClosedInventory(sessionId) {
             local: invData?.local || invData?.filtro_aplicado || 'TÉRREO',
             type: invData?.tipo || 'geral',
             status: invData?.status || 'FECHADO',
+            valor_ajuste_positivo: invData?.valor_ajuste_positivo,
+            valor_ajuste_negativo: invData?.valor_ajuste_negativo,
+            total_divergencias: invData?.total_divergencias,
             items: groupInventoryItemsByProduct(serverItems)
         };
 
@@ -9828,6 +9883,88 @@ function setProductStockFilter(filterKey) {
 
 window.setProductStockFilter = setProductStockFilter;
 
+function openProductFilterSheet() {
+    const sheet = document.getElementById('product-filter-sheet');
+    if (!sheet) return;
+    sheet.classList.add('is-open');
+    sheet.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('product-filter-sheet-open');
+}
+
+function closeProductFilterSheet() {
+    const sheet = document.getElementById('product-filter-sheet');
+    if (!sheet) return;
+    sheet.classList.remove('is-open');
+    sheet.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('product-filter-sheet-open');
+}
+
+function clearProductSearch() {
+    const input = document.getElementById('search-input');
+    if (input) input.value = '';
+    currentProductStockFilter = 'TODOS';
+    setProductStockFilter('TODOS');
+    renderProductFilterBottomSheet();
+    updateProductSearchStatus('');
+    setTimeout(() => document.getElementById('search-input')?.focus(), 80);
+}
+
+function renderProductFilterBottomSheet() {
+    const existingSheet = document.getElementById('product-filter-sheet');
+    const html = `
+        <div class="product-filter-sheet-backdrop" onclick="closeProductFilterSheet()"></div>
+        <section class="product-filter-sheet-panel" role="dialog" aria-modal="true" aria-label="Filtros da busca">
+            <div class="product-filter-sheet-handle" aria-hidden="true"></div>
+            <header class="product-filter-sheet-header">
+                <strong>Filtros</strong>
+                <button type="button" onclick="closeProductFilterSheet()" aria-label="Fechar filtros">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+            </header>
+            <div class="product-filter-sheet-options" role="tablist" aria-label="Setor do estoque">
+                ${PRODUCT_STOCK_LOCATION_FILTERS.map(filter => {
+                    const count = getProductStockFilterCount(filter.key);
+                    return `
+                        <button
+                            type="button"
+                            class="product-stock-filter-chip product-filter-sheet-option ${currentProductStockFilter === filter.key ? 'active' : ''}"
+                            data-filter-key="${filter.key}"
+                            role="tab"
+                            aria-selected="${currentProductStockFilter === filter.key}"
+                            onclick="setProductStockFilter('${filter.key}')"
+                        >
+                            <span class="product-stock-filter-label">${filter.label}</span>
+                            <span class="product-stock-filter-count">${count}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+            <footer class="product-filter-sheet-footer">
+                <button type="button" class="product-filter-sheet-clear" onclick="setProductStockFilter('TODOS')">
+                    Limpar filtros
+                </button>
+                <button type="button" class="product-filter-sheet-close" onclick="closeProductFilterSheet()">
+                    Fechar
+                </button>
+            </footer>
+        </section>
+    `;
+
+    if (existingSheet) {
+        const wasOpen = existingSheet.classList.contains('is-open');
+        existingSheet.innerHTML = html;
+        existingSheet.classList.toggle('is-open', wasOpen);
+        existingSheet.setAttribute('aria-hidden', wasOpen ? 'false' : 'true');
+        return existingSheet.outerHTML;
+    }
+
+    return `<div id="product-filter-sheet" class="product-filter-sheet" aria-hidden="true">${html}</div>`;
+}
+
+window.openProductFilterSheet = openProductFilterSheet;
+window.closeProductFilterSheet = closeProductFilterSheet;
+window.clearProductSearch = clearProductSearch;
+
 async function renderSearchScreen(push = true) {
     if (currentScreen === 'search' && document.getElementById('search-input')) {
         console.log('[BUSCA MOBILE DEBUG] re-render ignorado (já ativo)');
@@ -9853,7 +9990,21 @@ async function renderSearchScreen(push = true) {
             
             <main class="container product-search-center">
                 <div id="scanner-container" class="hidden">
+                    <div class="scanner-mobile-top">
+                        <button class="scanner-mobile-close" type="button" onclick="stopScanner()" aria-label="Fechar camera">
+                            <span class="material-symbols-rounded">close</span>
+                            Fechar
+                        </button>
+                        <button class="scanner-mobile-torch" type="button" onclick="toggleScannerTorch()" aria-label="Alternar lanterna">
+                            <span class="material-symbols-rounded">flashlight_on</span>
+                            Lanterna
+                        </button>
+                    </div>
                     <div id="reader"></div>
+                    <div class="scanner-mobile-guide" aria-hidden="true">
+                        <div class="scanner-mobile-frame"></div>
+                        <p>Aponte para o codigo de barras</p>
+                    </div>
                     <button class="scanner-close-btn" onclick="stopScanner()">
                         <span class="material-symbols-rounded">close</span>
                     </button>
@@ -9868,6 +10019,7 @@ async function renderSearchScreen(push = true) {
                         </div>
                     </section>
                 </div>
+                ${renderProductFilterBottomSheet()}
             </main>
         </div>
     `;
@@ -10005,7 +10157,16 @@ async function startScanner(isPicking = false, isConference = false, isInventory
 
                 // Se não for busca, precisa tratar as funções específicas
                 if (product) {
-                    if (isInventory) addInventoryItem(decodedText);
+                    if (context === 'search') {
+                        await stopScanner();
+                        const input = document.getElementById('search-input');
+                        if (input) {
+                            input.value = decodedText;
+                            input.removeAttribute('inputmode');
+                            input.focus();
+                        }
+                        performSearch();
+                    } else if (isInventory) addInventoryItem(decodedText);
                     else if (isPicking) addPickItem(decodedText);
                     else if (isConference) addPackScan(decodedText);
                 }
@@ -10068,6 +10229,24 @@ async function showScannerFeedback(type, containerId = 'scanner-container') {
     container.style.borderColor = 'var(--primary)';
 }
 
+async function toggleScannerTorch() {
+    if (!html5QrCode) {
+        showToast('Abra a camera antes de ligar a lanterna.', 'warning');
+        return;
+    }
+
+    try {
+        const enabled = document.body.classList.toggle('scanner-torch-on');
+        await html5QrCode.applyVideoConstraints({
+            advanced: [{ torch: enabled }]
+        });
+    } catch (error) {
+        document.body.classList.remove('scanner-torch-on');
+        console.warn('[SCANNER] Lanterna indisponivel neste dispositivo:', error);
+        showToast('Lanterna nao disponivel neste dispositivo.', 'warning');
+    }
+}
+
 async function stopScanner() {
     if (html5QrCode) {
         try {
@@ -10080,6 +10259,7 @@ async function stopScanner() {
             html5QrCode = null;
         }
     }
+    document.body.classList.remove('scanner-torch-on');
 
     // Restore inputmode
     const inputs = ['search-input', 'pick-ean-input', 'pack-ean-input', 'garantia-search-input', 'edit-search-input'];
@@ -10144,6 +10324,37 @@ function loadMoreProductSearchResults() {
     renderSearchResults(getVisibleProductSearchResults(), productSearchAllResults.length, false);
 }
 
+function productSearchStartsWithTerm(product, query) {
+    if (!query || query.length < 2) return false;
+    const sources = [
+        product._dBaseNorm,
+        product._dFullNorm,
+        normalizeProductSearchTerm(product.descricao_base || product.descricao || product.nome || ''),
+        normalizeProductSearchTerm(product.descricao_completa || '')
+    ].filter(Boolean);
+
+    return sources.some(source => {
+        if (source.startsWith(query)) return true;
+        return source.split(/\s+/).some(word => word.startsWith(query));
+    });
+}
+
+function getProductSearchScore(product, query) {
+    if (!query || query.length < 2) return 0;
+    if (product._dBaseNorm?.startsWith(query)) return 0;
+    if (product._dBaseNorm?.split(/\s+/).some(word => word.startsWith(query))) return 1;
+    if (product._dFullNorm?.startsWith(query)) return 2;
+    if (product._dFullNorm?.split(/\s+/).some(word => word.startsWith(query))) return 3;
+    if (product._dBaseNorm?.includes(query)) return 4;
+    if (product._dFullNorm?.includes(query)) return 5;
+    if (product._brandCatSubNorm?.includes(query)) return 6;
+    return 7;
+}
+
+function isProductSearchMobileExperience() {
+    return window.matchMedia?.('(max-width: 900px)').matches === true;
+}
+
 const doPerformSearch = async () => {
     console.log('[BUSCA MOBILE DEBUG] executando busca...');
     const start = performance.now();
@@ -10164,28 +10375,20 @@ const doPerformSearch = async () => {
         return;
     }
 
-    // 1. Classificação Inteligente e Auto-open (Somente se não for texto genérico e tiver tamanho mínimo)
-    const classification = classifyProductInput(queryRaw);
-    if (queryRaw && classification.type !== 'text' && classification.type !== 'empty' && queryRaw.length >= 4) {
-        const matchedProduct = await handleProductScan(queryRaw, 'search');
-        if (matchedProduct) {
-            input.value = '';
-            const resultsContainer = document.getElementById('search-results');
-            if (resultsContainer) resultsContainer.innerHTML = '';
-            console.log('[BUSCA MOBILE DEBUG] match exato encontrado, abrindo detalhes');
-            return;
-        }
-    }
-
     const query = normalizeProductSearchTerm(queryRaw);
+    const isMobileSearchExperience = isProductSearchMobileExperience();
     console.log('[BUSCA DEBUG] termo original:', queryRaw);
     console.log('[BUSCA DEBUG] termo normalizado:', query);
 
     // 2. Busca Local no ÍNdice
     const productsSource = Array.isArray(appData.products) ? appData.products : [];
-    const textResults = query.length >= 2
+    let textResults = query.length >= 2
         ? productsSource.filter(p => p._searchIndex.includes(query))
         : productsSource.slice();
+    if (isMobileSearchExperience && query.length >= 2) {
+        const prefixResults = productsSource.filter(p => productSearchStartsWithTerm(p, query));
+        if (prefixResults.length) textResults = prefixResults;
+    }
     const results = applyProductStockLocationFilter(textResults);
 
     // 3. Score de Relevância e Ordenação
@@ -10201,18 +10404,17 @@ const doPerformSearch = async () => {
             if (!isAtivoA && isAtivoB) return 1;
 
             if (query.length >= 2) {
-                // Prioridade 2: Score de termo (StartsWith > Includes)
-                const getScore = (p) => {
+                const getDesktopScore = (p) => {
                     if (p._dBaseNorm.startsWith(query)) return 0;
                     if (p._dFullNorm.startsWith(query)) return 1;
                     if (p._dBaseNorm.includes(query)) return 2;
                     if (p._dFullNorm.includes(query)) return 3;
                     if (p._brandCatSubNorm.includes(query)) return 4;
-                    return 5; // Outros campos (EAN, SKU, Atributos)
+                    return 5;
                 };
 
-                const scoreA = getScore(a);
-                const scoreB = getScore(b);
+                const scoreA = isMobileSearchExperience ? getProductSearchScore(a, query) : getDesktopScore(a);
+                const scoreB = isMobileSearchExperience ? getProductSearchScore(b, query) : getDesktopScore(b);
 
                 if (scoreA !== scoreB) return scoreA - scoreB;
             }
@@ -10480,6 +10682,9 @@ function renderProductStockFilterSideList() {
 function renderProductSearchSummaryBar(resultCount = 0) {
     return `
         <section class="product-search-summary-bar product-search-command-bar" aria-label="Consulta de produtos">
+            <button class="fab-icon-btn fab-voltar product-mobile-back-btn" type="button" onclick="renderProductSubMenu()" aria-label="Voltar">
+                ${getInlineAppIconHTML('arrow_back')}
+            </button>
             <div class="search-bar-wrapper product-search-command-input">
                 <div class="product-search-bar">
                     <span class="material-symbols-rounded search-icon">search</span>
@@ -10508,8 +10713,34 @@ function renderProductSearchSummaryBar(resultCount = 0) {
                 <strong id="product-summary-count">${formatStockNumber(resultCount)}</strong>
                 <small>PRODUTOS ENCONTRADOS</small>
             </div>
+            <div class="product-mobile-search-actions" aria-label="Acoes rapidas da busca">
+                <button type="button" onclick="openProductFilterSheet()">
+                    <span class="material-symbols-rounded">tune</span>
+                    Filtros
+                </button>
+                <button type="button" onclick="clearProductSearch()">
+                    <span class="material-symbols-rounded">cleaning_services</span>
+                    Limpar
+                </button>
+            </div>
         </section>
     `;
+}
+
+function getSearchCardPrimaryLocation(product) {
+    const directLocation = cleanProductSearchText(product?.localizacao_estoque || product?.localizacao || product?.endereco_estoque || '');
+    if (isFilledValue(directLocation)) return directLocation;
+
+    const productId = String(product?.id_interno || product?.col_A || '').trim();
+    if (!productId || !Array.isArray(appData.estoque)) return 'Local nao informado';
+
+    const stockRow = appData.estoque.find(item => {
+        const itemId = String(item.id_interno || item.id || '').trim();
+        const available = Number(String(item.saldo_disponivel ?? item.saldo_total ?? item.saldo ?? 0).replace(',', '.')) || 0;
+        return itemId === productId && available > 0;
+    });
+
+    return cleanProductSearchText(stockRow?.local || '') || 'Local nao informado';
 }
 
 function renderSearchInitialStateHTML() {
@@ -10520,8 +10751,8 @@ function renderSearchInitialStateHTML() {
                 <span class="material-symbols-rounded">search</span>
             </div>
             <div class="empty-state-content">
-                <h3>Digite um termo para buscar produtos</h3>
-                <p>Use a busca acima para encontrar produtos pelo nome, codigo ou descricao.</p>
+                <h3>Nenhum produto encontrado</h3>
+                <p>Digite, escaneie ou utilize o leitor para localizar um item.</p>
             </div>
         </div>
     `;
@@ -10579,7 +10810,7 @@ function renderSearchResults(results, totalResults = results.length, shouldReset
             <div class="search-no-results">
                 <span class="material-symbols-rounded">search_off</span>
                 <h3>Nenhum produto encontrado</h3>
-                <p>Verifique a ortografia ou tente termos mais genéricos.</p>
+                <p>Digite, escaneie ou utilize o leitor para localizar um item.</p>
             </div>
         `;
         updateProductSearchSummary(0, []);
@@ -10617,20 +10848,31 @@ function renderSearchResults(results, totalResults = results.length, shouldReset
                                 ${renderSearchProductLocationBadge(p)}
                             </span>
                         </span>
-                        ${isFilledValue(marca) ? `<span class="card-brand">${marca}</span>` : ''}
                     </div>
                     <h3 class="card-title">${desc}</h3>
+                    <div class="card-mobile-quick-info">
+                        ${isFilledValue(marca) ? `<span>${marca}</span>` : '<span>Marca nao informada</span>'}
+                        <span>Estoque: ${formatStockNumber(estoque)}</span>
+                        <span>${getSearchCardPrimaryLocation(p)}</span>
+                    </div>
                     ${renderSearchProductMeta(p)}
+                </div>
+
+                <div class="card-brand-column">
+                    <span class="card-brand">${isFilledValue(marca) ? marca : 'SEM MARCA'}</span>
+                    <span class="card-brand-underline" aria-hidden="true"></span>
                 </div>
 
                 <div class="card-operational-info">
                     <div class="card-stock-block">
+                        <span class="card-stock-icon material-symbols-rounded" aria-hidden="true">inventory_2</span>
                         <span class="stock-label">ESTOQUE TOTAL</span>
                         <span class="stock-value ${estoque <= 0 ? 'out' : ''}">${formatStockNumber(estoque)} <small>UN</small></span>
                         ${renderSearchProductPackInfo(p, estoque)}
                         ${renderSearchProductSellableLocations(p)}
                     </div>
                     <div class="card-price-block">
+                        <span class="card-price-icon material-symbols-rounded" aria-hidden="true">sell</span>
                         <span class="price-label">PREÇO VAREJO</span>
                         <span class="price-value">R$ ${Number(precoVarejo).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
@@ -11588,7 +11830,7 @@ async function renderProductDetails(p) {
     ]);
 
     app.innerHTML = `
-        <div class="dashboard-screen fade-in internal no-top-bar">
+        <div class="dashboard-screen fade-in internal no-top-bar product-detail">
             ${getTopBarHTML(localStorage.getItem('currentUser'), 'renderSearchScreen()')}
             
             <main class="container product-detail-screen">
@@ -13164,7 +13406,7 @@ function hydratePickItemsFromSavedSession(sessionId) {
 async function resumePickingDraftFromServer(sessionId) {
     const session = (appData.separacao || []).find(row => String(row.separacao_id || row.id || row.col_a || '') === String(sessionId));
     if (!session) {
-        const localDraft = getDraftPickSession();
+        const localDraft = getLocalDraftPickSession(sessionId) || getDraftPickSession();
         if (String(localDraft?.sessionId || '') === String(sessionId || '')) {
             const safeSessionId = getSafePickSessionId(localDraft.sessionId, localDraft.channelLabel);
             currentSessionItems = localDraft.items || [];
@@ -13284,8 +13526,15 @@ function getSeparationItemTotal(session) {
 
 function getDraftPickSessionsWithLocalDraft() {
     const sessions = [...getDraftPickSessionsFromCache()];
-    const localDraft = getDraftPickSession();
-    if (localDraft?.sessionId && !sessions.some(session => String(getPackSeparationSessionId(session)) === String(localDraft.sessionId))) {
+    const localDrafts = getLocalDraftPickSessionsList();
+    const legacyDraft = getDraftPickSession();
+    if (legacyDraft?.sessionId && !localDrafts.some(draft => String(draft.sessionId) === String(legacyDraft.sessionId))) {
+        localDrafts.unshift(legacyDraft);
+    }
+    localDrafts.forEach(localDraft => {
+        if (!localDraft?.sessionId || sessions.some(session => String(getPackSeparationSessionId(session)) === String(localDraft.sessionId))) {
+            return;
+        }
         sessions.unshift({
             separacao_id: localDraft.sessionId,
             canal_id: localDraft.channelId,
@@ -13299,7 +13548,7 @@ function getDraftPickSessionsWithLocalDraft() {
             total_pacotes_montados: getPickPackageCountFrom(localDraft),
             __localDraft: true
         });
-    }
+    });
     return sessions.sort((a, b) => new Date(b.atualizado_em || b.criado_em || 0) - new Date(a.atualizado_em || a.criado_em || 0));
 }
 
@@ -13694,6 +13943,8 @@ const PICK_STATUS_FINISHED = 'finalizada';
 const PICK_FAST_OBSERVATION = 'SAIDA_RAPIDA AUTOMATICA';
 const PICK_MANUAL_OBSERVATION = 'SEPARACAO MANUAL';
 const PICK_PACKAGE_TOTALS_STORAGE_KEY = 'dyPickPackageTotalsBySession';
+const PICK_CURRENT_DRAFT_STORAGE_KEY = 'draft_pick_session';
+const PICK_DRAFT_SESSIONS_STORAGE_KEY = 'draft_pick_sessions';
 
 function isPickingFastModeSource(source = {}) {
     if (!source || typeof source !== 'object') return false;
@@ -13706,6 +13957,40 @@ function isPickingFastModeSource(source = {}) {
         || observation.includes('SAIDA_RAPIDA')
         || observation.includes('MODO RAPIDO')
         || observation.includes('MODO_RAPIDO');
+}
+
+function isFastPickingPayload(payload = {}) {
+    return isPickingFastModeSource(payload)
+        || isPickingFastModeSource(payload.session)
+        || isPickingFastModeSource(payload.pickingData)
+        || payload.modo_rapido === true
+        || payload.isFastMode === true;
+}
+
+function getConferenceSessionId(conf = {}) {
+    return String(conf.separacao_id || conf.codigo_separacao || conf.pickingData?.separacao_id || '').trim();
+}
+
+function isPendingConferenceRow(conf = {}) {
+    const status = String(conf.status || '').trim().toLowerCase();
+    return !['conferido', 'finalizada', 'finalizado', 'cancelada', 'cancelado'].includes(status);
+}
+
+function hasPendingConferenceForSession(sessionOrId) {
+    const sessionId = typeof sessionOrId === 'object'
+        ? String(getPackSeparationSessionId(sessionOrId) || '').trim()
+        : String(sessionOrId || '').trim();
+    if (!sessionId) return false;
+    return (appData.conferencia || []).some(conf => {
+        const confSessionId = getConferenceSessionId(conf);
+        return confSessionId === sessionId && isPendingConferenceRow(conf);
+    });
+}
+
+function isSeparationPendingConferenceSession(session = {}) {
+    const status = String(session.status || '').toLowerCase();
+    const isReadyStatus = status === 'aberta' || status === 'pendente' || status === 'pronta_conferencia';
+    return isReadyStatus && !isPickingFastModeSource(session) && hasPendingConferenceForSession(session);
 }
 
 function getActivePickingFastMode(draft = null) {
@@ -13793,6 +14078,9 @@ function pickContextMatches(source = {}, sessionId = '', channelId = '', channel
 }
 
 function getScopedDraftPickSession(sessionId = '', channelId = '', channelLabel = '') {
+    const targetSessionId = String(sessionId || currentPickingContext?.sessionId || '').trim();
+    const localDraft = targetSessionId ? getLocalDraftPickSession(targetSessionId) : null;
+    if (pickContextMatches(localDraft, sessionId, channelId, channelLabel)) return localDraft;
     const draft = getDraftPickSession();
     return pickContextMatches(draft, sessionId, channelId, channelLabel) ? draft : null;
 }
@@ -13870,6 +14158,11 @@ function syncPickPackageCount(count, persist = true) {
     }
 
     if (persist) {
+        const scopedDraft = getScopedDraftPickSession(
+            currentPickingContext?.sessionId,
+            currentPickingContext?.channelId,
+            currentPickingContext?.channelLabel
+        );
         saveDraftPickSession({
             sessionId: currentPickingContext?.sessionId,
             channelId: currentPickingContext?.channelId,
@@ -13878,10 +14171,10 @@ function syncPickPackageCount(count, persist = true) {
             items: currentSessionItems,
             status: PICK_STATUS_DRAFT,
             operatorId: localStorage.getItem('currentUser'),
-            createdAt: currentPickingContext?.createdAt || getDraftPickSession()?.createdAt || getDataHoraBrasil(),
-            executionId: currentPickingContext?.executionId || getDraftPickSession()?.executionId || generateExecutionId(),
-            isFastMode: getActivePickingFastMode(getDraftPickSession()),
-            modo_rapido: getActivePickingFastMode(getDraftPickSession()),
+            createdAt: currentPickingContext?.createdAt || scopedDraft?.createdAt || getDataHoraBrasil(),
+            executionId: currentPickingContext?.executionId || scopedDraft?.executionId || generateExecutionId(),
+            isFastMode: getActivePickingFastMode(scopedDraft),
+            modo_rapido: getActivePickingFastMode(scopedDraft),
             total_produtos_separados: countDifferentPickProducts(currentSessionItems),
             total_itens_separados: getPickItemsTotal(currentSessionItems),
             total_pacotes_montados: safeCount,
@@ -13903,25 +14196,110 @@ function setPickPackageCount(value, persist = true, refocusScanner = false) {
     return nextCount;
 }
 
+function normalizeLocalPickDraft(draft = {}) {
+    if (!draft || typeof draft !== 'object') return null;
+    const sessionId = String(draft.sessionId || draft.separacao_id || draft.codigo_separacao || '').trim();
+    if (!sessionId) return null;
+    return {
+        ...draft,
+        sessionId,
+        status: draft.status || PICK_STATUS_DRAFT,
+        items: Array.isArray(draft.items) ? draft.items : [],
+        timestamp: draft.timestamp || draft.atualizado_em || getDataHoraBrasil()
+    };
+}
+
+function getLocalDraftPickSessionsMap() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(PICK_DRAFT_SESSIONS_STORAGE_KEY) || '{}');
+        const source = Array.isArray(raw)
+            ? Object.fromEntries(raw.map(draft => [String(draft?.sessionId || ''), draft]).filter(([sessionId]) => sessionId))
+            : (raw && typeof raw === 'object' ? raw : {});
+        return Object.entries(source).reduce((acc, [sessionId, draft]) => {
+            const normalized = normalizeLocalPickDraft({ ...(draft || {}), sessionId: draft?.sessionId || sessionId });
+            if (normalized) acc[normalized.sessionId] = normalized;
+            return acc;
+        }, {});
+    } catch (error) {
+        console.warn('[PICKING] draft_pick_sessions invalido. Limpando lista local.', error);
+        localStorage.removeItem(PICK_DRAFT_SESSIONS_STORAGE_KEY);
+        return {};
+    }
+}
+
+function setLocalDraftPickSessionsMap(map = {}) {
+    const normalizedMap = Object.values(map || {}).reduce((acc, draft) => {
+        const normalized = normalizeLocalPickDraft(draft);
+        if (normalized) acc[normalized.sessionId] = normalized;
+        return acc;
+    }, {});
+    localStorage.setItem(PICK_DRAFT_SESSIONS_STORAGE_KEY, JSON.stringify(normalizedMap));
+    return normalizedMap;
+}
+
+function getLocalDraftPickSession(sessionId) {
+    const targetSessionId = String(sessionId || '').trim();
+    if (!targetSessionId) return null;
+    return getLocalDraftPickSessionsMap()[targetSessionId] || null;
+}
+
+function getLocalDraftPickSessionsList() {
+    return Object.values(getLocalDraftPickSessionsMap())
+        .sort((a, b) => new Date(b.timestamp || b.createdAt || 0) - new Date(a.timestamp || a.createdAt || 0));
+}
+
+function upsertLocalDraftPickSession(draft) {
+    const normalized = normalizeLocalPickDraft(draft);
+    if (!normalized) return null;
+    const map = getLocalDraftPickSessionsMap();
+    map[normalized.sessionId] = normalized;
+    setLocalDraftPickSessionsMap(map);
+    return normalized;
+}
+
+function removeLocalDraftPickSession(sessionId) {
+    const targetSessionId = String(sessionId || '').trim();
+    if (!targetSessionId) return;
+    const map = getLocalDraftPickSessionsMap();
+    if (map[targetSessionId]) {
+        delete map[targetSessionId];
+        setLocalDraftPickSessionsMap(map);
+    }
+}
+
 function getDraftPickSession() {
     try {
-        const draft = JSON.parse(localStorage.getItem('draft_pick_session') || 'null');
-        return draft && typeof draft === 'object' ? draft : null;
+        const draft = JSON.parse(localStorage.getItem(PICK_CURRENT_DRAFT_STORAGE_KEY) || 'null');
+        const normalized = normalizeLocalPickDraft(draft);
+        if (normalized) {
+            upsertLocalDraftPickSession(normalized);
+            return normalized;
+        }
+        const currentSessionId = currentPickingContext?.sessionId || currentPickSession?.pickingData?.separacao_id || currentPickSession?.sessionId || '';
+        return getLocalDraftPickSession(currentSessionId);
     } catch (error) {
         console.warn('[PICKING] draft_pick_session invalido. Limpando rascunho local.', error);
-        localStorage.removeItem('draft_pick_session');
+        localStorage.removeItem(PICK_CURRENT_DRAFT_STORAGE_KEY);
         return null;
     }
 }
 
 function saveDraftPickSession(draftPatch) {
+    const patchSessionId = String(draftPatch?.sessionId || currentPickingContext?.sessionId || '').trim();
+    const legacyDraft = getDraftPickSession();
+    const existingDraft = patchSessionId
+        ? (getLocalDraftPickSession(patchSessionId) || (String(legacyDraft?.sessionId || '') === patchSessionId ? legacyDraft : null))
+        : legacyDraft;
     const draft = {
-        ...(getDraftPickSession() || {}),
+        ...(existingDraft || {}),
         ...(draftPatch || {}),
         timestamp: getDataHoraBrasil()
     };
-    localStorage.setItem('draft_pick_session', JSON.stringify(draft));
-    return draft;
+    const normalized = normalizeLocalPickDraft(draft);
+    if (!normalized) return draft;
+    upsertLocalDraftPickSession(normalized);
+    localStorage.setItem(PICK_CURRENT_DRAFT_STORAGE_KEY, JSON.stringify(normalized));
+    return normalized;
 }
 
 function markDraftPickSaveStatus(status, error = null) {
@@ -13931,8 +14309,7 @@ function markDraftPickSaveStatus(status, error = null) {
     draft.lastSaveAttemptAt = getDataHoraBrasil();
     if (error) draft.lastSaveError = error?.message || String(error);
     else delete draft.lastSaveError;
-    localStorage.setItem('draft_pick_session', JSON.stringify(draft));
-    return draft;
+    return saveDraftPickSession(draft);
 }
 
 async function removeQueuedPickingDraftOperations(sessionId) {
@@ -13981,8 +14358,9 @@ async function clearFinishedPickingDraftState(sessionId, options = {}) {
     if (!targetSessionId) return;
 
     const draft = getDraftPickSession();
+    removeLocalDraftPickSession(targetSessionId);
     if (!draft || String(draft.sessionId || '') === targetSessionId) {
-        localStorage.removeItem('draft_pick_session');
+        localStorage.removeItem(PICK_CURRENT_DRAFT_STORAGE_KEY);
     }
 
     if (!options.keepQueuedDraftOperations) {
@@ -14001,7 +14379,7 @@ async function clearFinishedPickingDraftState(sessionId, options = {}) {
 }
 
 async function discardPickingDraft(sessionId, options = {}) {
-    const draft = getDraftPickSession();
+    const draft = getLocalDraftPickSession(sessionId) || getDraftPickSession();
     const targetSessionId = sessionId || draft?.sessionId || currentPickingContext?.sessionId;
     if (!targetSessionId) return true;
 
@@ -14021,8 +14399,9 @@ async function discardPickingDraft(sessionId, options = {}) {
     }
 
     if (!draft || String(draft.sessionId || '') === String(targetSessionId)) {
-        localStorage.removeItem('draft_pick_session');
+        localStorage.removeItem(PICK_CURRENT_DRAFT_STORAGE_KEY);
     }
+    removeLocalDraftPickSession(targetSessionId);
 
     currentSessionItems = [];
     lastScannedPickItemKey = null;
@@ -14053,7 +14432,7 @@ async function discardPickingDraft(sessionId, options = {}) {
 }
 
 async function confirmDiscardPickingDraft(sessionId, channelId, channelLabel, channelColor) {
-    const draft = getDraftPickSession();
+    const draft = getLocalDraftPickSession(sessionId) || getDraftPickSession();
     const targetSessionId = sessionId || draft?.sessionId || currentPickingContext?.sessionId;
     const hasItems = currentSessionItems.length > 0 || (draft?.items || []).length > 0;
     const itemLabel = hasItems ? 'Todos os produtos bipados nesse rascunho serao removidos.' : 'Nenhum produto foi bipado ainda.';
@@ -14131,6 +14510,13 @@ function generatePickSessionId(channelLabel) {
             if (rowDate === todayStr && rowChannel === channelLabel) legacyCount += 1;
         });
     }
+    getLocalDraftPickSessionsList().forEach(draft => {
+        const rowId = draft.sessionId || draft.separacao_id || '';
+        maxSequence = Math.max(maxSequence, getPickSessionSequenceFromId(rowId, cleanChannel, ddmm));
+        const rowChannel = draft.channelLabel || draft.canal_nome || draft.canal || '';
+        const rowDate = draft.createdAt || draft.timestamp || '';
+        if (rowChannel === channelLabel && String(rowDate).includes(todayStr)) legacyCount += 1;
+    });
 
     const seq = Math.max(maxSequence, legacyCount) + 1;
     return `SEP-${cleanChannel}-${ddmm}-${seq.toString().padStart(2, '0')}`;
@@ -14140,13 +14526,32 @@ function isTemporaryPickSessionId(sessionId) {
     return /^SEP-TEMP?-/.test(String(sessionId || '').trim().toUpperCase());
 }
 
+function isValidPickSessionId(sessionId) {
+    return /^SEP-[A-Z0-9]+-\d{4}-\d{2,}$/.test(String(sessionId || '').trim().toUpperCase());
+}
+
 function getSafePickSessionId(sessionId, channelLabel) {
     const currentId = String(sessionId || '').trim();
-    if (currentId && !isTemporaryPickSessionId(currentId)) return currentId;
+    if (currentId && !isTemporaryPickSessionId(currentId) && isValidPickSessionId(currentId)) return currentId;
     return generatePickSessionId(channelLabel);
 }
 
+function assertValidPickSessionForPersist(sessionId, channelLabel, context = 'separacao') {
+    const cleanSessionId = String(sessionId || '').trim();
+    const cleanChannelLabel = String(channelLabel || '').trim();
+    if (!cleanChannelLabel) {
+        throw new Error(`Canal da separacao nao informado para ${context}. Volte e selecione o canal novamente.`);
+    }
+    if (!cleanSessionId) {
+        throw new Error(`Codigo da separacao nao informado para ${context}.`);
+    }
+    if (isTemporaryPickSessionId(cleanSessionId) || !isValidPickSessionId(cleanSessionId)) {
+        throw new Error(`Codigo de separacao invalido (${cleanSessionId}). Volte ao menu de Separacao e selecione o canal novamente.`);
+    }
+}
+
 function buildPickingSessionPayload(sessionId, channelId, channelLabel, status = PICK_STATUS_DRAFT, createdAt = null) {
+    assertValidPickSessionForPersist(sessionId, channelLabel, 'montar payload');
     const now = getDataHoraBrasil();
     const currentUser = localStorage.getItem('currentUser') || 'N/A';
     const stats = getPickingOperationalStats();
@@ -14519,65 +14924,25 @@ async function persistPickingFinal(sessionId) {
 }
 
 async function startPickingSession(channelId, channelLabel, channelColor) {
-    const draft = getDraftPickSession();
+    if (!String(channelLabel || '').trim()) {
+        await showAppModal({
+            type: 'error',
+            title: 'Canal da separacao nao identificado',
+            message: 'Escolha um canal antes de iniciar a separacao.',
+            confirmText: 'Entendi'
+        });
+        return;
+    }
+
     pickRemovalModeActive = false;
     lastPickScanAction = 'add';
     pickScanHistory = [];
     
     console.log('[SEP] canal selecionado', { channelId, channelLabel, channelColor });
-
-    if (draft) {
-        const hasItems = draft.items && draft.items.length > 0;
-        
-        if (hasItems) {
-            console.log(`[PICKING DEBUG] rascunho com itens detectado: ${draft.channelLabel}`);
-            // Se o rascunho for de OUTRO canal, oferece Retomar ou Limpar
-            if (draft.channelId !== channelId) {
-                const msg = `Para iniciar em ${channelLabel}, você deve descartar o rascunho anterior.`;
-                const shouldClearDraft = await showAppConfirm({
-                    title: 'Sessão ativa detectada',
-                    message: `Sessao ativa detectada em ${draft.channelLabel}.`,
-                    detail: `${msg}\nDeseja LIMPAR o rascunho de ${draft.channelLabel} e começar ${channelLabel}?`,
-                    confirmLabel: 'Limpar rascunho',
-                    cancelLabel: 'Não limpar',
-                    danger: true
-                });
-                if (shouldClearDraft) {
-                    await discardPickingDraft(draft.sessionId, { silent: true });
-                    console.log(`[PICKING DEBUG] rascunho de ${draft.channelLabel} descartado`);
-                } else {
-                    const shouldResumeDraft = await showAppConfirm({
-                        title: 'Retomar sessão',
-                        message: `Deseja RETOMAR a sessão de ${draft.channelLabel} agora?`,
-                        confirmLabel: 'Retomar',
-                        cancelLabel: 'Cancelar'
-                    });
-                    if (shouldResumeDraft) {
-                        currentSessionItems = draft.items || [];
-                        renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
-                        updatePickItemsList();
-                        warnIfDraftPickWasNotSynced(draft);
-                    }
-                    return;
-                }
-            } else {
-                // Mesmo canal, retoma direto
-                currentSessionItems = draft.items || [];
-                renderPickingScreen(draft.sessionId, draft.channelId, draft.channelLabel, draft.channelColor);
-                updatePickItemsList();
-                warnIfDraftPickWasNotSynced(draft);
-                return;
-            }
-        } else {
-            console.log(`[PICKING DEBUG] rascunho vazio ignorado`);
-            localStorage.removeItem('draft_pick_session');
-        }
-    }
-
-    console.log(`[PICKING DEBUG] abriu bipagem sem criar rascunho`);
+    console.log(`[PICKING DEBUG] abriu nova bipagem sem retomar rascunho automaticamente`);
     await refreshSeparacoesForPickSequence();
     
-    // Define contexto para criação futura no primeiro item
+    // Define contexto para criacao futura no primeiro item.
     currentPickingContext = {
         channelId, 
         channelLabel, 
@@ -15217,8 +15582,12 @@ async function findProductForPicking(cleanCode) {
 }
 
 function getCurrentPickDraftForUpdate(saveStatus = 'saving') {
-    const existingDraft = getDraftPickSession() || {};
     const contextSessionId = currentPickingContext?.sessionId;
+    const existingDraft = getScopedDraftPickSession(
+        contextSessionId,
+        currentPickingContext?.channelId,
+        currentPickingContext?.channelLabel
+    ) || {};
     const draftSessionId = existingDraft.sessionId;
     const channelLabel = currentPickingContext?.channelLabel || existingDraft.channelLabel || '';
     const sessionId = !isTemporaryPickSessionId(contextSessionId) && contextSessionId
@@ -15551,7 +15920,7 @@ async function addPickItem(scannedEan = null) {
         draft.totalPacotesMontados = getCurrentPickPackageCount();
         draft.saveStatus = 'saving';
         draft.lastSaveAttemptAt = getDataHoraBrasil();
-        localStorage.setItem('draft_pick_session', JSON.stringify(draft));
+        draft = saveDraftPickSession(draft);
 
         let pickPersistFailed = false;
         try {
@@ -15730,7 +16099,8 @@ async function finishPickingSession(sessionId, channelId, channelLabel, channelC
 
         const currentUser = localStorage.getItem('currentUser');
         const now = getDataHoraBrasil();
-        const modoRapidoAtivo = getActivePickingFastMode(getDraftPickSession());
+        const activeDraft = getScopedDraftPickSession(sessionId, channelId, channelLabel);
+        const modoRapidoAtivo = isModoRapidoAtivo() || getActivePickingFastMode(activeDraft);
         const stats = getPickingOperationalStats(currentSessionItems);
 
         const pickingData = {
@@ -15923,8 +16293,10 @@ function buildFastPickingFinalRows(items, sessionId) {
 async function finalizeFastPickingWithoutConference(payload = {}) {
     const currentUser = payload.user || localStorage.getItem('currentUser') || 'N/A';
     const sessionId = payload.sessionId;
+    const channelLabel = payload.channelLabel || payload.canal_nome || currentPickingContext?.channelLabel || '';
     const rows = payload.rows || [];
     if (!sessionId) throw new Error('separacao_id nao informado');
+    assertValidPickSessionForPersist(sessionId, channelLabel, 'finalizar separacao rapida');
     if (!rows.length) throw new Error('Nenhum item valido para finalizar no modo rapido.');
 
     console.log('[SEPARACAO] fluxo rapido: baixando estoque sem conferencia', {
@@ -15949,13 +16321,13 @@ async function finalizeFastPickingWithoutConference(payload = {}) {
             const ok = await DataClient.updateEstoqueSupabase(row.id_interno, local, 'subtrai', take);
             if (!ok) throw new Error(`Falha ao baixar estoque do produto ${row.id_interno}`);
             await DataClient.saveMovimentoSupabase({
-                tipo: 'saida',
+                tipo: 'SAIDA',
                 id_interno: row.id_interno,
                 local_origem: local,
                 local_destino: null,
                 quantidade: take,
                 usuario: currentUser,
-                origem: 'separacao',
+                origem: 'APP_SEPARACAO',
                 observacao: `Baixa automatica da separacao rapida ${sessionId}`
             });
             movimentos += 1;
@@ -15966,13 +16338,13 @@ async function finalizeFastPickingWithoutConference(payload = {}) {
             const ok = await DataClient.updateEstoqueSupabase(row.id_interno, 'TERREO', 'subtrai', needed);
             if (!ok) throw new Error(`Falha ao gerar estoque negativo do produto ${row.id_interno}`);
             await DataClient.saveMovimentoSupabase({
-                tipo: 'saida',
+                tipo: 'SAIDA',
                 id_interno: row.id_interno,
                 local_origem: 'TERREO',
                 local_destino: null,
                 quantidade: needed,
                 usuario: currentUser,
-                origem: 'separacao',
+                origem: 'APP_SEPARACAO',
                 observacao: `Baixa da separacao rapida ${sessionId} com estoque negativo permitido. Produto ficou com saldo negativo.`
             });
             console.warn('[SEPARACAO_ESTOQUE_NEGATIVO] separacao rapida gerou saldo negativo', {
@@ -16005,7 +16377,12 @@ async function createPickingConferenceWithoutStock(payload = {}) {
     if (!client) throw new Error('Supabase client nao encontrado');
 
     const sessionId = payload.sessionId;
+    const channelLabel = payload.channelLabel || payload.canal_nome || currentPickingContext?.channelLabel || '';
     if (!sessionId) throw new Error('separacao_id nao informado');
+    assertValidPickSessionForPersist(sessionId, channelLabel, 'criar conferencia da separacao');
+    if (isFastPickingPayload(payload) || (isModoRapidoAtivo() && payload.modo_rapido !== false && payload.isFastMode !== false)) {
+        throw new Error(`Bloqueado: separacao rapida ${sessionId} nao deve criar conferencia.`);
+    }
 
     console.log('[SEPARACAO] fluxo normal: criando conferencia sem baixar estoque', {
         sessionId,
@@ -16091,6 +16468,10 @@ async function finalizeFastPickingSession(sessionId, channelId, channelLabel, ch
 
     const fastPayload = {
         sessionId,
+        channelLabel,
+        isFastMode: true,
+        modo_rapido: true,
+        observacao: PICK_FAST_OBSERVATION,
         user: currentUser,
         rows,
         total_produtos_separados: stats.total_produtos_separados,
@@ -16187,7 +16568,7 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
 
         await ensureProdutosLoaded(true);
         const now = getDataHoraBrasil();
-        const draft = getDraftPickSession() || {
+        const draft = getScopedDraftPickSession(sessionId, channelId, channelLabel) || {
             sessionId,
             channelId,
             channelLabel,
@@ -16195,7 +16576,7 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
             createdAt: currentPickSession?.pickingData?.criado_em || now,
             executionId: generateExecutionId()
         };
-        const modoRapidoAtivo = getActivePickingFastMode(draft);
+        const modoRapidoAtivo = isModoRapidoAtivo() || getActivePickingFastMode(draft);
         console.log('[SEPARACAO] modo selecionado', {
             sessionId,
             modo: modoRapidoAtivo ? 'rapido' : 'normal'
@@ -16236,6 +16617,10 @@ async function savePickResultFinal(sessionId, channelId, channelLabel, channelCo
 
         const conferencePayload = {
             sessionId,
+            channelLabel,
+            isFastMode: false,
+            modo_rapido: false,
+            observacao: PICK_MANUAL_OBSERVATION,
             user: localStorage.getItem('currentUser') || 'N/A',
             rows: (currentPickSession.conferenceRows?.length
                 ? currentPickSession.conferenceRows
@@ -16337,11 +16722,7 @@ async function renderPackMenu() {
         console.warn('[PACK] Falha ao atualizar separacoes do Supabase:', error);
     }
 
-    const activeSessions = (appData.separacao || []).filter(s => {
-        const st = String(s.status || '').toLowerCase();
-        if (isPickingFastModeSource(s)) return false;
-        return st === 'aberta' || st === 'pendente' || st === 'pronta_conferencia';
-    });
+    const activeSessions = (appData.separacao || []).filter(s => isSeparationPendingConferenceSession(s));
 
     app.innerHTML = `
                 <div class="dashboard-screen internal fade-in pack-screen module-screen standard-card-menu-screen">
@@ -16473,6 +16854,12 @@ async function renderPackSessionsList(channelName) {
     let activeSessions = [];
     let usedFreshSupabase = false;
     try {
+        const data = await DataClient.loadModule('conferencia', true);
+        if (data) {
+            appData.separacao = data.separacao || [];
+            appData.separacao_itens = data.separacao_itens || [];
+            appData.conferencia = data.conferencia || [];
+        }
         if (DataClient.fetchSeparacoesAbertasPorCanalSupabase) {
             activeSessions = await DataClient.fetchSeparacoesAbertasPorCanalSupabase(channelName);
             usedFreshSupabase = true;
@@ -16491,15 +16878,13 @@ async function renderPackSessionsList(channelName) {
     if (!usedFreshSupabase && !activeSessions.length) {
         activeSessions = (appData.separacao || []).filter(s => {
             const chan = s.canal_nome || s.col_c || s.canal || 'Outros';
-            const st = String(s.status || '').toLowerCase();
-            return chan === channelName && st === 'aberta' && !isPickingFastModeSource(s);
+            return chan === channelName && isSeparationPendingConferenceSession(s);
         });
     }
 
     activeSessions = activeSessions.filter(s => {
         const chan = s.canal_nome || s.col_c || s.canal || 'Outros';
-        const st = String(s.status || '').toLowerCase();
-        return chan === channelName && st === 'aberta' && !isPickingFastModeSource(s);
+        return chan === channelName && isSeparationPendingConferenceSession(s);
     });
 
     const channelConfig = getChannelConfig(channelName);
@@ -16628,6 +17013,17 @@ function setActivePickSessions(sessions) {
 // Global Session State moved to top for hoisting safety
 async function renderPackSessionDetails(sessionId) {
     const currentUser = localStorage.getItem('currentUser');
+    try {
+        const data = await DataClient.loadModule('conferencia', true);
+        if (data) {
+            appData.separacao = data.separacao || [];
+            appData.separacao_itens = data.separacao_itens || [];
+            appData.conferencia = data.conferencia || [];
+        }
+    } catch (error) {
+        console.warn('[PACK] Falha ao validar conferencia pendente:', error);
+    }
+
     const activeSessions = getActivePickSessions();
     const requestedId = String(sessionId || '');
     
@@ -16637,6 +17033,13 @@ async function renderPackSessionDetails(sessionId) {
     );
     const packSessionId = getPackSeparationSessionId(separacaoSession) || requestedId;
     const separacaoRowId = getPackSeparationUniqueId(separacaoSession) || requestedId;
+
+    if (separacaoSession && !isSeparationPendingConferenceSession(separacaoSession)) {
+        showToast('Esta separacao nao possui conferencia pendente vinculada.', 'warning');
+        renderPackMenu();
+        return;
+    }
+
     const session = activeSessions.find(s =>
         String(s.id) === String(packSessionId)
         || String(s.separacaoRowId || '') === String(separacaoRowId)
@@ -17460,6 +17863,12 @@ async function finishConferenceSession() {
 }
 
 function startFastPackSession(channelLabel, channelColor) {
+    if (isModoRapidoAtivo()) {
+        showToast('Conferencia direta bloqueada no modo rapido. Use Separacao rapida para baixar estoque.', 'warning');
+        renderMenu();
+        return;
+    }
+
     const currentUser = localStorage.getItem('currentUser');
     const now = new Date();
     const ddmm = now.getDate().toString().padStart(2, '0') + (now.getMonth() + 1).toString().padStart(2, '0');
@@ -17500,6 +17909,10 @@ function startFastPackSession(channelLabel, channelColor) {
 }
 
 async function submitConferenceFinalization(payload) {
+    if (isFastPickingPayload(payload) || (isModoRapidoAtivo() && payload.modo_rapido !== false && payload.isFastMode !== false)) {
+        throw new Error(`Bloqueado: conferencia nao deve finalizar separacao rapida ${payload.sessionId || ''}.`);
+    }
+
     if (!navigator.onLine) {
         await queueOperation('supabase_rpc', payload, {
             rpcName: 'finalizar_conferencia',
@@ -17687,13 +18100,13 @@ async function finalizeConferenceAllowingNegativeStock(payload, validation = nul
             const ok = await DataClient.updateEstoqueSupabase(row.id_interno, local, 'subtrai', take);
             if (!ok) throw new Error(`Falha ao baixar estoque do produto ${row.id_interno}`);
             await DataClient.saveMovimentoSupabase({
-                tipo: 'saida',
+                tipo: 'SAIDA',
                 id_interno: row.id_interno,
                 local_origem: local,
                 local_destino: null,
                 quantidade: take,
                 usuario: payload.user,
-                origem: 'conferencia',
+                origem: 'APP_CONFERENCIA',
                 observacao: `Baixa automatica da conferencia ${payload.sessionId}`
             });
             movimentos += 1;
@@ -17704,13 +18117,13 @@ async function finalizeConferenceAllowingNegativeStock(payload, validation = nul
             const ok = await DataClient.updateEstoqueSupabase(row.id_interno, 'TERREO', 'subtrai', needed);
             if (!ok) throw new Error(`Falha ao gerar estoque negativo do produto ${row.id_interno}`);
             await DataClient.saveMovimentoSupabase({
-                tipo: 'saida',
+                tipo: 'SAIDA',
                 id_interno: row.id_interno,
                 local_origem: 'TERREO',
                 local_destino: null,
                 quantidade: needed,
                 usuario: payload.user,
-                origem: 'conferencia',
+                origem: 'APP_CONFERENCIA',
                 observacao: `Baixa da conferencia ${payload.sessionId} com estoque negativo permitido. Produto ficou com saldo negativo.`
             });
             console.warn('[SEPARACAO_ESTOQUE_NEGATIVO] movimento gerou saldo negativo', {
@@ -17772,6 +18185,9 @@ async function confirmFinishConference() {
         const finalizationResult = await submitConferenceFinalization({
             action: 'finalizar_conferencia',
             sessionId: sessionId,
+            isFastMode: false,
+            modo_rapido: false,
+            observacao: PICK_MANUAL_OBSERVATION,
             user: currentUser,
             rows: rows,
             executionId
@@ -24497,11 +24913,19 @@ function renderConfigSubMenu() {
 
 async function toggleConfig(key, value) {
     if (['permitir_saida_estoque_zero', 'permitir_estoque_negativo', 'modo_rapido'].includes(key)) {
-        const allowed = await requireMasterPin('alterar configurações críticas');
-        if (!allowed) {
-            renderConfigSubMenu();
-            return;
+        const config = getAppConfig();
+        config[key] = value;
+        if (key === 'permitir_saida_estoque_zero' || key === 'permitir_estoque_negativo') {
+            config.permitir_saida_estoque_zero = value;
+            config.permitir_estoque_negativo = value;
+            console.log('[SEPARACAO_ESTOQUE_NEGATIVO] configuracao alterada', { permitir_estoque_negativo: value });
         }
+        setAppConfig(config);
+        showToast('Configuracao atualizada', 'success');
+        if (key === 'modo_rapido') {
+            renderMenu(false);
+        }
+        return;
     }
     const config = getAppConfig();
     config[key] = value;
@@ -24535,7 +24959,7 @@ function formatSecurityDate(value) {
 
 function getSecurityOnlineWindowMinutes() {
     const config = getAppConfig?.() || {};
-    const minutes = Number(config.security_online_window_minutes || config.segurança_online_minutos || 5);
+    const minutes = Number(config.security_online_window_minutes || config['seguranca_online_minutos'] || config['segurança_online_minutos'] || 5);
     return Number.isFinite(minutes) && minutes > 0 ? minutes : 5;
 }
 
@@ -25338,13 +25762,13 @@ async function renderGarantiaEnvioForm() {
 
             // 2. Registrar movimento de saída da origem
             await DataClient.saveMovimentoSupabase({
-                tipo: 'transferencia',
+                tipo: 'TRANSFERENCIA',
                 id_interno: selectedProduct.id_interno,
                 local_origem: selectedSource,
                 local_destino: 'EM_GARANTIA',
                 quantidade: qty,
                 usuario: currentUser,
-                origem: 'MODULO_GARANTIA',
+                origem: 'MANUAL',
                 observacao: `${garantiaData.tipo_operacao}: Enviado de ${selectedSource} para EM_GARANTIA. Motivo: ${garantiaData.motivo}`
             });
 
@@ -27654,13 +28078,13 @@ async function finalizarEntradaNFXmlConfirmado() {
             const ok = await DataClient.updateEstoqueSupabase(item.id_interno, 'TERREO', 'soma', item.quantidade);
             if (!ok) throw new Error(`Falha ao atualizar estoque do item ${item.id_interno}`);
             await DataClient.saveMovimentoSupabase({
-                tipo: 'ENTRADA_NF',
+                tipo: 'ENTRADA',
                 id_interno: item.id_interno,
                 local_origem: null,
                 local_destino: 'TERREO',
                 quantidade: item.quantidade,
                 usuario: localStorage.getItem('currentUser'),
-                origem: 'ENTRADA_NF_XML',
+                origem: 'APP_COMPRAS',
                 observacao: `NF ${state.numero_nf} - ${state.chave_acesso} | custo_real_unit=${nfXmlFormatMoney(item.custo_real_unitario)} | custo_real_total=${nfXmlFormatMoney(item.custo_real_total)}`
             });
         }
@@ -27778,13 +28202,13 @@ async function finalizarEntradaNFAberta(entradaId) {
             const ok = await DataClient.updateEstoqueSupabase(item.id_interno, 'TERREO', 'soma', item.quantidade);
             if (!ok) throw new Error(`Falha ao atualizar estoque do item ${item.id_interno}`);
             const savedMov = await DataClient.saveMovimentoSupabase({
-                tipo: 'ENTRADA_NF',
+                tipo: 'ENTRADA',
                 id_interno: item.id_interno,
                 local_origem: null,
                 local_destino: 'TERREO',
                 quantidade: item.quantidade,
                 usuario: localStorage.getItem('currentUser'),
-                origem: 'ENTRADA_NF_XML',
+                origem: 'APP_COMPRAS',
                 observacao: `NF ${entrada.numero_nf || '-'} - ${entrada.chave_acesso || entrada.id} | custo_real_unit=${nfXmlFormatMoney(item.custo_real_unitario)} | custo_real_total=${nfXmlFormatMoney(item.custo_real_total)}`
             });
             if (!savedMov) throw new Error(`Falha ao registrar movimento do item ${item.id_interno}`);

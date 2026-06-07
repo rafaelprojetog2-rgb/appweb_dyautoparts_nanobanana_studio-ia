@@ -1208,6 +1208,651 @@ body.login-active #login-screen .top-hover-zone .btn-floating-app.btn-fullscreen
   right: 18px !important;
 }
 
+/* Approved product search card layout. Visual-only overrides for listing cards. */
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results-list {
+    gap: 12px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .08) !important;
+    color: #0f172a !important;
+    display: grid !important;
+    gap: 18px !important;
+    grid-template-columns: 132px minmax(420px, 1.45fr) minmax(190px, .45fr) minmax(500px, .95fr) 24px !important;
+    min-height: 142px !important;
+    overflow: hidden !important;
+    padding: 16px 18px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card.inactive {
+    opacity: .78 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    align-items: center !important;
+    align-self: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .06) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .12) !important;
+    display: flex !important;
+    height: 112px !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    width: 112px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper img {
+    height: 82% !important;
+    object-fit: contain !important;
+    width: 82% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    align-items: start !important;
+    align-self: stretch !important;
+    border-right: 1px solid rgba(148, 163, 184, .28) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding-right: 22px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-header-row {
+    align-items: center !important;
+    display: flex !important;
+    gap: 10px !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id {
+    align-items: center !important;
+    display: inline-flex !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id small {
+    color: #475569 !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .74rem !important;
+    font-weight: 800 !important;
+    letter-spacing: .04em !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-id-row {
+    align-items: center !important;
+    display: inline-flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    align-items: center !important;
+    background: #fff2b8 !important;
+    border: 1px solid #facc15 !important;
+    border-radius: 7px !important;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .86rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    min-height: 28px !important;
+    padding: 6px 12px !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-location-badge {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    color: #0a0f1c !important;
+    display: -webkit-box !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(1.08rem, 1.2vw, 1.55rem) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0 !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-shadow: none !important;
+    text-transform: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-mobile-quick-info {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    align-items: center !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-align: left !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    align-items: center !important;
+    background: #eaf3ff !important;
+    border: 1px solid #cfe0f3 !important;
+    border-radius: 7px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04) inset !important;
+    color: #172033 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .9rem !important;
+    font-weight: 800 !important;
+    gap: 6px !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    max-width: 100% !important;
+    min-height: 30px !important;
+    padding: 7px 13px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip strong {
+    color: #1e293b !important;
+    font-weight: 950 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column {
+    align-items: center !important;
+    align-self: stretch !important;
+    border-right: 1px solid rgba(148, 163, 184, .28) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 0 16px !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    background: transparent !important;
+    border: 0 !important;
+    color: #dc0000 !important;
+    display: block !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(1.24rem, 1.55vw, 1.78rem) !important;
+    font-weight: 900 !important;
+    letter-spacing: 0 !important;
+    line-height: 1.05 !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    text-align: center !important;
+    text-shadow: none !important;
+    text-transform: uppercase !important;
+    word-break: break-word !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-underline {
+    background: #dc0000 !important;
+    border-radius: 999px !important;
+    display: block !important;
+    height: 3px !important;
+    margin-top: 12px !important;
+    width: 58px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    align-items: stretch !important;
+    display: grid !important;
+    gap: 18px !important;
+    grid-template-columns: minmax(260px, 1fr) minmax(220px, .9fr) !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    align-content: center !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    display: grid !important;
+    min-height: 108px !important;
+    padding: 14px 18px !important;
+    position: relative !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block {
+    background: linear-gradient(135deg, #f0fbf2, #f8fcf7) !important;
+    grid-template-columns: 50px 1fr !important;
+    grid-template-rows: auto auto auto !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: linear-gradient(135deg, #fff2f2, #fff7f7) !important;
+    grid-template-columns: 48px 1fr !important;
+    grid-template-rows: auto auto !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    align-self: center !important;
+    display: inline-flex !important;
+    font-size: 2.18rem !important;
+    grid-row: 1 / 3 !important;
+    justify-self: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon {
+    color: #22c55e !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    color: #ff3030 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-label,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-label {
+    align-self: end !important;
+    color: #334155 !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .84rem !important;
+    font-weight: 900 !important;
+    letter-spacing: .02em !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    align-items: baseline !important;
+    display: inline-flex !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(2.15rem, 2.45vw, 3rem) !important;
+    font-weight: 900 !important;
+    gap: 9px !important;
+    justify-content: center !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #12823d !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value.out {
+    color: #6b7280 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value small,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value small {
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .84rem !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    color: #dc0000 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-pack-pill {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    align-items: center !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    grid-column: 1 / -1 !important;
+    justify-content: center !important;
+    margin: 8px 0 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    align-items: center !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .88rem !important;
+    font-weight: 800 !important;
+    gap: 5px !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location + .stock-sellable-location::before {
+    color: #64748b !important;
+    content: "|" !important;
+    margin-right: 7px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location .material-symbols-rounded {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location strong,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location em {
+    color: inherit !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-status-indicator {
+    align-self: start !important;
+    border: 0 !important;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, .35) !important;
+    display: block !important;
+    height: 18px !important;
+    justify-self: center !important;
+    margin-top: 4px !important;
+    position: static !important;
+    width: 18px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-more-indicator {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .08) !important;
+    color: #0f172a !important;
+    display: grid !important;
+    gap: 12px !important;
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "image info"
+      "brand brand"
+      "ops ops" !important;
+    overflow: hidden !important;
+    padding: 14px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .06) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .12) !important;
+    display: flex !important;
+    grid-area: image !important;
+    height: 78px !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    width: 78px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper img {
+    height: 82% !important;
+    object-fit: contain !important;
+    width: 82% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    align-items: start !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    grid-area: info !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id {
+    align-items: flex-start !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id small {
+    color: #475569 !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .72rem !important;
+    font-weight: 800 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    background: #fff2b8 !important;
+    border: 1px solid #facc15 !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .82rem !important;
+    min-height: 26px !important;
+    padding: 6px 10px !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-location-badge,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-mobile-quick-info {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    color: #0a0f1c !important;
+    display: -webkit-box !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 1.05rem !important;
+    letter-spacing: 0 !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    justify-content: flex-start !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: #eaf3ff !important;
+    border: 1px solid #cfe0f3 !important;
+    border-radius: 7px !important;
+    color: #172033 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .82rem !important;
+    font-weight: 800 !important;
+    max-width: 100% !important;
+    min-height: 28px !important;
+    overflow-wrap: anywhere !important;
+    padding: 6px 9px !important;
+    white-space: normal !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column {
+    align-items: center !important;
+    border-top: 1px solid rgba(148, 163, 184, .24) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    grid-area: brand !important;
+    justify-content: center !important;
+    padding-top: 10px !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    color: #dc0000 !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 1.2rem !important;
+    line-height: 1.05 !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-underline {
+    background: #dc0000 !important;
+    border-radius: 999px !important;
+    display: block !important;
+    height: 2px !important;
+    margin-top: 8px !important;
+    width: 48px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    display: grid !important;
+    gap: 10px !important;
+    grid-area: ops !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    border: 0 !important;
+    border-radius: 13px !important;
+    display: grid !important;
+    min-height: 92px !important;
+    padding: 13px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block {
+    background: #f0fbf2 !important;
+    grid-template-columns: 42px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: #fff2f2 !important;
+    grid-template-columns: 42px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    align-self: center !important;
+    display: inline-flex !important;
+    font-size: 1.9rem !important;
+    grid-row: 1 / 3 !important;
+    justify-self: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon {
+    color: #22c55e !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    color: #ff3030 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-label,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-label {
+    color: #334155 !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    align-items: baseline !important;
+    display: inline-flex !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 2rem !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #12823d !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    color: #dc0000 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-pack-pill {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    grid-column: 1 / -1 !important;
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    background: transparent !important;
+    border: 0 !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .82rem !important;
+    font-style: normal !important;
+    gap: 4px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location .material-symbols-rounded {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location strong,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location em {
+    color: inherit !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-status-indicator {
+    height: 14px !important;
+    position: absolute !important;
+    right: 14px !important;
+    top: 14px !important;
+    width: 14px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-more-indicator {
+    display: none !important;
+  }
+}
+
 /* Mobile product search must use page scrolling, not a locked viewport. */
 @media (max-width: 768px) {
   html:has(body:not(.login-active) #app > .dashboard-screen.product-search-screen),
@@ -7999,7 +8644,7 @@ html[data-theme="dark"] .config-settings-card {
         .security-device-meta {
             display: grid;
             gap: 10px;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(6, minmax(0, 1fr));
             margin-top: 12px;
         }
 
@@ -10766,7 +11411,7 @@ html[data-theme="dark"] .config-settings-card {
 .product-stock-layers-summary {
     display: grid;
     gap: 10px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     margin-top: 12px;
 }
 
@@ -26803,7 +27448,7 @@ html[data-theme="light"] #inventory-setup-content .inv-setup-safe-note {
 
 .kit-premium-featured-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 14px;
 }
 
@@ -33481,7 +34126,7 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card sma
 
 .entrada-nf-history-meta {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -55380,7 +56025,7 @@ html body:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .me
 .romaneio-detail-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .pick-draft-grid div,
@@ -57169,7 +57814,7 @@ html[data-theme="dark"] .inventory-history-filter.is-active {
 .inventory-history-summary-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 0 0 18px;
 }
 
@@ -60564,4 +61209,4002 @@ body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .pick-prod
   body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results {
     padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)) !important;
   }
+}
+
+/* Final login mobile normalization: one visual rhythm across narrow and tall phones. */
+@media (max-width: 900px) {
+  html:has(body.login-active),
+  html body.login-active,
+  html body.login-active #app,
+  html body.login-active #app #login-screen.login-screen#login-screen {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen {
+    --login-mobile-topbar: max(34px, calc(env(safe-area-inset-top, 0px) + 30px));
+    --login-mobile-logo-top: clamp(86px, 17.5dvh, 156px);
+    --login-mobile-logo-width: clamp(116px, 34vw, 174px);
+    --login-mobile-list-top: clamp(230px, 41dvh, 336px);
+    --login-mobile-card-height: clamp(72px, 9.5dvh, 86px);
+    --login-mobile-card-width: min(calc(100vw - 32px), 430px);
+    --login-mobile-card-gap: clamp(10px, 1.45dvh, 14px);
+    background-size: auto 112% !important;
+    background-position: center -30px !important;
+    background-attachment: scroll !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen > .top-hover-zone {
+    position: fixed !important;
+    top: var(--login-mobile-topbar) !important;
+    right: max(14px, calc(env(safe-area-inset-right, 0px) + 14px)) !important;
+    left: auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 9px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    z-index: 50 !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen > .top-hover-zone .btn-floating-app {
+    position: static !important;
+    inset: auto !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 38px !important;
+    min-width: 38px !important;
+    max-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    flex: 0 0 38px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen > img.login-logo.dy-app-logo,
+  html body.login-active #app #login-screen.login-screen#login-screen > img.login-logo {
+    position: absolute !important;
+    top: var(--login-mobile-logo-top) !important;
+    left: 50% !important;
+    width: var(--login-mobile-logo-width) !important;
+    max-width: 48vw !important;
+    max-height: none !important;
+    height: auto !important;
+    margin: 0 !important;
+    object-fit: contain !important;
+    transform: translateX(-50%) !important;
+    z-index: 4 !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .user-grid.login-user-grid,
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-grid.user-grid {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: var(--login-mobile-list-top) auto 0 !important;
+    padding: 0 max(12px, env(safe-area-inset-left)) calc(72px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-right)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    grid-template-columns: none !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: var(--login-mobile-card-gap) !important;
+    transform: none !important;
+    z-index: 5 !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .user-grid.login-user-grid > div.user-card.login-user-card,
+  html body.login-active #app #login-screen.login-screen#login-screen div.user-card.login-user-card.user-card {
+    width: var(--login-mobile-card-width) !important;
+    min-width: 0 !important;
+    max-width: 430px !important;
+    height: var(--login-mobile-card-height) !important;
+    min-height: var(--login-mobile-card-height) !important;
+    max-height: var(--login-mobile-card-height) !important;
+    flex: 0 0 var(--login-mobile-card-height) !important;
+    padding: 12px 14px 12px clamp(68px, 19vw, 82px) !important;
+    border-radius: 18px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    overflow: visible !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-card.user-card .user-avatar-box,
+  html body.login-active #app #login-screen.login-screen#login-screen .user-grid.login-user-grid > .login-user-card.user-card .user-avatar-box {
+    left: clamp(12px, 4vw, 18px) !important;
+    top: -14px !important;
+    width: clamp(46px, 13vw, 54px) !important;
+    min-width: clamp(46px, 13vw, 54px) !important;
+    max-width: 54px !important;
+    height: clamp(46px, 13vw, 54px) !important;
+    min-height: clamp(46px, 13vw, 54px) !important;
+    max-height: 54px !important;
+    flex-basis: clamp(46px, 13vw, 54px) !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: clamp(40px, 12vw, 50px) minmax(0, 1fr) !important;
+    align-items: center !important;
+    column-gap: clamp(6px, 2.2vw, 10px) !important;
+    text-align: left !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-card.user-card .user-initials {
+    font-size: clamp(37px, 11vw, 44px) !important;
+    line-height: 0.86 !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-card.user-card .name {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: clamp(11px, 3.2vw, 13px) !important;
+    letter-spacing: 0.025em !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-first-name,
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-last-name {
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body.login-active #app #login-screen.login-screen#login-screen .login-user-red-line {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 760px) {
+  html body.login-active #app #login-screen.login-screen#login-screen {
+    --login-mobile-logo-top: clamp(76px, 15.5dvh, 112px);
+    --login-mobile-logo-width: clamp(106px, 31vw, 142px);
+    --login-mobile-list-top: clamp(205px, 36dvh, 260px);
+    --login-mobile-card-height: clamp(66px, 10dvh, 74px);
+    --login-mobile-card-gap: 9px;
+  }
+}
+
+@media (min-width: 520px) and (max-width: 900px) {
+  html body.login-active #app #login-screen.login-screen#login-screen {
+    --login-mobile-card-width: min(calc(100vw - 32px), 520px);
+    --login-mobile-logo-width: clamp(140px, 30vw, 210px);
+  }
+}
+
+/* Final menu mobile normalization: same stable viewport rhythm used by login. */
+@media (max-width: 900px) {
+  html:has(body.menu-active:not(.login-active)),
+  html body.menu-active:not(.login-active),
+  html body.menu-active:not(.login-active) #app,
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen {
+    --menu-mobile-page-x: max(10px, env(safe-area-inset-left, 0px));
+    --menu-mobile-top: max(50px, calc(env(safe-area-inset-top, 0px) + 46px));
+    --menu-mobile-bottom: max(96px, calc(env(safe-area-inset-bottom, 0px) + 92px));
+    --menu-mobile-gap: clamp(8px, 2.6vw, 11px);
+    --menu-mobile-card-h: clamp(104px, 31vw, 124px);
+    --menu-mobile-icon: clamp(38px, 11vw, 48px);
+    --menu-mobile-icon-art: clamp(30px, 8.8vw, 38px);
+    --menu-mobile-label: clamp(0.66rem, 2.45vw, 0.86rem);
+    display: block !important;
+    background-attachment: scroll !important;
+    background-position: center top !important;
+    background-size: cover !important;
+  }
+
+  html[data-theme="dark"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen {
+    background:
+      linear-gradient(180deg, rgba(0, 0, 0, .02), rgba(0, 0, 0, .08)),
+      url('/assets/images/menu-bg-mobile-escuro.png?v=20260605-normalized') center top / cover no-repeat !important;
+  }
+
+  html[data-theme="light"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, .02), rgba(255, 255, 255, .08)),
+      url('/assets/images/menu-bg-mobile-claro.png?v=20260605-normalized') center top / cover no-repeat !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen > main.container {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: 560px !important;
+    min-height: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding:
+      var(--menu-mobile-top)
+      var(--menu-mobile-page-x)
+      var(--menu-mobile-bottom) !important;
+    display: block !important;
+    overflow: visible !important;
+    scrollbar-width: none !important;
+    transform: none !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-grid {
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: none !important;
+    grid-auto-rows: var(--menu-mobile-card-h) !important;
+    gap: var(--menu-mobile-gap) !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card,
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card.mobile-nav-card,
+  html[data-theme="light"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card,
+  html[data-theme="light"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card.mobile-nav-card,
+  html[data-theme="dark"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card,
+  html[data-theme="dark"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card.mobile-nav-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    inset: auto !important;
+    height: var(--menu-mobile-card-h) !important;
+    min-height: var(--menu-mobile-card-h) !important;
+    max-height: var(--menu-mobile-card-h) !important;
+    aspect-ratio: auto !important;
+    margin: 0 !important;
+    padding: clamp(10px, 2.8vw, 14px) 6px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: clamp(6px, 1.9vw, 9px) !important;
+    border-radius: 11px !important;
+    overflow: hidden !important;
+    transform: none !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card:hover:not(:disabled) {
+    transform: none !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .menu-icon-3d {
+    width: var(--menu-mobile-icon) !important;
+    min-width: var(--menu-mobile-icon) !important;
+    max-width: var(--menu-mobile-icon) !important;
+    height: var(--menu-mobile-icon) !important;
+    min-height: var(--menu-mobile-icon) !important;
+    max-height: var(--menu-mobile-icon) !important;
+    flex: 0 0 var(--menu-mobile-icon) !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .menu-icon-3d svg,
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .menu-icon-3d img {
+    width: var(--menu-mobile-icon-art) !important;
+    min-width: var(--menu-mobile-icon-art) !important;
+    max-width: var(--menu-mobile-icon-art) !important;
+    height: var(--menu-mobile-icon-art) !important;
+    min-height: var(--menu-mobile-icon-art) !important;
+    max-height: var(--menu-mobile-icon-art) !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .label,
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card.mobile-nav-card .label,
+  html[data-theme="light"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .label,
+  html[data-theme="dark"] body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .menu-card .label {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 0 4px !important;
+    font-size: var(--menu-mobile-label) !important;
+    line-height: 1.08 !important;
+    letter-spacing: .45px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .top-action-group {
+    top: max(14px, calc(env(safe-area-inset-top, 0px) + 12px)) !important;
+    right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px)) !important;
+    gap: 9px !important;
+    z-index: 80 !important;
+  }
+
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen .top-action-group .fab-icon-btn:not(.quick-action-fab) {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab {
+    width: 108px !important;
+    min-width: 108px !important;
+    height: 108px !important;
+    min-height: 108px !important;
+    right: max(-30px, calc(env(safe-area-inset-right, 0px) - 30px)) !important;
+    bottom: max(4px, env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab-img {
+    width: 108px !important;
+    max-width: 108px !important;
+    height: 108px !important;
+    max-height: 108px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  html body.menu-active:not(.login-active) #app > .dashboard-screen.menu-screen {
+    --menu-mobile-page-x: max(8px, env(safe-area-inset-left, 0px));
+    --menu-mobile-gap: 8px;
+    --menu-mobile-card-h: clamp(96px, 36vw, 108px);
+    --menu-mobile-icon: clamp(34px, 12vw, 42px);
+    --menu-mobile-icon-art: clamp(27px, 9.5vw, 34px);
+    --menu-mobile-label: clamp(0.58rem, 2.8vw, 0.72rem);
+  }
+}
+
+/* Block audit pass: submenus and product search readability. */
+@media (max-width: 900px) {
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) {
+    background: #f5f7fb !important;
+    color: #111827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) {
+    background: #090d14 !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) > main.container {
+    width: 100% !important;
+    max-width: 560px !important;
+    min-height: auto !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 82px)
+      max(12px, env(safe-area-inset-left, 0px))
+      calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-grid {
+    width: 100% !important;
+    max-width: none !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card,
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) button.standard-module-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 116px !important;
+    height: auto !important;
+    padding: 16px !important;
+    display: grid !important;
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 14px !important;
+    border-radius: 14px !important;
+    text-align: left !important;
+    overflow: hidden !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) button.standard-module-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+    color: #111827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) button.standard-module-card {
+    background: #141923 !important;
+    border: 1px solid rgba(226, 232, 240, 0.14) !important;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34) !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-icon {
+    width: 54px !important;
+    min-width: 54px !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-icon svg,
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-icon img {
+    width: 46px !important;
+    height: 46px !important;
+    max-width: 46px !important;
+    max-height: 46px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-copy {
+    min-width: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-copy strong {
+    width: 100% !important;
+    color: inherit !important;
+    font-size: clamp(1.02rem, 4.4vw, 1.22rem) !important;
+    line-height: 1.04 !important;
+    letter-spacing: .35px !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    text-shadow: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-copy small {
+    width: 100% !important;
+    font-size: clamp(.76rem, 3.1vw, .88rem) !important;
+    font-weight: 750 !important;
+    line-height: 1.28 !important;
+    letter-spacing: 0 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-copy small {
+    color: #475569 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.standard-card-menu-screen.module-screen:not(.menu-screen) .standard-module-card-copy small {
+    color: #cbd5e1 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen > main.container.product-search-center {
+    width: 100% !important;
+    max-width: 560px !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 78px)
+      10px
+      calc(env(safe-area-inset-bottom, 0px) + 24px) !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    position: sticky !important;
+    top: calc(env(safe-area-inset-top, 0px) + 6px) !important;
+    z-index: 60 !important;
+    min-height: 60px !important;
+    grid-template-columns: minmax(0, 1fr) 64px !important;
+    gap: 8px !important;
+    padding: 8px !important;
+    border-radius: 14px !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    background: rgba(255, 255, 255, 0.96) !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    background: rgba(15, 23, 42, 0.96) !important;
+    border: 1px solid rgba(226, 232, 240, 0.16) !important;
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-bar {
+    height: 48px !important;
+    min-height: 48px !important;
+    border-radius: 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input {
+    height: 48px !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+    font-weight: 850 !important;
+    line-height: 48px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric.product-found-counter {
+    width: 64px !important;
+    min-width: 64px !important;
+    height: 48px !important;
+    min-height: 48px !important;
+    padding: 0 4px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric.product-found-counter strong {
+    font-size: 1.28rem !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-summary-metric.product-found-counter small {
+    font-size: .48rem !important;
+    line-height: .92 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results-list {
+    gap: 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    display: grid !important;
+    grid-template-columns: 74px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "image main"
+      "ops ops" !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border-radius: 14px !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    background: #111827 !important;
+    border: 1px solid rgba(226, 232, 240, 0.14) !important;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.32) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    grid-area: image !important;
+    width: 74px !important;
+    min-width: 74px !important;
+    height: 74px !important;
+    min-height: 74px !important;
+    border-radius: 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    grid-area: main !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-header-row {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id small {
+    display: block !important;
+    font-size: .52rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    letter-spacing: .55px !important;
+    opacity: .78 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    display: inline-block !important;
+    margin-top: 3px !important;
+    font-size: .92rem !important;
+    line-height: 1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    max-width: 46% !important;
+    padding: 5px 8px !important;
+    border-radius: 999px !important;
+    font-size: .62rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    background: rgba(148, 163, 184, 0.14) !important;
+    color: #e2e8f0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    margin: 0 !important;
+    color: inherit !important;
+    font-size: clamp(.88rem, 3.7vw, 1rem) !important;
+    font-weight: 950 !important;
+    line-height: 1.17 !important;
+    letter-spacing: 0 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    flex: 0 0 auto !important;
+    max-width: 168px !important;
+    height: 28px !important;
+    padding: 0 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    border-radius: 9px !important;
+    font-size: .66rem !important;
+    font-weight: 850 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: rgba(15, 23, 42, 0.84) !important;
+    color: #cbd5e1 !important;
+    border: 1px solid rgba(226, 232, 240, 0.10) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    grid-area: ops !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, .7fr) !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    min-width: 0 !important;
+    min-height: 64px !important;
+    padding: 9px 10px !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    gap: 3px !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: #f8fafc !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: #0b1220 !important;
+    border: 1px solid rgba(226, 232, 240, 0.10) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen :where(.stock-label,.price-label) {
+    font-size: .56rem !important;
+    font-weight: 950 !important;
+    letter-spacing: .45px !important;
+    line-height: 1 !important;
+    opacity: .76 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #16a34a !important;
+    font-size: 1.18rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value.out {
+    color: #ef4444 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value small {
+    font-size: .58rem !important;
+    color: inherit !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    color: #2563eb !important;
+    font-size: .92rem !important;
+    font-weight: 950 !important;
+    line-height: 1.08 !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .sellable-location-list,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .pack-info-row {
+    display: none !important;
+  }
+}
+
+@media (max-width: 340px) {
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    grid-template-columns: 62px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    width: 62px !important;
+    min-width: 62px !important;
+    height: 62px !important;
+    min-height: 62px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Operational block audit pass: pick, pack and inventory on phones. */
+@media (max-width: 900px) {
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen,
+  html body:not(.login-active) #app > .dashboard-screen.pack-sessions-screen,
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > :where(.dashboard-screen.pack-blind-screen,.dashboard-screen.pack-sessions-screen,.dashboard-screen.inventory-screen-shell) {
+    background: #f5f7fb !important;
+    color: #111827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > :where(.dashboard-screen.pack-blind-screen,.dashboard-screen.pack-sessions-screen,.dashboard-screen.inventory-screen-shell) {
+    background: #080b10 !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-counter-row {
+    width: 100% !important;
+    max-width: 560px !important;
+    margin: 0 auto 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-counter-pill {
+    width: 100% !important;
+    min-height: 44px !important;
+    justify-content: center !important;
+    border-radius: 999px !important;
+    font-size: .86rem !important;
+    font-weight: 900 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-conference-card,
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen button.operational-conference-card {
+    align-items: stretch !important;
+    grid-template-columns: 54px minmax(0, 1fr) !important;
+    min-height: 142px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-conference-copy {
+    min-width: 0 !important;
+    gap: 5px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+    margin-top: 4px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta em,
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta b {
+    min-height: 24px !important;
+    padding: 5px 7px !important;
+    border-radius: 8px !important;
+    font-size: .64rem !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta em {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta em {
+    background: rgba(148, 163, 184, 0.12) !important;
+    color: #cbd5e1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-card-meta b {
+    background: rgba(34, 197, 94, 0.16) !important;
+    color: #16a34a !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-screen .operational-open-indicator {
+    margin-top: 6px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: #2563eb !important;
+    font-size: .74rem !important;
+    font-weight: 950 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-shell {
+    width: 100% !important;
+    max-width: 560px !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 10px)
+      10px
+      calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-header {
+    min-height: 46px !important;
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-back-btn,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-manual-btn {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-manual-btn {
+    font-size: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-manual-btn .material-symbols-rounded {
+    margin: 0 !important;
+    font-size: 23px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title {
+    justify-content: center !important;
+    text-align: center !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title-icon {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title h1 {
+    margin: 0 !important;
+    font-size: clamp(.94rem, 4vw, 1.1rem) !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title p {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scan-field {
+    width: 100% !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    display: grid !important;
+    grid-template-columns: 40px minmax(0, 1fr) 42px !important;
+    align-items: center !important;
+    gap: 6px !important;
+    padding: 0 8px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scan-field {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #111827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scan-field {
+    background: #111827 !important;
+    border: 1.5px solid rgba(226, 232, 240, 0.18) !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen #pack-ean-input {
+    min-width: 0 !important;
+    height: 54px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+    font-size: 16px !important;
+    font-weight: 850 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scanner-btn {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 11px !important;
+    color: #ef4444 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card {
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+    border-radius: 13px !important;
+    display: grid !important;
+    grid-template-columns: 36px minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen :where(.pack-blind-list-panel,.pack-blind-summary-panel,.pack-blind-warning) {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    color: #111827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen :where(.pack-blind-list-panel,.pack-blind-summary-panel,.pack-blind-warning) {
+    background: #111827 !important;
+    border: 1px solid rgba(226, 232, 240, 0.12) !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card small,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card em {
+    color: #64748b !important;
+    font-size: .66rem !important;
+    font-weight: 850 !important;
+    line-height: 1.1 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card small,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card em {
+    color: #cbd5e1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card strong {
+    display: block !important;
+    max-width: 100% !important;
+    color: inherit !important;
+    font-size: .88rem !important;
+    line-height: 1.08 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-work-area {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-panel,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 12px !important;
+    border-radius: 14px !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-header {
+    gap: 8px !important;
+    padding-bottom: 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-header h2,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-panel h2 {
+    margin: 0 !important;
+    color: inherit !important;
+    font-size: clamp(.9rem, 3.8vw, 1.04rem) !important;
+    line-height: 1.05 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-table-head {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-items-list {
+    max-height: none !important;
+    overflow: visible !important;
+    display: grid !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics > div {
+    min-width: 0 !important;
+    min-height: 76px !important;
+    padding: 8px 6px !important;
+    border-radius: 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics strong {
+    color: inherit !important;
+    font-size: clamp(1.25rem, 5.5vw, 1.62rem) !important;
+    line-height: 1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-progress {
+    display: grid !important;
+    place-items: center !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-finish-btn {
+    min-height: 50px !important;
+    width: 100% !important;
+    border-radius: 12px !important;
+    font-size: .88rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inventory-scanning-screen {
+    width: 100% !important;
+    max-width: 560px !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding:
+      calc(env(safe-area-inset-top, 0px) + 78px)
+      10px
+      calc(env(safe-area-inset-bottom, 0px) + 96px) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inventory-scanning-screen > div:first-child {
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-screen-title {
+    margin: 0 0 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-screen-title h1 {
+    margin: 0 !important;
+    color: inherit !important;
+    font-size: clamp(.98rem, 4.3vw, 1.18rem) !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-screen-title span {
+    flex: 0 0 auto !important;
+    font-size: .66rem !important;
+    font-weight: 900 !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-session-summary {
+    margin: 0 0 10px !important;
+    padding: 10px !important;
+    border-radius: 14px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-session-summary > div:first-child {
+    grid-column: 1 / -1 !important;
+    text-align: left !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-session-summary > div {
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-session-summary div[style*="font-size: 0.65rem"] {
+    color: #64748b !important;
+    font-size: .58rem !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-session-summary div[style*="font-size: 0.65rem"] {
+    color: #94a3b8 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-search-wrapper {
+    margin: 0 0 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell #inv-ean-input {
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 56px 0 50px !important;
+    border-radius: 14px !important;
+    font-size: 16px !important;
+    font-weight: 850 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-cam-btn {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 11px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-list-head {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell #inventory-items-list {
+    flex: 0 0 auto !important;
+    min-height: 220px !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 0 0 12px !important;
+    display: grid !important;
+    gap: 10px !important;
+    overflow: visible !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inventory-item {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: 34px 58px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "idx thumb product"
+      "qty qty qty" !important;
+    gap: 9px !important;
+    align-items: center !important;
+    padding: 11px !important;
+    border-radius: 14px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-item-index {
+    grid-area: idx !important;
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    border-radius: 9px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-item-thumb {
+    grid-area: thumb !important;
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    border-radius: 11px !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-col-info {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-col-product {
+    grid-area: product !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-product-code {
+    display: inline-flex !important;
+    max-width: 100% !important;
+    margin-bottom: 4px !important;
+    font-size: .68rem !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-product-name {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    color: inherit !important;
+    font-size: clamp(.82rem, 3.6vw, .96rem) !important;
+    font-weight: 950 !important;
+    line-height: 1.18 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-product-meta {
+    display: block !important;
+    margin-top: 5px !important;
+    font-size: .68rem !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-col-qty {
+    grid-area: qty !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-qty-control {
+    min-height: 44px !important;
+    border-radius: 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-qty-btn {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    border-radius: 10px !important;
+    font-size: 1.2rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-qty-num {
+    width: 58px !important;
+    min-width: 58px !important;
+    height: 42px !important;
+    font-size: 1.12rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-qty-label,
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-qty-unit {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-remove {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    color: #ef4444 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-footer-bar {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 70 !important;
+    padding:
+      10px
+      max(10px, env(safe-area-inset-left, 0px))
+      calc(10px + env(safe-area-inset-bottom, 0px))
+      max(10px, env(safe-area-inset-right, 0px)) !important;
+    border-radius: 18px 18px 0 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-footer-inner {
+    width: 100% !important;
+    max-width: 560px !important;
+    margin: 0 auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, .65fr) minmax(0, 1fr) !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-total-label {
+    min-width: 0 !important;
+    font-size: .76rem !important;
+    font-weight: 900 !important;
+    line-height: 1.1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-total-num {
+    color: #16a34a !important;
+    font-size: 1.1rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-footer-inner > div {
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-pdf,
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-finish,
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-cancel,
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-status {
+    min-height: 44px !important;
+    border-radius: 12px !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-btn-finish {
+    padding: 0 12px !important;
+    background: #16a34a !important;
+    color: #ffffff !important;
+    font-size: .8rem !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-initial-note {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: calc(86px + env(safe-area-inset-bottom, 0px)) !important;
+    width: auto !important;
+    max-width: 560px !important;
+    margin: 0 auto !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics {
+    grid-template-columns: 1fr !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inventory-item {
+    grid-template-columns: 28px 50px minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding: 9px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-item-thumb {
+    width: 50px !important;
+    min-width: 50px !important;
+    height: 50px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.inventory-screen-shell .inv-col-qty {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Final mobile safety pass: keep internal screens contained while each block is refined. */
+@media (max-width: 767px) {
+  html body:not(.login-active) #app > .dashboard-screen:not(.menu-screen):not(.pick-workflow-screen):not(.product-search-screen):not(.inventory-screen-shell):not(.pack-blind-screen) {
+    box-sizing: border-box !important;
+    max-width: 100vw !important;
+    min-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen:not(.menu-screen):not(.pick-workflow-screen):not(.product-search-screen):not(.inventory-screen-shell):not(.pack-blind-screen) > main,
+  html body:not(.login-active) #app > .dashboard-screen:not(.menu-screen):not(.pick-workflow-screen):not(.product-search-screen):not(.inventory-screen-shell):not(.pack-blind-screen) > main.container {
+    box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(.container,.content,.screen-content,.workspace,.page,.panel,.card,.section,form) {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(input,select,textarea,button) {
+    max-width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(input,select,textarea) {
+    min-height: 44px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(table,.data-table,.catalog-table,.entrada-nf-history-table-card,.financeiro-list,.fornecedores-list,.nfxml-data-list) {
+    max-width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(.data-table,.catalog-table,.entrada-nf-history-table-card,.financeiro-list,.fornecedores-list,.nfxml-data-list) {
+    overflow-x: auto !important;
+    overscroll-behavior-x: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(.actions,.form-actions,.toolbar,.filters,.filter-bar,.search-bar,.search-row) {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen :where(.actions,.form-actions,.toolbar) > :where(button,.btn,.btn-action) {
+    min-height: 42px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-detail-screen,.product-detail-card,.product-detail-section),
+  html body:not(.login-active) #app > .dashboard-screen.product-detail-screen :where(.product-detail-screen,.product-detail-card,.product-detail-section) {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-detail-header,.product-detail-prices,.product-detail-meta-row,.product-detail-actions),
+  html body:not(.login-active) #app > .dashboard-screen.product-detail-screen :where(.product-detail-header,.product-detail-prices,.product-detail-meta-row,.product-detail-actions) {
+    display: grid !important;
+    gap: 10px !important;
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Product detail/search mobile polish: theme contrast, compact filters and always-visible back. */
+@media (max-width: 767px) {
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar,
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar > main.product-detail-screen {
+    min-height: 100dvh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.internal.no-top-bar,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.fade-in.internal.no-top-bar {
+    background: #f3f6fb !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.internal.no-top-bar,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.fade-in.internal.no-top-bar {
+    background: #070911 !important;
+    color: #f8fafc !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar > .top-bar,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen > .top-bar {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    z-index: 90000 !important;
+    height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: env(safe-area-inset-top, 0px) !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar > .top-action-group,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen > .top-action-group {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    z-index: 90010 !important;
+    width: 100% !important;
+    height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    min-height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    padding: env(safe-area-inset-top, 0px) 12px 0 !important;
+    pointer-events: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar > .top-action-group .fab-voltar,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen > .top-action-group .fab-voltar {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 999px !important;
+    pointer-events: auto !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar .top-bar .top-back-btn,
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar .top-bar button,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .top-bar .top-back-btn,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .top-bar button,
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar button.fab-voltar,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen button.fab-voltar {
+    pointer-events: auto !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.fab-voltar,.top-back-btn,.top-bar button),
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen :where(.fab-voltar,.top-back-btn,.top-bar button) {
+    background: rgba(255, 255, 255, 0.94) !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    color: #0f172a !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.fab-voltar,.top-back-btn,.top-bar button),
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen :where(.fab-voltar,.top-back-btn,.top-bar button) {
+    background: rgba(15, 23, 42, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.36) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar > main.product-detail-screen {
+    width: 100% !important;
+    max-width: 560px !important;
+    margin: 0 auto !important;
+    padding: calc(72px + env(safe-area-inset-top, 0px)) 10px 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-card,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.internal.no-top-bar .product-detail-card,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.fade-in.internal.no-top-bar .product-detail-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12) !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-card,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.internal.no-top-bar .product-detail-card,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.fade-in.internal.no-top-bar .product-detail-card {
+    background: #10141d !important;
+    border: 1px solid rgba(255, 255, 255, 0.10) !important;
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.40) !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #f8fafc !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.product-stock-group-note,.product-stock-location-name,.product-stock-location-unit,.product-attr-name,.product-id-label) {
+    color: #475569 !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar :where(.product-stock-group-note,.product-stock-location-name,.product-stock-location-unit,.product-attr-name,.product-id-label) {
+    color: #cbd5e1 !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-img {
+    background: #f8fafc !important;
+    border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-img {
+    background: #0b1220 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-header {
+    display: grid !important;
+    grid-template-columns: 64px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-img {
+    width: 64px !important;
+    height: 64px !important;
+    min-width: 64px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.no-top-bar .product-detail-title {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    font-size: clamp(1.02rem, 5.2vw, 1.38rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-side-panel,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters {
+    max-height: 56px !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters::before {
+    content: "Filtros" !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    height: 34px !important;
+    margin: 0 0 8px 2px !important;
+    color: currentColor !important;
+    font-size: .72rem !important;
+    font-weight: 950 !important;
+    text-transform: uppercase !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-heading,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-search-help,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-back-btn {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-filter-list,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chips {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    margin: -42px 0 8px 58px !important;
+    padding: 0 2px 10px !important;
+    max-width: calc(100vw - 88px) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-filter-list::-webkit-scrollbar,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-break,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-dot {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-chip,
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-filter-chip {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 92px !important;
+    max-width: 148px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 9px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-label {
+    max-width: 82px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: .66rem !important;
+    font-weight: 950 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-stock-filter-count {
+    min-width: 22px !important;
+    height: 22px !important;
+    padding: 0 6px !important;
+    border-radius: 999px !important;
+    font-size: .66rem !important;
+    font-weight: 950 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    background: #f3f6fb !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen :where(.product-search-command-bar,.product-search-results,.search-empty-state,.search-no-results) {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.10) !important;
+    color: #0f172a !important;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.10) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    background: #070911 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen :where(.product-search-command-bar,.product-search-results,.search-empty-state,.search-no-results) {
+    background: #10141d !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 20px 46px rgba(0, 0, 0, 0.34) !important;
+  }
+}
+
+/* Product screens must stay themed even if body keeps a stale login-active class. */
+@media (max-width: 767px) {
+  html[data-theme="light"] #app > .dashboard-screen.fade-in.internal.no-top-bar {
+    background: #f3f6fb !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.fade-in.internal.no-top-bar {
+    background: #070911 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="light"] #app > .dashboard-screen.fade-in.internal.no-top-bar .product-detail-card {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.10) !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.fade-in.internal.no-top-bar .product-detail-card {
+    background: #10141d !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="light"] #app > .dashboard-screen.fade-in.internal.no-top-bar :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #0f172a !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.fade-in.internal.no-top-bar :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #f8fafc !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="light"] #app > .dashboard-screen.product-search-screen {
+    background: #f3f6fb !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.product-search-screen {
+    background: #070911 !important;
+    color: #f8fafc !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters {
+    max-height: 56px !important;
+    overflow: hidden !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-side-filter-list,
+  #app > .dashboard-screen.product-search-screen .product-stock-filter-chips {
+    display: flex !important;
+    flex-flow: row nowrap !important;
+    gap: 8px !important;
+    max-width: calc(100vw - 88px) !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-side-filter-list::-webkit-scrollbar,
+  #app > .dashboard-screen.product-search-screen .product-stock-filter-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-stock-filter-chip,
+  #app > .dashboard-screen.product-search-screen .product-side-filter-chip {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 92px !important;
+    max-width: 148px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    border-radius: 999px !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen > .top-action-group,
+  #app > .dashboard-screen.fade-in.internal.no-top-bar > .top-action-group {
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 90010 !important;
+    padding: env(safe-area-inset-top, 0px) 12px 0 !important;
+    pointer-events: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen > .top-action-group .fab-voltar,
+  #app > .dashboard-screen.fade-in.internal.no-top-bar > .top-action-group .fab-voltar {
+    display: inline-flex !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* Desktop dark contrast: separation workflow must not inherit light surfaces. */
+@media (min-width: 769px) {
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.picking-screen.pick-workflow-screen {
+    background: #070707 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-workflow-shell {
+    background: #070707 !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-workflow-title h1 {
+    color: #f8fafc !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-back-btn,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-package-minus,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-pause-btn {
+    background: #15171c !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34) !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scan-field {
+    background: #101216 !important;
+    border-color: rgba(239, 43, 45, 0.82) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38) !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scan-field > .material-symbols-rounded,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scanner-btn .material-symbols-rounded {
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen #pick-ean-input,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scan-field .product-search-input {
+    background: transparent !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen #pick-ean-input::placeholder,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scan-field .product-search-input::placeholder {
+    color: #cbd5e1 !important;
+    opacity: 1 !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-scanner-btn {
+    background: #15171c !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-info-card,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-list-panel,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-summary-panel,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-product-row {
+    background: #101010 !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34) !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-info-card span,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-list-header span,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-summary-metrics span,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-table-head span,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-empty-state small {
+    color: #cbd5e1 !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen #pick-list-count {
+    background: #15171c !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-info-card strong,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-list-header h2,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-summary-metrics strong,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-empty-state strong,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-workflow-footer strong {
+    color: #ffffff !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-list-header {
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-table-head {
+    background: #15171c !important;
+    border-bottom-color: rgba(255, 255, 255, 0.14) !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-table-head span {
+    color: #94a3b8 !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-empty-state {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-empty-state .material-symbols-rounded {
+    color: #64748b !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-summary-metrics > div,
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-package-count-field {
+    background: #15171c !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-package-count-input {
+    background: #0b0f17 !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-remove-scan-btn {
+    background: #fef2f2 !important;
+    border-color: #ef4444 !important;
+    color: #dc2626 !important;
+  }
+
+  html[data-theme="dark"] #app > .dashboard-screen.picking-screen.pick-workflow-screen .pick-remove-scan-btn.is-active {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+  }
+}
+
+/* Product search mobile final guard: keep desktop layout untouched above 900px. */
+.product-mobile-back-btn,
+.product-mobile-search-actions,
+.product-filter-sheet,
+.scanner-mobile-top,
+.scanner-mobile-guide,
+.card-mobile-quick-info {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  #app > .dashboard-screen.product-search-screen {
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    background: #080b12 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-center {
+    width: 100% !important;
+    min-height: 100dvh !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: calc(var(--mobile-module-header-h, 54px) + 8px) 12px 18px !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-workbench,
+  #app > .dashboard-screen.product-search-screen .product-search-main-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-side-panel {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-side-card.product-side-filters {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    background: #0d1320 !important;
+    border: 1px solid rgba(148, 163, 184, 0.14) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22) !important;
+    position: sticky !important;
+    top: calc(var(--mobile-module-header-h, 54px) + 4px) !important;
+    z-index: 20 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-mobile-back-btn {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    background: rgba(38, 41, 48, 0.94) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.24) !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-mobile-back-btn .app-inline-icon,
+  #app > .dashboard-screen.product-search-screen .product-mobile-back-btn svg {
+    width: 21px !important;
+    height: 21px !important;
+    color: #ef4444 !important;
+    stroke: currentColor !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-command-input,
+  #app > .dashboard-screen.product-search-screen .product-search-command-input .product-search-bar {
+    height: 52px !important;
+    min-height: 52px !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-command-input .product-search-bar {
+    padding: 0 6px 0 12px !important;
+    display: grid !important;
+    grid-template-columns: 22px minmax(0, 1fr) 44px !important;
+    gap: 8px !important;
+    align-items: center !important;
+    border-radius: 8px !important;
+    background: #111827 !important;
+    border: 1px solid rgba(239, 68, 68, 0.58) !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-input {
+    min-width: 0 !important;
+    width: 100% !important;
+    color: #f8fafc !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-input::placeholder {
+    color: rgba(226, 232, 240, 0.64) !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .search-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-camera-btn {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    display: inline-flex !important;
+    border-radius: 8px !important;
+    background: #111827 !important;
+    border: 1px solid rgba(239, 68, 68, 0.42) !important;
+    color: #fff !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-mobile-search-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    grid-column: 1 / -1 !important;
+    grid-row: 3 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-mobile-search-actions button {
+    height: 38px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    background: #0d1320 !important;
+    color: #f8fafc !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 7px !important;
+    font-family: 'DY Oswald', 'Oswald', sans-serif !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-found-counter {
+    min-height: 22px !important;
+    padding: 0 2px !important;
+    margin: 0 !important;
+    border: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: baseline !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    background: transparent !important;
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-found-counter strong,
+  #app > .dashboard-screen.product-search-screen .product-found-counter small {
+    color: rgba(203, 213, 225, 0.72) !important;
+    font-family: 'DY Oswald', 'Oswald', sans-serif !important;
+    font-size: 0.78rem !important;
+    letter-spacing: 0 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-found-counter strong {
+    color: rgba(248, 250, 252, 0.86) !important;
+    font-weight: 900 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-results {
+    min-height: max(360px, calc(100dvh - var(--mobile-module-header-h, 54px) - 156px)) !important;
+    max-height: none !important;
+    height: auto !important;
+    margin-top: 12px !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-search-results-list {
+    display: grid !important;
+    gap: 8px !important;
+    padding: 0 0 20px !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .search-empty-state,
+  #app > .dashboard-screen.product-search-screen .search-no-results {
+    min-height: max(340px, calc(100dvh - var(--mobile-module-header-h, 54px) - 176px)) !important;
+    height: auto !important;
+    padding: 24px 18px !important;
+    margin-top: 10px !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    background: #0d1320 !important;
+    border: 1px solid rgba(148, 163, 184, 0.12) !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .empty-state-visual {
+    width: 46px !important;
+    height: 46px !important;
+    margin-bottom: 10px !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .empty-state-visual .material-symbols-rounded,
+  #app > .dashboard-screen.product-search-screen .search-no-results .material-symbols-rounded {
+    color: #cbd5e1 !important;
+    font-size: 29px !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .search-empty-state h3,
+  #app > .dashboard-screen.product-search-screen .search-no-results h3 {
+    margin: 0 0 5px !important;
+    color: #f8fafc !important;
+    font-size: 1rem !important;
+    line-height: 1.18 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .search-empty-state p,
+  #app > .dashboard-screen.product-search-screen .search-no-results p {
+    max-width: 280px !important;
+    margin: 0 !important;
+    color: rgba(203, 213, 225, 0.74) !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .search-result-card {
+    min-height: 0 !important;
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto !important;
+    gap: 8px 10px !important;
+    padding: 10px 11px !important;
+    border-radius: 8px !important;
+    background: #0d1320 !important;
+    border: 1px solid rgba(148, 163, 184, 0.13) !important;
+    box-shadow: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-image-wrapper,
+  #app > .dashboard-screen.product-search-screen .card-meta-row,
+  #app > .dashboard-screen.product-search-screen .card-price-block,
+  #app > .dashboard-screen.product-search-screen .card-status-indicator,
+  #app > .dashboard-screen.product-search-screen .card-more-indicator,
+  #app > .dashboard-screen.product-search-screen .product-location-badge,
+  #app > .dashboard-screen.product-search-screen .stock-pack-pill,
+  #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    display: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-id small,
+  #app > .dashboard-screen.product-search-screen .card-brand {
+    display: none !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-id strong {
+    color: #f8fafc !important;
+    font-size: 0.88rem !important;
+    font-weight: 900 !important;
+    line-height: 1.1 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-title {
+    margin: 0 !important;
+    color: rgba(248, 250, 252, 0.9) !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    line-height: 1.22 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-mobile-quick-info {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px 8px !important;
+    color: rgba(203, 213, 225, 0.68) !important;
+    font-size: 0.72rem !important;
+    line-height: 1.2 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-mobile-quick-info span:not(:last-child)::after {
+    content: "";
+    margin-left: 8px;
+    border-right: 1px solid rgba(148, 163, 184, 0.28);
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-operational-info {
+    grid-column: 2 !important;
+    grid-row: 1 / 3 !important;
+    min-width: 72px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .card-stock-block {
+    padding: 0 !important;
+    align-items: flex-end !important;
+    text-align: right !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .stock-label {
+    font-size: 0 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .stock-label::before {
+    content: "ESTOQUE";
+    color: rgba(203, 213, 225, 0.58) !important;
+    font-size: 0.58rem !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #22c55e !important;
+    font-size: 1.22rem !important;
+    line-height: 1 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .stock-value.out {
+    color: #ef4444 !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .stock-value small {
+    font-size: 0.55rem !important;
+  }
+
+  .product-filter-sheet {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9990 !important;
+    display: block !important;
+    pointer-events: none !important;
+  }
+
+  .product-filter-sheet.is-open {
+    pointer-events: auto !important;
+  }
+
+  .product-filter-sheet-backdrop {
+    position: absolute !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.56) !important;
+    opacity: 0 !important;
+    transition: opacity 160ms ease !important;
+  }
+
+  .product-filter-sheet.is-open .product-filter-sheet-backdrop {
+    opacity: 1 !important;
+  }
+
+  .product-filter-sheet-panel {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    max-height: min(76dvh, 620px) !important;
+    padding: 10px 14px 16px !important;
+    border-radius: 16px 16px 0 0 !important;
+    background: #0b111d !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    box-shadow: 0 -20px 54px rgba(0, 0, 0, 0.45) !important;
+    transform: translateY(105%) !important;
+    transition: transform 190ms ease !important;
+    display: grid !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+  }
+
+  .product-filter-sheet.is-open .product-filter-sheet-panel {
+    transform: translateY(0) !important;
+  }
+
+  .product-filter-sheet-handle {
+    justify-self: center !important;
+    width: 42px !important;
+    height: 4px !important;
+    border-radius: 999px !important;
+    background: rgba(203, 213, 225, 0.28) !important;
+  }
+
+  .product-filter-sheet-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .product-filter-sheet-header strong {
+    color: #f8fafc !important;
+    font-family: 'DY Fjalla', 'Fjalla One', sans-serif !important;
+    font-size: 1.08rem !important;
+  }
+
+  .product-filter-sheet-header button {
+    width: 38px !important;
+    height: 38px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #f8fafc !important;
+  }
+
+  .product-filter-sheet-options {
+    display: grid !important;
+    gap: 8px !important;
+    overflow-y: auto !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-filter-sheet-option {
+    width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 12px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    border-radius: 8px !important;
+    background: rgba(255, 255, 255, 0.045) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14) !important;
+    color: #f8fafc !important;
+    text-align: left !important;
+  }
+
+  #app > .dashboard-screen.product-search-screen .product-filter-sheet-option.active {
+    border-color: rgba(239, 68, 68, 0.82) !important;
+    background: rgba(239, 68, 68, 0.13) !important;
+  }
+
+  .product-filter-sheet-footer {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .product-filter-sheet-footer button {
+    height: 42px !important;
+    border: 0 !important;
+    border-radius: 8px !important;
+    font-family: 'DY Oswald', 'Oswald', sans-serif !important;
+    font-weight: 800 !important;
+  }
+
+  .product-filter-sheet-clear {
+    background: rgba(255, 255, 255, 0.07) !important;
+    color: #f8fafc !important;
+  }
+
+  .product-filter-sheet-close {
+    background: #ef4444 !important;
+    color: #fff !important;
+  }
+
+  #scanner-container:not(.hidden) {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 12px !important;
+    padding: max(16px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom)) !important;
+    background: #05070b !important;
+    border: 0 !important;
+  }
+
+  #scanner-container:not(.hidden) .scanner-close-btn {
+    display: none !important;
+  }
+
+  #scanner-container:not(.hidden) .scanner-mobile-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    z-index: 3 !important;
+  }
+
+  #scanner-container:not(.hidden) .scanner-mobile-top button {
+    height: 40px !important;
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(148, 163, 184, 0.16) !important;
+    background: rgba(15, 23, 42, 0.92) !important;
+    color: #f8fafc !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    font-family: 'DY Oswald', 'Oswald', sans-serif !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+  }
+
+  body.scanner-torch-on .scanner-mobile-torch {
+    background: rgba(239, 68, 68, 0.22) !important;
+    border-color: rgba(239, 68, 68, 0.7) !important;
+  }
+
+  #scanner-container:not(.hidden) #reader {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    border-radius: 12px !important;
+    background: #000 !important;
+  }
+
+  #scanner-container:not(.hidden) .scanner-mobile-guide {
+    display: grid !important;
+    justify-items: center !important;
+    gap: 12px !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    inset: 0 !important;
+    align-content: center !important;
+    padding: 0 24px !important;
+    z-index: 2 !important;
+  }
+
+  .scanner-mobile-frame {
+    width: min(82vw, 360px) !important;
+    height: 136px !important;
+    border: 2px solid rgba(239, 68, 68, 0.92) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.34), 0 0 26px rgba(239, 68, 68, 0.28) !important;
+  }
+
+  .scanner-mobile-guide p {
+    margin: 0 !important;
+    color: #fff !important;
+    font-family: 'DY Oswald', 'Oswald', sans-serif !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    background: #f3f6fb !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.1) !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input .product-search-bar {
+    background: #f8fafc !important;
+    border-color: rgba(15, 23, 42, 0.22) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input {
+    color: #182133 !important;
+    -webkit-text-fill-color: #182133 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input::placeholder,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-found-counter small,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state p,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results p {
+    color: #667085 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-found-counter strong,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state h3,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results h3 {
+    color: #182133 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-camera-btn {
+    background: #ffffff !important;
+    color: #e30613 !important;
+    border-color: rgba(15, 23, 42, 0.18) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions button {
+    background: #0b1020 !important;
+    color: #ffffff !important;
+    border-color: #0b1020 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn {
+    background: #0b1020 !important;
+    border-color: rgba(15, 23, 42, 0.16) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+    background: #0d1320 !important;
+    border-color: rgba(148, 163, 184, 0.16) !important;
+  }
+}
+
+/* Product search mobile polish: one-line command row, compact chips, no desktop changes. */
+@media (max-width: 900px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    background:
+      radial-gradient(circle at 18% 10%, rgba(255, 255, 255, 0.055), transparent 30%),
+      linear-gradient(180deg, #090d14 0%, #070a10 100%) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-center {
+    padding: calc(var(--mobile-module-header-h, 54px) + 16px) 16px 20px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    grid-template-columns: 48px minmax(0, 1fr) 58px !important;
+    grid-template-rows: 58px auto !important;
+    align-items: center !important;
+    gap: 12px 10px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    top: calc(var(--mobile-module-header-h, 54px) + 8px) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    background: rgba(16, 20, 29, 0.86) !important;
+    border: 1px solid rgba(255, 255, 255, 0.13) !important;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.26) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn .app-inline-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn svg {
+    width: 22px !important;
+    height: 22px !important;
+    color: #ffffff !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    height: 58px !important;
+    min-height: 58px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input .product-search-bar {
+    height: 58px !important;
+    min-height: 58px !important;
+    grid-template-columns: 28px minmax(0, 1fr) !important;
+    padding: 0 14px !important;
+    gap: 10px !important;
+    border-radius: 20px !important;
+    background: rgba(15, 20, 29, 0.74) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input .search-icon {
+    color: rgba(236, 240, 247, 0.82) !important;
+    font-size: 1.75rem !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input {
+    font-size: 0.96rem !important;
+    font-weight: 700 !important;
+    color: #f8fafc !important;
+    -webkit-text-fill-color: #f8fafc !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input::placeholder {
+    color: rgba(226, 232, 240, 0.68) !important;
+    opacity: 1 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-actions {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: center !important;
+    justify-self: stretch !important;
+    display: flex !important;
+    justify-content: stretch !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-camera-btn {
+    width: 58px !important;
+    height: 58px !important;
+    min-width: 58px !important;
+    border-radius: 18px !important;
+    background: linear-gradient(135deg, #f02a1f 0%, #c9140c 100%) !important;
+    border: 0 !important;
+    color: #ffffff !important;
+    box-shadow: 0 16px 30px rgba(227, 6, 19, 0.28) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-camera-btn .material-symbols-rounded {
+    font-size: 1.95rem !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-found-counter {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions {
+    grid-column: 1 / -1 !important;
+    grid-row: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    margin-top: 4px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions button {
+    width: auto !important;
+    min-width: 118px !important;
+    height: 42px !important;
+    padding: 0 16px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background: rgba(16, 20, 29, 0.78) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions .material-symbols-rounded {
+    font-size: 1.25rem !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results {
+    min-height: max(430px, calc(100dvh - var(--mobile-module-header-h, 54px) - 162px)) !important;
+    margin-top: 26px !important;
+    padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+    min-height: max(420px, calc(100dvh - var(--mobile-module-header-h, 54px) - 188px)) !important;
+    margin: 0 !important;
+    padding: 34px 22px !important;
+    border-radius: 20px !important;
+    background:
+      radial-gradient(circle at 50% 33%, rgba(255, 255, 255, 0.05), transparent 34%),
+      rgba(15, 20, 29, 0.62) !important;
+    border: 1px solid rgba(255, 255, 255, 0.11) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-visual {
+    width: 112px !important;
+    height: 112px !important;
+    margin-bottom: 24px !important;
+    background: transparent !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-icon-glow {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-visual .material-symbols-rounded,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results .material-symbols-rounded {
+    color: rgba(238, 242, 247, 0.78) !important;
+    font-size: 5.9rem !important;
+    font-weight: 300 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state h3,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results h3 {
+    margin: 0 0 14px !important;
+    color: #ffffff !important;
+    font-size: 1.7rem !important;
+    line-height: 1.08 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0 !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state p,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results p {
+    max-width: 300px !important;
+    color: rgba(226, 232, 240, 0.72) !important;
+    font-size: 1rem !important;
+    line-height: 1.38 !important;
+    text-align: center !important;
+  }
+}
+
+@media (min-width: 360px) and (max-width: 374px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-center {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-bar {
+    grid-template-columns: 46px minmax(0, 1fr) 54px !important;
+    gap: 10px 8px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-camera-btn {
+    width: 54px !important;
+    height: 54px !important;
+    min-width: 54px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions button {
+    min-width: 106px !important;
+    padding: 0 13px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state h3,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results h3 {
+    font-size: 1.56rem !important;
+  }
+}
+
+@media (max-width: 900px) {
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen {
+    background: #f5f6f9 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn .app-inline-icon,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-back-btn svg {
+    color: #e30613 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input .product-search-bar {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.18) !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-command-input .search-icon {
+    color: #344054 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input {
+    color: #182133 !important;
+    -webkit-text-fill-color: #182133 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-input::placeholder {
+    color: #667085 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions button {
+    background: #ffffff !important;
+    color: #182133 !important;
+    border-color: rgba(15, 23, 42, 0.16) !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-mobile-search-actions .material-symbols-rounded {
+    color: #344054 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results {
+    background: #ffffff !important;
+    border-color: rgba(15, 23, 42, 0.1) !important;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .empty-state-visual .material-symbols-rounded,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results .material-symbols-rounded {
+    color: #98a2b3 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state h3,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results h3 {
+    color: #182133 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-empty-state p,
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-no-results p {
+    color: #667085 !important;
+  }
+}
+
+.inventory-money-field {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  text-align: right;
+}
+
+.inventory-money-field span {
+  color: #64748b !important;
+  display: block;
+  font-size: .66rem !important;
+  font-weight: 950 !important;
+  letter-spacing: .055em !important;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.inventory-money-field strong {
+  display: block;
+  font-family: "Fjalla One", "Oswald", sans-serif;
+  font-size: 1.02rem !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400 !important;
+  line-height: 1.05;
+  white-space: nowrap;
+}
+
+.inventory-money-positive strong {
+  color: #047857 !important;
+}
+
+.inventory-money-negative strong {
+  color: #b91c1c !important;
+}
+
+html[data-theme="dark"] .inventory-money-field {
+  background: rgba(15, 23, 42, .58);
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .inventory-money-field span {
+  color: #a8b3c7 !important;
+}
+
+html[data-theme="dark"] .inventory-money-positive strong {
+  color: #5eead4 !important;
+}
+
+html[data-theme="dark"] .inventory-money-negative strong {
+  color: #fca5a5 !important;
+}
+
+.inventory-history-summary-card.inventory-history-summary-money {
+  grid-template-columns: 46px minmax(120px, 1fr);
+}
+
+.inventory-history-summary-card.inventory-history-summary-money > div {
+  text-align: right;
+}
+
+.inventory-history-summary-card.inventory-history-summary-money strong {
+  font-size: clamp(1.08rem, 1.7vw, 1.38rem) !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.inventory-history-summary-card.tone-money-positive > .material-symbols-rounded {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.inventory-history-summary-card.tone-money-negative > .material-symbols-rounded {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.inv-financial-summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: -8px 0 14px;
+}
+
+.inv-financial-summary .inventory-money-field {
+  background: rgba(255, 255, 255, .055);
+  border-color: rgba(255, 255, 255, .12);
+}
+
+.inv-financial-summary .inventory-money-field strong {
+  font-size: clamp(1.1rem, 2.6vw, 1.42rem) !important;
+}
+
+@media (max-width: 760px) {
+  .inventory-money-field strong,
+  .inventory-history-summary-card.inventory-history-summary-money strong {
+    white-space: normal;
+  }
+
+  .inv-financial-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Desktop product search/detail refinements. Mobile keeps its dedicated layout above. */
+@media (min-width: 901px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    align-items: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    align-items: stretch !important;
+    display: grid !important;
+    gap: 10px !important;
+    justify-items: stretch !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-header-row {
+    align-items: center !important;
+    display: grid !important;
+    gap: 18px !important;
+    grid-template-columns: minmax(118px, auto) minmax(120px, 220px) !important;
+    justify-content: start !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    background: #fff7cc !important;
+    border: 1px solid rgba(234, 179, 8, .42) !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    min-height: 30px !important;
+    padding: 7px 12px !important;
+    text-shadow: none !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    background: #fff3b0 !important;
+    border-color: rgba(250, 204, 21, .62) !important;
+    color: #111827 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    background: transparent !important;
+    border: 0 !important;
+    color: #ef4444 !important;
+    display: block !important;
+    font-size: .9rem !important;
+    font-weight: 950 !important;
+    line-height: 1.05 !important;
+    max-width: 220px !important;
+    padding: 0 !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    max-width: 660px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    align-items: center !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    margin-top: 2px !important;
+    max-width: 560px !important;
+    overflow: visible !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    align-items: center !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    max-width: 220px !important;
+    min-height: 30px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip strong {
+    color: inherit !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: #f1f5f9 !important;
+    border: 1px solid rgba(15, 23, 42, .09) !important;
+    color: #334155 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: rgba(255, 255, 255, .08) !important;
+    border: 1px solid rgba(255, 255, 255, .10) !important;
+    color: #dbe4f0 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-detail {
+    background: #eef2f7 !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-detail {
+    background: #070911 !important;
+    color: #f8fafc !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-detail > main.product-detail-screen {
+    max-width: 1280px !important;
+    padding-top: 22px !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-detail .product-detail-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .12) !important;
+    box-shadow: 0 22px 54px rgba(15, 23, 42, .12) !important;
+    color: #0f172a !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-detail .product-detail-card {
+    background: #10141d !important;
+    border: 1px solid rgba(255, 255, 255, .12) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .42) !important;
+    color: #f8fafc !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title,.product-price-value) {
+    text-shadow: none !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #101827 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-detail-title,.product-detail-title-block h1,.product-detail-meta-item,.product-detail-meta-item strong,.product-detail-meta-item span,.product-stock-title,.product-stock-group-title) {
+    color: #f8fafc !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-stock-group-note,.product-stock-location-name,.product-stock-location-unit,.product-price-label,.product-packaging-label) {
+    color: #475569 !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-detail :where(.product-stock-group-note,.product-stock-location-name,.product-stock-location-unit,.product-price-label,.product-packaging-label) {
+    color: #cbd5e1 !important;
+  }
+
+  html[data-theme="light"] body:not(.login-active) #app > .dashboard-screen.product-detail .product-detail-img {
+    background: #f8fafc !important;
+    border: 1px solid rgba(15, 23, 42, .10) !important;
+  }
+
+  html[data-theme="dark"] body:not(.login-active) #app > .dashboard-screen.product-detail .product-detail-img {
+    background: #0b1220 !important;
+    border: 1px solid rgba(255, 255, 255, .12) !important;
+  }
+}
+
+/* Final product search card override: approved desktop/mobile mockup. */
+@media (min-width: 901px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-search-results-list {
+    gap: 12px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .08) !important;
+    color: #0f172a !important;
+    display: grid !important;
+    gap: 18px !important;
+    grid-template-columns: 132px minmax(420px, 1.45fr) minmax(190px, .45fr) minmax(500px, .95fr) 24px !important;
+    min-height: 142px !important;
+    overflow: hidden !important;
+    padding: 16px 18px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .06) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, .12) !important;
+    display: flex !important;
+    height: 112px !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    width: 112px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper img {
+    height: 82% !important;
+    object-fit: contain !important;
+    width: 82% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    align-items: start !important;
+    align-self: stretch !important;
+    border-right: 1px solid rgba(148, 163, 184, .28) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding-right: 22px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-header-row,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-id-row {
+    align-items: center !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    justify-content: flex-start !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id small {
+    color: #475569 !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .74rem !important;
+    font-weight: 800 !important;
+    letter-spacing: .04em !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    background: #fff2b8 !important;
+    border: 1px solid #facc15 !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .86rem !important;
+    font-weight: 800 !important;
+    min-height: 28px !important;
+    padding: 6px 12px !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-location-badge,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-mobile-quick-info {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    color: #0a0f1c !important;
+    display: -webkit-box !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(1.08rem, 1.2vw, 1.55rem) !important;
+    letter-spacing: 0 !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-shadow: none !important;
+    text-transform: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+    text-align: left !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: #eaf3ff !important;
+    border: 1px solid #cfe0f3 !important;
+    border-radius: 7px !important;
+    color: #172033 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .9rem !important;
+    font-weight: 800 !important;
+    gap: 6px !important;
+    min-height: 30px !important;
+    padding: 7px 13px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column {
+    align-items: center !important;
+    align-self: stretch !important;
+    border-right: 1px solid rgba(148, 163, 184, .28) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 0 16px !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    background: transparent !important;
+    border: 0 !important;
+    color: #dc0000 !important;
+    display: block !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(1.24rem, 1.55vw, 1.78rem) !important;
+    letter-spacing: 0 !important;
+    line-height: 1.05 !important;
+    padding: 0 !important;
+    text-align: center !important;
+    text-shadow: none !important;
+    text-transform: uppercase !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-underline {
+    background: #dc0000 !important;
+    border-radius: 999px !important;
+    display: block !important;
+    height: 3px !important;
+    margin-top: 12px !important;
+    width: 58px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    display: grid !important;
+    gap: 18px !important;
+    grid-template-columns: minmax(260px, 1fr) minmax(220px, .9fr) !important;
+    width: 100% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    align-content: center !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    display: grid !important;
+    min-height: 108px !important;
+    padding: 14px 18px !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block {
+    background: linear-gradient(135deg, #f0fbf2, #f8fcf7) !important;
+    grid-template-columns: 50px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: linear-gradient(135deg, #fff2f2, #fff7f7) !important;
+    grid-template-columns: 48px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    align-self: center !important;
+    display: inline-flex !important;
+    font-size: 2.18rem !important;
+    grid-row: 1 / 3 !important;
+    justify-self: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon {
+    color: #22c55e !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    color: #ff3030 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-label,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-label {
+    color: #334155 !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .84rem !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    align-items: baseline !important;
+    display: inline-flex !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: clamp(2.15rem, 2.45vw, 3rem) !important;
+    gap: 9px !important;
+    justify-content: center !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    text-shadow: none !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #12823d !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    color: #dc0000 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-pack-pill {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    grid-column: 1 / -1 !important;
+    justify-content: center !important;
+    margin: 8px 0 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    background: transparent !important;
+    border: 0 !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .88rem !important;
+    font-style: normal !important;
+    font-weight: 800 !important;
+    gap: 5px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location + .stock-sellable-location::before {
+    color: #64748b !important;
+    content: "|" !important;
+    margin-right: 7px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location .material-symbols-rounded {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location strong,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location em {
+    color: inherit !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-status-indicator {
+    align-self: start !important;
+    display: block !important;
+    height: 18px !important;
+    justify-self: center !important;
+    margin-top: 4px !important;
+    position: static !important;
+    width: 18px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-more-indicator {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .08) !important;
+    color: #0f172a !important;
+    display: grid !important;
+    gap: 12px !important;
+    grid-template-areas: "image info" "brand brand" "ops ops" !important;
+    grid-template-columns: 82px minmax(0, 1fr) !important;
+    overflow: hidden !important;
+    padding: 14px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    display: flex !important;
+    grid-area: image !important;
+    height: 78px !important;
+    width: 78px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-main-info {
+    grid-area: info !important;
+    min-width: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column {
+    border-top: 1px solid rgba(148, 163, 184, .24) !important;
+    display: flex !important;
+    grid-area: brand !important;
+    justify-content: center !important;
+    padding-top: 10px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+    color: #dc0000 !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 1.2rem !important;
+    text-align: center !important;
+    text-transform: uppercase !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-underline {
+    background: #dc0000 !important;
+    display: block !important;
+    height: 2px !important;
+    margin: 8px auto 0 !important;
+    width: 48px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    display: grid !important;
+    gap: 10px !important;
+    grid-area: ops !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-mobile-quick-info,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .product-location-badge,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-more-indicator {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper {
+    align-items: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, .06) !important;
+    border-radius: 999px !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, .12) !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-image-wrapper img {
+    height: 82% !important;
+    object-fit: contain !important;
+    width: 82% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id {
+    align-items: flex-start !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id small {
+    color: #475569 !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .72rem !important;
+    font-weight: 800 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-id strong {
+    background: #fff2b8 !important;
+    border: 1px solid #facc15 !important;
+    border-radius: 7px !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .82rem !important;
+    min-height: 26px !important;
+    padding: 6px 10px !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-title {
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    color: #0a0f1c !important;
+    display: -webkit-box !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 1.05rem !important;
+    letter-spacing: 0 !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-shadow: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    justify-content: flex-start !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-meta-chip {
+    background: #eaf3ff !important;
+    border: 1px solid #cfe0f3 !important;
+    border-radius: 7px !important;
+    color: #172033 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .82rem !important;
+    font-weight: 800 !important;
+    max-width: 100% !important;
+    min-height: 28px !important;
+    overflow-wrap: anywhere !important;
+    padding: 6px 9px !important;
+    white-space: normal !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    border: 0 !important;
+    border-radius: 13px !important;
+    display: grid !important;
+    min-height: 92px !important;
+    padding: 13px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block {
+    background: #f0fbf2 !important;
+    grid-template-columns: 42px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    background: #fff2f2 !important;
+    grid-template-columns: 42px 1fr !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    align-self: center !important;
+    display: inline-flex !important;
+    font-size: 1.9rem !important;
+    grid-row: 1 / 3 !important;
+    justify-self: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon {
+    color: #22c55e !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    color: #ff3030 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-label,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-label {
+    color: #334155 !important;
+    font-family: 'Oswald', sans-serif !important;
+    font-size: .78rem !important;
+    font-weight: 900 !important;
+    text-align: center !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    align-items: baseline !important;
+    display: inline-flex !important;
+    font-family: 'Fjalla One', sans-serif !important;
+    font-size: 2rem !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    letter-spacing: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value {
+    color: #12823d !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    color: #dc0000 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-pack-pill {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 7px !important;
+    grid-column: 1 / -1 !important;
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    background: transparent !important;
+    border: 0 !important;
+    color: #111827 !important;
+    display: inline-flex !important;
+    font-family: 'PT Sans Narrow', sans-serif !important;
+    font-size: .82rem !important;
+    font-style: normal !important;
+    gap: 4px !important;
+    padding: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location .material-symbols-rounded {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location strong,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location em {
+    color: inherit !important;
+    font-style: normal !important;
+    font-weight: 900 !important;
+  }
+}
+
+/* Product search card fine-tuning requested after visual review. */
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand {
+  color: #dc0000 !important;
+  -webkit-text-fill-color: #dc0000 !important;
+}
+
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-underline {
+  display: none !important;
+}
+
+@media (min-width: 901px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info {
+    box-sizing: border-box !important;
+    padding-right: 34px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    margin-right: 6px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card {
+    position: relative !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    font-size: clamp(2.025rem, 2.3vw, 2.875rem) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    font-size: clamp(1.775rem, 2.05vw, 2.625rem) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    gap: 4px !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location strong::after {
+    content: ":" !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-status-indicator {
+    align-self: auto !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    height: 18px !important;
+    justify-self: auto !important;
+    margin: 0 !important;
+    position: absolute !important;
+    right: 16px !important;
+    top: 18px !important;
+    width: 18px !important;
+    z-index: 2 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-value,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .price-value {
+    font-size: 1.875rem !important;
+  }
+}
+
+/* Product search stock block: single divider and two-column location line. */
+@media (min-width: 901px) {
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon {
+    font-size: 1.65rem !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-icon svg,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-icon svg {
+    height: 1.65rem !important;
+    width: 1.65rem !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block {
+    border-left: 0 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-operational-info::before,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-stock-block::before,
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-price-block::before {
+    display: none !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .card-brand-column {
+    border-right: 1px solid rgba(148, 163, 184, .28) !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-locations {
+    align-items: center !important;
+    display: grid !important;
+    flex-wrap: nowrap !important;
+    gap: 0 !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    justify-content: stretch !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location {
+    display: inline-flex !important;
+    flex: none !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    width: auto !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location:first-child {
+    grid-column: 1 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location + .stock-sellable-location {
+    grid-column: 3 !important;
+  }
+
+  body:not(.login-active) #app > .dashboard-screen.product-search-screen .stock-sellable-location + .stock-sellable-location::before {
+    align-self: center !important;
+    content: "|" !important;
+    display: inline-flex !important;
+    grid-column: 2 !important;
+    margin: 0 12px 0 0 !important;
+  }
+}
+
+/* Keep hover zoom, but remove the extra vertical line from the card hover layer. */
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card::before,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card:hover::before,
+body:not(.login-active) #app > .dashboard-screen.product-search-screen .search-result-card:focus::before {
+  content: none !important;
+  display: none !important;
+  opacity: 0 !important;
 }

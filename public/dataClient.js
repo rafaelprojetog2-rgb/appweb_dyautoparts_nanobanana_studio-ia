@@ -317,6 +317,64 @@ const DataClient = (function () {
         return norm;
     }
 
+    function normalizeMovimentoTipo(tipoRaw) {
+        const tipo = String(tipoRaw || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toUpperCase()
+            .replace(/[\s-]+/g, '_');
+
+        const aliases = {
+            ENTRADA_NF: 'ENTRADA',
+            ENTRADA_XML: 'ENTRADA',
+            SAIDA_RAPIDA: 'SAIDA',
+            BAIXA: 'SAIDA',
+            AJUSTE: 'AJUSTE_POSITIVO',
+            AJUSTE_ESTOQUE: 'AJUSTE_POSITIVO',
+            'AJUSTE+': 'AJUSTE_POSITIVO',
+            AJUSTE_POSITIVO: 'AJUSTE_POSITIVO',
+            'AJUSTE_+': 'AJUSTE_POSITIVO',
+            'AJUSTE-': 'AJUSTE_NEGATIVO',
+            AJUSTE_NEGATIVO: 'AJUSTE_NEGATIVO',
+            'AJUSTE__': 'AJUSTE_NEGATIVO',
+            SAIDA: 'SAIDA',
+            ENTRADA: 'ENTRADA',
+            TRANSFERENCIA: 'TRANSFERENCIA'
+        };
+
+        return aliases[tipo] || tipo || 'AJUSTE_POSITIVO';
+    }
+
+    function normalizeMovimentoOrigem(origemRaw) {
+        const origem = String(origemRaw || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toUpperCase()
+            .replace(/[\s-]+/g, '_');
+
+        const aliases = {
+            SEPARACAO: 'APP_SEPARACAO',
+            APP_SEPARACAO: 'APP_SEPARACAO',
+            CONFERENCIA: 'APP_CONFERENCIA',
+            APP_CONFERENCIA: 'APP_CONFERENCIA',
+            INVENTARIO: 'APP_INVENTARIO',
+            APP_INVENTARIO: 'APP_INVENTARIO',
+            ENTRADA_NF: 'APP_COMPRAS',
+            ENTRADA_NF_XML: 'APP_COMPRAS',
+            APP_COMPRAS: 'APP_COMPRAS',
+            XML: 'IMPORTACAO',
+            IMPORTACAO: 'IMPORTACAO',
+            APP_MOBILE: 'MANUAL',
+            MODULO_GARANTIA: 'MANUAL',
+            APP_TRANSFERENCIA: 'MANUAL',
+            MANUAL: 'MANUAL'
+        };
+
+        return aliases[origem] || origem || 'MANUAL';
+    }
+
     /**
      * Registra um movimento no Supabase
      */
@@ -327,22 +385,24 @@ const DataClient = (function () {
             return null;
         }
 
-        console.log(`[MOV] insert movimentos - payload:`, JSON.stringify(movData, null, 2));
+        const movimentoPayload = {
+            movimento_id: `MOV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+            data_hora: getDataHoraBrasil(),
+            tipo: normalizeMovimentoTipo(movData.tipo),
+            id_interno: movData.id_interno,
+            local_origem: normalizeLocal(movData.local_origem),
+            local_destino: normalizeLocal(movData.local_destino),
+            quantidade: Math.abs(Number(movData.quantidade || 0)),
+            usuario: movData.usuario,
+            origem: normalizeMovimentoOrigem(movData.origem),
+            observacao: movData.observacao
+        };
+
+        console.log(`[MOV] insert movimentos - payload:`, JSON.stringify(movimentoPayload, null, 2));
 
         const { data, error } = await client
             .from('movimentos')
-            .insert([{
-                movimento_id: `MOV-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                data_hora: getDataHoraBrasil(),
-                tipo: movData.tipo,
-                id_interno: movData.id_interno,
-                local_origem: normalizeLocal(movData.local_origem),
-                local_destino: normalizeLocal(movData.local_destino),
-                quantidade: movData.quantidade,
-                usuario: movData.usuario,
-                origem: movData.origem,
-                observacao: movData.observacao
-            }])
+            .insert([movimentoPayload])
             .select();
 
         if (error) {
@@ -433,6 +493,65 @@ const DataClient = (function () {
             return true;
         } catch (err) {
             console.error('[INV-DIAG] update estoque ERRO fatal:', err.message || err);
+            return false;
+        }
+    }
+
+    /**
+     * Reflete a contagem fisica do inventario em estoque_atual.
+     * O inventario e a fonte de verdade: saldo_disponivel e saldo_total recebem saldo_fisico.
+     */
+    async function aplicarSaldoFisicoInventarioSupabase(id_interno, localRaw, saldoFisicoRaw) {
+        const client = window.supabaseClient;
+        const local = normalizeLocal(localRaw);
+        const saldoFisico = Number(saldoFisicoRaw || 0);
+
+        if (!client || !id_interno || !local || !Number.isFinite(saldoFisico)) {
+            console.error('[INV-DIAG] aplicar saldo fisico ERRO: parametros invalidos', { id_interno, local, saldoFisicoRaw });
+            return false;
+        }
+
+        try {
+            const { data: current, error: fetchError } = await client
+                .from('estoque_atual')
+                .select('id')
+                .eq('id_interno', id_interno)
+                .eq('local', local)
+                .maybeSingle();
+
+            if (fetchError) throw fetchError;
+
+            const now = getDataHoraBrasil();
+            let result;
+
+            if (current) {
+                result = await client
+                    .from('estoque_atual')
+                    .update({
+                        saldo_disponivel: saldoFisico,
+                        saldo_total: saldoFisico,
+                        atualizado_em: now
+                    })
+                    .eq('id_interno', id_interno)
+                    .eq('local', local);
+            } else {
+                result = await client
+                    .from('estoque_atual')
+                    .insert([{
+                        id_interno: id_interno,
+                        local: local,
+                        saldo_disponivel: saldoFisico,
+                        saldo_reservado: 0,
+                        saldo_em_transito: 0,
+                        saldo_total: saldoFisico,
+                        atualizado_em: now
+                    }]);
+            }
+
+            if (result.error) throw result.error;
+            return true;
+        } catch (err) {
+            console.error('[INV-DIAG] aplicar saldo fisico ERRO fatal:', err.message || err);
             return false;
         }
     }
@@ -991,6 +1110,24 @@ const DataClient = (function () {
         return clone;
     }
 
+    function isTemporaryPickingSessionId(sessionId) {
+        return /^SEP-TEMP?-/.test(String(sessionId || '').trim().toUpperCase());
+    }
+
+    function isValidPickingSessionId(sessionId) {
+        return /^SEP-[A-Z0-9]+-\d{4}-\d{2,}$/.test(String(sessionId || '').trim().toUpperCase());
+    }
+
+    function validatePickingSessionBeforeSave(session = {}) {
+        const sessionId = String(session.separacao_id || '').trim();
+        const channelLabel = String(session.canal_nome || '').trim();
+        if (!sessionId) throw new Error('separacao_id nao informado');
+        if (!channelLabel) throw new Error('canal_nome nao informado para separacao');
+        if (isTemporaryPickingSessionId(sessionId) || !isValidPickingSessionId(sessionId)) {
+            throw new Error(`separacao_id invalido para gravacao: ${sessionId}`);
+        }
+    }
+
     async function savePickingDraftSupabase(payload) {
         const client = window.supabaseClient;
         if (!client) throw new Error('Supabase client nao encontrado');
@@ -999,7 +1136,7 @@ const DataClient = (function () {
         const session = payload.session || {};
         const item = payload.item || null;
 
-        if (!session.separacao_id) throw new Error('separacao_id nao informado');
+        validatePickingSessionBeforeSave(session);
 
         const separacaoRow = {
             separacao_id: session.separacao_id,
@@ -1112,6 +1249,9 @@ const DataClient = (function () {
         const now = getDataHoraBrasil();
         const sessionId = payload.sessionId;
         if (!sessionId) throw new Error('separacao_id nao informado');
+        if (isTemporaryPickingSessionId(sessionId) || !isValidPickingSessionId(sessionId)) {
+            throw new Error(`separacao_id invalido para finalizacao: ${sessionId}`);
+        }
 
         const updatePayload = {
             status: payload.status || 'aberta',
@@ -1641,6 +1781,7 @@ const DataClient = (function () {
         clearAllCache,
         saveMovimentoSupabase,
         updateEstoqueSupabase,
+        aplicarSaldoFisicoInventarioSupabase,
         fetchEstoqueProdutoSupabase,
         fetchEstoqueItemLocalSupabase,
         fetchMovimentosSupabase,
