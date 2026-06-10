@@ -3346,7 +3346,7 @@ async function renderAlerts() {
                         ${criticalCount > 0 ? `<span class="operational-alert-badge danger">${criticalCount}</span>` : '<span class="material-symbols-rounded operational-alert-ok">check_circle</span>'}
                     </div>
                     
-                    <div class="menu-card operational-alert-card operational-alert-card-pending" onclick="renderPickMenu()" style="cursor: pointer;">
+                    <div class="menu-card operational-alert-card operational-alert-card-pending" onclick="openPickModeChoice()" style="cursor: pointer;">
                         <span class="material-symbols-rounded icon operational-alert-icon">conveyor_belt</span>
                         <div class="operational-alert-copy">
                             <span class="label operational-alert-title">Separações Pendentes</span>
@@ -3475,7 +3475,7 @@ function getMenuItemsFromConfig() {
 const menuRoutes = {
     dashboard: 'renderAlerts()',
     produtos: 'renderProductSubMenu()',
-    pick: 'renderPickMenu()',
+    pick: 'openPickModeChoice()',
     pack: 'renderPackMenu()',
     compras: 'renderComprasSubMenu()',
     movimentacoes: 'renderMovimentacoesSubMenu()',
@@ -3488,9 +3488,6 @@ const menuRoutes = {
 };
 
 function getQuickActionsHTML(modoRapidoAtivo) {
-    const fastTone = modoRapidoAtivo ? 'is-on' : 'is-off';
-    const fastModeAlt = modoRapidoAtivo ? 'Modo rápido ativado' : 'Modo rápido desativado';
-    const fastModeIcon = modoRapidoAtivo ? '/assets/icons/modo-rapido-on.png' : '/assets/icons/modo-rapido-off.png';
     let pendingSeparationsCount = 0;
     try {
         pendingSeparationsCount = getDraftPickSessionsWithLocalDraft().length;
@@ -3506,13 +3503,6 @@ function getQuickActionsHTML(modoRapidoAtivo) {
         <div id="quick-actions-menu" class="quick-actions-menu quick-actions-sheet hidden" role="menu" aria-label="Ações rápidas">
             <span class="quick-sheet-grabber" aria-hidden="true"></span>
             <div class="quick-actions-list" role="none">
-                <button class="quick-action-item quick-action-card quick-action-priority quick-action-fast ${fastTone}" type="button" role="menuitem" onclick="quickActionToggleFastMode()">
-                    <span class="quick-action-icon quick-action-icon-fast material-symbols-rounded" aria-hidden="true">bolt</span>
-                    <span class="quick-action-label">MODO RÁPIDO</span>
-                    <span class="quick-action-toggle ${modoRapidoAtivo ? 'on' : 'off'}" aria-hidden="true">
-                        <span></span>
-                    </span>
-                </button>
                 <button class="quick-action-item quick-action-card quick-action-priority quick-action-picking-drafts ${pendingSeparationsClass}" type="button" role="menuitem" onclick="quickActionSeparacoesAndamento()">
                     <span class="quick-action-icon quick-action-icon-picking-drafts material-symbols-rounded">folder_open</span>
                     <span class="quick-action-label">SEPARAÇÕES</span>
@@ -3552,9 +3542,8 @@ function getQuickActionsHTML(modoRapidoAtivo) {
             </div>
         </div>
         
-        <button class="quick-action-fab fab-icon-btn fab-funcoes ${modoRapidoAtivo ? 'fast-mode' : ''}" type="button" onclick="toggleQuickActions()" aria-label="Funções rápidas" title="Funções rápidas">
-            <img id="quick-action-icon" class="quick-action-mode-img quick-action-fab-img" src="${fastModeIcon}" alt="${fastModeAlt}" decoding="async" onload="this.nextElementSibling.style.display='none'" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
-            <span class="quick-action-fab-fallback material-symbols-rounded notranslate" translate="no" aria-hidden="true">bolt</span>
+        <button class="quick-action-fab fab-icon-btn fab-funcoes" type="button" onclick="toggleQuickActions()" aria-label="Funções rápidas" title="Funções rápidas">
+            <span class="quick-action-fab-fallback material-symbols-rounded notranslate" translate="no" aria-hidden="true">menu</span>
         </button>
     `;
 }
@@ -5576,6 +5565,87 @@ function showAppPrompt({ title = 'Informar dado', message = '', detail = '', lab
         cancelText: cancelLabel,
         closeOnBackdrop: false
     });
+}
+
+function showPickModeChoiceModal() {
+    return new Promise(resolve => {
+        const existing = document.getElementById('app-confirm-modal');
+        if (existing) existing.remove();
+
+        const currentFastMode = isModoRapidoAtivo();
+        const overlay = document.createElement('div');
+        overlay.id = 'app-confirm-modal';
+        overlay.className = 'app-confirm-overlay app-standard-modal app-pick-mode-overlay modal-warning';
+        overlay.innerHTML = `
+            <div class="app-confirm-dialog app-pick-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="pick-mode-title">
+                <button type="button" class="app-modal-x" data-action="cancel" aria-label="Fechar">
+                    <span class="material-symbols-rounded">close</span>
+                </button>
+                <div class="app-confirm-icon warning">
+                    <span class="material-symbols-rounded">rule_settings</span>
+                </div>
+                <h3 id="pick-mode-title">Como deseja fazer a separação?</h3>
+                <p>Escolha o fluxo antes de criar a separação. Essa escolha evita baixa de estoque no momento errado.</p>
+                <div class="pick-mode-current">
+                    <span>Modo atual</span>
+                    <strong>${currentFastMode ? 'RÁPIDO' : 'NORMAL'}</strong>
+                </div>
+                <div class="pick-mode-choice-grid" role="group" aria-label="Escolher modo da separação">
+                    <button type="button" class="pick-mode-choice pick-mode-fast" data-pick-mode="fast">
+                        <span class="material-symbols-rounded">bolt</span>
+                        <strong>Modo rápido</strong>
+                        <small>Para quando tem somente 1 operador. Finaliza a separação e já baixa o estoque, sem conferência.</small>
+                    </button>
+                    <button type="button" class="pick-mode-choice pick-mode-normal" data-pick-mode="normal">
+                        <span class="material-symbols-rounded">verified</span>
+                        <strong>Modo normal</strong>
+                        <small>Para separador + conferente. A baixa do estoque acontece só depois da conferência.</small>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        let settled = false;
+        const close = (choice = null) => {
+            if (settled) return;
+            settled = true;
+            document.removeEventListener('keydown', onKeyDown);
+            overlay.classList.add('closing');
+            setTimeout(() => overlay.remove(), 160);
+            resolve(choice);
+        };
+
+        overlay.addEventListener('click', event => {
+            const actionEl = event.target?.closest?.('[data-action]');
+            if (actionEl?.dataset?.action === 'cancel') close(null);
+
+            const modeEl = event.target?.closest?.('[data-pick-mode]');
+            if (modeEl?.dataset?.pickMode === 'fast') close('fast');
+            if (modeEl?.dataset?.pickMode === 'normal') close('normal');
+        });
+
+        const onKeyDown = event => {
+            if (!document.body.contains(overlay)) {
+                document.removeEventListener('keydown', onKeyDown);
+                return;
+            }
+            if (event.key === 'Escape') close(null);
+        };
+        document.addEventListener('keydown', onKeyDown);
+
+        document.body.appendChild(overlay);
+        requestAnimationFrame(() => overlay.classList.add('open'));
+    });
+}
+
+async function openPickModeChoice() {
+    const choice = await showPickModeChoiceModal();
+    if (!choice) return;
+
+    const nextFastMode = choice === 'fast';
+    const config = getAppConfig();
+    setAppConfig({ ...config, modo_rapido: nextFastMode });
+    renderPickMenu();
 }
 
 const SECURITY_DEVICE_ID_KEY = 'dy_security_device_id';
@@ -13913,10 +13983,6 @@ async function renderSeparacoesAndamentoScreen() {
 }
 
 async function renderPickMenu() {
-    if (isModoRapidoAtivo()) {
-        showToast("Modo rápido ativo. Use Conferência/Saída direta.", "info");
-        // Opcional: Impedir abertura ou abrir com aviso
-    }
     const currentUser = localStorage.getItem('currentUser');
     
     // Garantir carregamento real do Supabase

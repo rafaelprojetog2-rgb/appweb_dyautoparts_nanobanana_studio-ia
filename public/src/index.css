@@ -40831,6 +40831,163 @@ body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .module-si
   justify-self: center;
 }
 
+/* Separacao: escolha explicita de modo antes de iniciar. */
+.app-pick-mode-dialog {
+  width: min(560px, calc(100vw - 24px)) !important;
+  padding: 24px !important;
+}
+
+.pick-mode-current {
+  align-items: center;
+  background: rgba(255, 255, 255, .68);
+  border: 1px solid rgba(179, 121, 0, .18);
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 16px 0 0;
+  min-height: 42px;
+  padding: 8px 12px;
+}
+
+.pick-mode-current span {
+  color: rgba(36, 26, 0, .68);
+  font-size: .72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.pick-mode-current strong {
+  color: #1f1600;
+  font-family: 'Fjalla One', 'Oswald', sans-serif;
+  font-size: 1.06rem;
+  letter-spacing: 0;
+}
+
+.pick-mode-choice-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.pick-mode-choice {
+  align-items: center;
+  border: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 178px;
+  padding: 18px 14px;
+  text-align: center;
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+
+.pick-mode-choice:hover {
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+}
+
+.pick-mode-choice:active {
+  transform: translateY(1px) scale(.99);
+}
+
+.pick-mode-choice:focus-visible {
+  outline: 3px solid #e10600;
+  outline-offset: 3px;
+}
+
+.pick-mode-choice .material-symbols-rounded {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 30px !important;
+  height: 54px;
+  justify-content: center;
+  width: 54px;
+}
+
+.pick-mode-choice strong {
+  font-family: 'Fjalla One', 'Oswald', sans-serif;
+  font-size: 1.22rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.pick-mode-choice small {
+  font-size: .78rem;
+  font-weight: 850;
+  line-height: 1.28;
+}
+
+.pick-mode-fast {
+  background: linear-gradient(180deg, #ef2b2d 0%, #c9151a 100%);
+  box-shadow: 0 16px 32px rgba(239, 43, 45, .24);
+  color: #ffffff;
+}
+
+.pick-mode-fast .material-symbols-rounded {
+  background: rgba(255, 255, 255, .18);
+  color: #ffffff;
+}
+
+.pick-mode-fast small {
+  color: rgba(255, 255, 255, .86);
+}
+
+.pick-mode-normal {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fafc 100%);
+  border: 1px solid rgba(15, 23, 42, .12);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, .1);
+  color: #111827;
+}
+
+.pick-mode-normal .material-symbols-rounded {
+  background: rgba(20, 184, 166, .14);
+  color: #0f766e;
+}
+
+.pick-mode-normal small {
+  color: #475569;
+}
+
+@media (max-width: 520px) {
+  .app-pick-mode-dialog {
+    padding: 20px !important;
+  }
+
+  .pick-mode-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pick-mode-choice {
+    align-items: center;
+    display: grid;
+    gap: 8px 12px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    min-height: 118px;
+    padding: 14px;
+    text-align: left;
+  }
+
+  .pick-mode-choice small,
+  .pick-mode-choice strong {
+    grid-column: 2;
+  }
+
+  .pick-mode-choice .material-symbols-rounded {
+    grid-row: 1 / span 2;
+  }
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-fallback,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-fallback {
+  display: inline-flex !important;
+}
+
 .pick-search-suggestions {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -58980,4 +59137,9 @@ html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-bl
   html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-pause-btn .material-symbols-rounded {
     font-size: 1.55rem !important;
   }
+}
+
+body:not(.login-active) #app > .dashboard-screen.menu-screen .quick-action-fab .quick-action-fab-fallback,
+body:not(.login-active) #app > .dashboard-screen.pick-workflow-screen .quick-action-fab .quick-action-fab-fallback {
+  display: inline-flex !important;
 }
