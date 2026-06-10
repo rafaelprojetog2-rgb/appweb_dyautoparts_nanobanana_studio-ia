@@ -58734,3 +58734,250 @@ html[data-theme="light"] #app > .dashboard-screen.product-search-screen .product
     display: none !important;
   }
 }
+/* Conferencia mobile alinhada ao fluxo de separacao. */
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 5px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card > .material-symbols-rounded,
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card em {
+  display: none !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-product-main {
+  align-items: center !important;
+  display: grid !important;
+  gap: 12px !important;
+  grid-template-columns: 62px minmax(0, 1fr) !important;
+  min-width: 0 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-product-image {
+  align-items: center !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  color: #94a3b8 !important;
+  display: flex !important;
+  height: 62px !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  width: 62px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-product-image img {
+  display: block !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  width: 100% !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-product-meta {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px 10px !important;
+  margin-top: 6px !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-product-meta span:not(.pack-blind-status) {
+  color: #64748b !important;
+  font-size: .76rem !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-qty {
+  align-items: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  min-width: 46px !important;
+  text-align: center !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-qty-number {
+  color: #111827 !important;
+  font-family: 'Fjalla One', 'Oswald', sans-serif !important;
+  font-size: 1.7rem !important;
+  line-height: 1 !important;
+}
+
+html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-qty-unit {
+  color: #111827 !important;
+  font-size: .72rem !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+  margin-top: 4px !important;
+  text-transform: lowercase !important;
+}
+
+@media (max-width: 767px) {
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-header {
+    grid-template-columns: 42px minmax(0, 1fr) 42px !important;
+    min-height: 46px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title h1 {
+    font-size: clamp(1rem, 5vw, 1.24rem) !important;
+    white-space: nowrap !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title p,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-panel h2,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-progress,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-footer {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-title-icon {
+    display: inline-flex !important;
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scan-field {
+    grid-template-columns: 42px minmax(0, 1fr) 44px !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    padding: 0 8px !important;
+    border-color: #ef2b2d !important;
+    border-radius: 14px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scan-field > .material-symbols-rounded,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-scanner-btn .material-symbols-rounded {
+    color: #ef2b2d !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card {
+    min-height: 62px !important;
+    padding: 10px 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card:not(:last-child) {
+    border-right: 1px solid rgba(15, 23, 42, .1) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card small {
+    font-size: .66rem !important;
+    line-height: 1 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-info-card strong {
+    font-size: clamp(.8rem, 3.6vw, .98rem) !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-work-area,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-panel,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-panel {
+    border-radius: 14px !important;
+    max-height: 46dvh !important;
+    min-height: 250px !important;
+    overflow: hidden !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-header {
+    padding: 14px 16px 10px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-list-header h2 {
+    font-size: 1rem !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen #pack-blind-list-count {
+    border-radius: 999px !important;
+    font-size: .72rem !important;
+    padding: 8px 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-table-head {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-items-list {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 0 14px 12px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-row {
+    align-items: center !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-radius: 0 !important;
+    display: grid !important;
+    gap: 10px !important;
+    grid-template-columns: minmax(0, 1fr) 48px 34px !important;
+    padding: 14px 0 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-row > *::before {
+    display: none !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-row strong {
+    font-size: clamp(.92rem, 4.2vw, 1.05rem) !important;
+    line-height: 1.12 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-status {
+    font-size: .62rem !important;
+    padding: 4px 7px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-row-adjust {
+    background: transparent !important;
+    border: 0 !important;
+    color: #ef2b2d !important;
+    height: 34px !important;
+    width: 34px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics > div {
+    min-height: 62px !important;
+    padding: 8px 6px !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-summary-metrics small {
+    font-size: .64rem !important;
+    line-height: 1.05 !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-finish-btn,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-pause-btn {
+    border-radius: 8px !important;
+    min-height: 54px !important;
+    width: 100% !important;
+  }
+
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-finish-btn .material-symbols-rounded,
+  html body:not(.login-active) #app > .dashboard-screen.pack-blind-screen .pack-blind-pause-btn .material-symbols-rounded {
+    font-size: 1.55rem !important;
+  }
+}

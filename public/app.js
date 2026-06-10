@@ -17404,8 +17404,6 @@ async function renderPackSessionDetails(sessionId) {
 function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '', channelName = '') {
     const icon = getChannelConfig(channelName).svgIcon || menu3DIcons?.conferencia || '<span class="material-symbols-rounded">fact_check</span>';
     const title = channelName ? channelName.toUpperCase() : 'CONFERÊNCIA';
-    const createdAt = currentPackSession?.pickingData?.criado_em || currentPackSession?.time || getDataHoraBrasil();
-    const createdAtLabel = formatPackSeparationDate(createdAt);
     const packageCount = getPickPackageCountFrom(currentPackSession?.pickingData || currentPackSession || {});
 
     app.innerHTML = `
@@ -17421,14 +17419,13 @@ function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '', 
                     <div class="pack-blind-title">
                         <span class="pack-blind-title-icon">${icon}</span>
                         <div>
-                            <h1>CONFERÊNCIA (CEGA)</h1>
-                            <p>Escaneie o produto para conferir</p>
+                            <h1>CONFERÊNCIA (PACK)</h1>
                         </div>
                     </div>
 
                     <button class="pack-blind-manual-btn" type="button" onclick="focusPackManualInput()">
                         <span class="material-symbols-rounded">barcode</span>
-                        Informar Codigo
+                        Informar Código
                     </button>
                 </header>
 
@@ -17436,8 +17433,10 @@ function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '', 
                     <div class="pack-blind-scan-field">
                         <span class="material-symbols-rounded">search</span>
                         <input type="text" id="pack-ean-input" class="product-search-input"
-                               placeholder="Escaneie o produto (EAN, SKU ou codigo interno)"
-                               onkeydown="if(event.key === 'Enter'){ event.preventDefault(); addPackScan(); }" autocomplete="off" autofocus>
+                               placeholder="Bipe o produto (EAN, SKU ou código interno)"
+                               onkeydown="if(event.key === 'Enter'){ event.preventDefault(); addPackScan(); }"
+                               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                               inputmode="none" enterkeyhint="done" autofocus>
                         <button class="pack-blind-scanner-btn" onclick="startScanner(false, true)" title="Abrir Scanner" type="button">
                             <span class="material-symbols-rounded">qr_code_scanner</span>
                         </button>
@@ -17453,67 +17452,39 @@ function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '', 
 
                 <section class="pack-blind-info-grid">
                     <article class="pack-blind-info-card">
-                        <span class="material-symbols-rounded">assignment</span>
-                        <div>
-                            <small>ID DA CONFERÊNCIA</small>
-                            <strong>${escapeKitAttribute(sessionId)}</strong>
-                            <em>Cega</em>
-                        </div>
+                        <small>CANAL</small>
+                        <strong>${escapeKitAttribute(title)}</strong>
                     </article>
                     <article class="pack-blind-info-card">
-                        <span class="material-symbols-rounded">hub</span>
-                        <div>
-                            <small>CANAL</small>
-                            <strong>${escapeKitAttribute(title)}</strong>
-                            <em>${escapeKitAttribute(getPickChannelSubtitle(channelName || title))}</em>
-                        </div>
+                        <small>ID DA SEPARAÇÃO</small>
+                        <strong>${escapeKitAttribute(sessionId)}</strong>
                     </article>
                     <article class="pack-blind-info-card">
-                        <span class="material-symbols-rounded">visibility_off</span>
-                        <div>
-                            <small>CONFERÊNCIA</small>
-                            <strong>CEGA</strong>
-                            <em>Sem visualização dos itens</em>
-                        </div>
+                        <small>OPERADOR</small>
+                        <strong>${escapeKitAttribute(currentUser || '-')}</strong>
                     </article>
                 </section>
 
                 <section class="pack-blind-work-area">
                     <div class="pack-blind-list-panel">
                         <div class="pack-blind-list-header">
-                            <h2>PRODUTOS PARA CONFERÊNCIA</h2>
-                            <span id="pack-blind-list-count">0</span>
+                            <h2>PRODUTOS BIPADOS</h2>
+                            <span id="pack-blind-list-count">0 PRODUTO(S)</span>
                         </div>
                         <div class="pack-blind-table-head">
-                            <span>Item</span>
-                            <span>Status</span>
-                            <span>Quantidade</span>
+                            <span>Produto</span>
+                            <span>Quantidade bipada</span>
+                            <span>Ações</span>
                         </div>
                         <div id="pack-divergence-alert" class="pack-divergence-alert hidden"></div>
                         <div id="pack-items-list" class="pack-blind-items-list"></div>
-                        <div class="pack-blind-warning">
-                            <span class="material-symbols-rounded">info</span>
-                            <div>
-                                <strong>Nesta conferência você não verá a descrição dos produtos.</strong>
-                                <small>Apenas ao finalizar será exibido o resultado da conferência.</small>
-                            </div>
-                        </div>
                     </div>
 
                     <aside class="pack-blind-summary-panel">
-                        <h2>RESUMO DA CONFERÊNCIA</h2>
                         <div class="pack-blind-summary-metrics">
-                            <div><span class="material-symbols-rounded">assignment_turned_in</span><small>Itens</small><strong id="pack-summary-items">0</strong><em>itens</em></div>
-                            <div><span class="material-symbols-rounded">inventory_2</span><small>Unidades</small><strong id="pack-summary-units">0</strong><em>unidades</em></div>
-                            <div><span class="material-symbols-rounded">package_2</span><small>Pacotes</small><strong id="pack-summary-packages">${packageCount}</strong><em>volumes</em></div>
-                        </div>
-                        <div class="pack-blind-progress">
-                            <small>Progresso</small>
-                            <div class="pack-blind-progress-ring">
-                                <strong id="pack-summary-progress">0%</strong>
-                                <span>Conferido</span>
-                            </div>
-                            <em id="pack-summary-ratio">0 / 0 itens</em>
+                            <div><small>Produtos diferentes</small><strong id="pack-summary-items">0</strong></div>
+                            <div><small>Itens / bips</small><strong id="pack-summary-units">0</strong></div>
+                            <div><small>Pacotes</small><strong id="pack-summary-packages">${packageCount}</strong></div>
                         </div>
                         <button class="pack-blind-finish-btn" id="btn-finish-pack" disabled>
                             <span class="material-symbols-rounded">check_circle</span>
@@ -17526,12 +17497,6 @@ function renderPackSessionFrame(sessionId, currentUser, channelColorClass = '', 
                     </aside>
                 </section>
 
-                <footer class="pack-blind-footer">
-                    <span>ID conferência: <strong>${escapeKitAttribute(sessionId)}</strong></span>
-                    <span>Canal: <strong>${escapeKitAttribute(title)}</strong></span>
-                    <span>Tipo: <strong>CEGA</strong></span>
-                    <span>Criado em: <strong>${escapeKitAttribute(createdAtLabel)}</strong></span>
-                </footer>
             </main>
         </div>
     `;
@@ -17611,7 +17576,7 @@ function updatePackChrome() {
     if (unitsEl) unitsEl.textContent = String(stats.checkedQty);
     if (progressEl) progressEl.textContent = `${progress}%`;
     if (ratioEl) ratioEl.textContent = `${stats.checkedItems} / ${expectedItems} itens`;
-    if (listCountEl) listCountEl.textContent = String(stats.checkedItems);
+    if (listCountEl) listCountEl.textContent = `${stats.checkedItems} PRODUTO(S)`;
 }
 
 function renderPackItemsListHTML() {
@@ -17633,30 +17598,41 @@ function renderPackItemsListHTML() {
         return `
             <div class="pack-blind-empty-state">
                 <span class="material-symbols-rounded">barcode_scanner</span>
-                <strong>Nenhum produto conferido ainda.</strong>
-                <small>Escaneie os produtos para iniciar a conferência cega.</small>
+                <strong>Nenhum produto bipado ainda.</strong>
+                <small>Bipe os produtos para iniciar a conferência.</small>
             </div>
         `;
     }
 
     if (btnFinish) btnFinish.disabled = !rowsToShow.some(row => parseFloat(row.qtd_conferida || 0) > 0);
 
-    return rowsToShow.map((row, visibleIndex) => {
+    return rowsToShow.map((row) => {
         const index = currentPackSession.conferenceRows.indexOf(row);
         const checked = parseFloat(row.qtd_conferida || 0);
         const state = getConferenceRowState(row);
+        const title = getPickItemTitle(row);
+        const image = getPickProductImage(row);
         return `
             <div class="pack-blind-row fade-in">
-                <div data-label="Item">
-                    <strong>Item conferido ${String(visibleIndex + 1).padStart(2, '0')}</strong>
-                    <small>Dados ocultos até finalizar</small>
+                <div class="pack-blind-product-main" data-label="Produto">
+                    <div class="pack-blind-product-image">
+                        ${image ? `<img src="${escapeKitAttribute(image)}" alt="${escapeKitAttribute(title)}" onerror="this.style.display='none'; this.parentElement.innerHTML='<span class=\\'material-symbols-rounded\\'>inventory_2</span>'">` : `<span class="material-symbols-rounded">inventory_2</span>`}
+                    </div>
+                    <div>
+                        <strong>${escapeKitAttribute(title)}</strong>
+                        <div class="pack-blind-product-meta">
+                            <span>SKU: ${escapeKitAttribute(getPickItemSku(row))}</span>
+                            <span>EAN: ${escapeKitAttribute(getPickItemEan(row))}</span>
+                            <span class="pack-blind-status ${state.tone}">${state.label}</span>
+                        </div>
+                    </div>
                 </div>
-                <div data-label="Status">
-                    <span class="pack-blind-status ${state.tone}">${state.label}</span>
+                <div class="pack-blind-qty" data-label="Quantidade bipada">
+                    <span class="pack-blind-qty-number">${formatStockNumber(checked)}</span>
+                    <span class="pack-blind-qty-unit">un</span>
                 </div>
-                <div class="pack-blind-qty" data-label="Quantidade">Oculta</div>
                 <button class="pack-blind-row-adjust" onclick="adjustConferenceRowDirect(${index}, -1)" type="button" aria-label="Remover uma unidade">
-                    <span class="material-symbols-rounded">remove</span>
+                    <span class="material-symbols-rounded">delete</span>
                 </button>
             </div>
         `;
